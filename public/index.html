@@ -262,9 +262,16 @@
       <div class="tstat"><div class="val" id="top-gold">48,200 GC</div><div class="lbl">Gold</div></div>
       <div class="tstat"><div class="val" id="top-mana">22,400</div><div class="lbl">Mana</div></div>
       <div class="tstat hide-sm"><div class="val" id="top-rank">#47</div><div class="lbl">Rank</div></div>
-      <div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="text-align:right">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:13px;color:var(--text2)">Turns:</span>
+            <span id="turns-stored-disp" style="font-size:15px;font-weight:700;color:var(--gold)">200</span>
+            <span style="font-size:12px;color:var(--text3)">/200</span>
+          </div>
+          <div class="countdown">+5 in <span id="regen-countdown">15:00</span></div>
+        </div>
         <button class="turn-btn" onclick="takeTurn()">Take Turn</button>
-        <div class="countdown">Next auto-turn in <span id="countdown">14:22</span></div>
       </div>
     </div>
   </header>
@@ -1420,14 +1427,29 @@ function syncUI() {
   });
 }
 
-// Countdown timer
-var secs = 862;
+// Regen countdown — syncs to server's 15-min cycle
+var regenSecs = 15 * 60;
 setInterval(function() {
-  secs--;
-  if (secs < 0) secs = 900;
-  var m = Math.floor(secs / 60), s = secs % 60;
-  document.getElementById('countdown').textContent = m + ':' + (s < 10 ? '0' : '') + s;
+  regenSecs--;
+  if (regenSecs < 0) {
+    regenSecs = 15 * 60;
+    // Optimistically add 5 turns client-side (server does the real update)
+    if (typeof state.turns_stored !== 'undefined') {
+      state.turns_stored = Math.min(200, (state.turns_stored || 0) + 5);
+      updateTurnsDisplay();
+    }
+  }
+  var m = Math.floor(regenSecs / 60), s = regenSecs % 60;
+  var el = document.getElementById('regen-countdown');
+  if (el) el.textContent = m + ':' + (s < 10 ? '0' : '') + s;
 }, 1000);
+
+function updateTurnsDisplay() {
+  var el = document.getElementById('turns-stored-disp');
+  if (el) el.textContent = state.turns_stored || 0;
+  var btn = document.querySelector('.turn-btn');
+  if (btn) btn.style.opacity = (state.turns_stored > 0) ? '1' : '0.4';
+}
 </script>
 
 <nav class="bottom-nav" id="bottom-nav">
@@ -1600,8 +1622,10 @@ async function loadKingdom() {
     mages: kingdom.mages, thieves: kingdom.thieves, ninjas: kingdom.ninjas,
     researchers: kingdom.researchers, engineers: kingdom.engineers,
     kingdomId: kingdom.id, kingdomName: kingdom.name,
+    turns_stored: kingdom.turns_stored !== undefined ? kingdom.turns_stored : 200,
   });
   syncUI();
+  updateTurnsDisplay();
   document.getElementById('kingdom-name').textContent = kingdom.name;
   document.getElementById('turn-num').textContent = kingdom.turn;
 
@@ -1649,12 +1673,15 @@ async function loadRankings() {
 
 // Override takeTurn to hit real server
 takeTurn = async function() {
+  if (state.turns_stored < 1) return toast('No turns available — refills in ' + document.getElementById('regen-countdown').textContent, 'warn');
   var result = await apiCall('POST', '/api/kingdom/turn');
   if (result.error) return toast(result.error, 'error');
   Object.assign(state, result.updates);
+  if (result.turns_stored !== undefined) state.turns_stored = result.turns_stored;
   syncUI();
+  updateTurnsDisplay();
   document.getElementById('turn-num').textContent = state.turn;
-  toast('Turn ' + state.turn + ' complete', 'success');
+  toast('Turn ' + state.turn + ' complete · ' + state.turns_stored + ' turns remaining', 'success');
 };
 
 // Override hire to hit real server
