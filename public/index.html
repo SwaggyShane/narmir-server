@@ -1617,11 +1617,11 @@ async function loadKingdom() {
   };
   var race = raceData[kingdom.race] || { label: kingdom.race, plural: kingdom.race, bonus: '' };
 
-  // Owner line: "username's Realm of the High Elves"
+  // Owner line: "Username of Kingdom"
   var ownerLine = document.getElementById('kingdom-owner-line');
   if (ownerLine) {
     ownerLine.innerHTML = '<strong style="color:var(--text)">' + (kingdom.username || '') + '</strong>'
-      + (kingdom.username ? "'s " : '') + 'Realm of the <strong style="color:var(--purple)">' + race.plural + '</strong>';
+      + ' of <strong style="color:var(--gold)">' + kingdom.name + '</strong>';
   }
 
   // Race tag (top right of header)
