@@ -96,7 +96,6 @@
   /* ── Kingdom header ── */
   .kingdom-header { margin-bottom: 14px; }
   .kingdom-header h1 { font-size: 20px; }
-  .kingdom-header .race-tag { display: none; }
 
   /* ── Metric strip — 2 cols on mobile, 5 on desktop ── */
   .metrics { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; margin-bottom: 16px; }
@@ -231,7 +230,6 @@
     .two-col { grid-template-columns: 1fr 1fr; gap: 16px; }
     .trow .desc { display: block; }
     .kingdom-header h1 { font-size: 26px; }
-    .kingdom-header .race-tag { display: inline-flex; }
     #toast { bottom: 24px; left: auto; right: 24px; transform: translateY(8px); white-space: nowrap; text-align: left; max-width: 320px; }
     #toast.show { transform: translateY(0); }
     #attack > div, #spells > div, #covert > div { grid-template-columns: 1fr 320px !important; }
@@ -299,8 +297,8 @@
       <div>
         <h1 style="font-size:26px;font-weight:700;color:var(--text);line-height:1.2" id="kingdom-name">Ironveil</h1>
         <div style="color:var(--text2);font-size:13px;margin-top:4px"><span id="kingdom-owner-line">Realm of the <strong style="color:var(--purple)">High Elves</strong></span> · Turn <span id="turn-num" style="color:var(--text);font-weight:600">143</span> · <span class="badge badge-green">Protected</span></div>
+        <div style="margin-top:6px"><span class="race-tag" id="race-tag-display"><strong>High Elf</strong> · +15% research efficiency · Powerful magic</span></div>
       </div>
-      <div class="race-tag" id="race-tag-display"><strong>High Elf</strong> · +15% research efficiency · Powerful magic</div>
     </div>
 
     <!-- Metrics strip -->
