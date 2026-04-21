@@ -24,7 +24,7 @@ module.exports = function(db) {
         'INSERT INTO players (username, password) VALUES (?, ?)', [username, hash]
       );
       await db.run(
-        'INSERT INTO kingdoms (player_id, name, race, gold, land, population, researchers) VALUES (?, ?, ?, 10000, 500, 50000, 500)',
+        'INSERT INTO kingdoms (player_id, name, race, gold, land, population, researchers, turns_stored) VALUES (?, ?, ?, 10000, 500, 50000, 500, 200)',
         [playerResult.lastID, kingdomName, chosenRace]
       );
       const token = jwt.sign({ playerId: playerResult.lastID, username }, JWT_SECRET, { expiresIn: '30d' });

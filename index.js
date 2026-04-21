@@ -88,6 +88,26 @@ async function start() {
   setupSockets(io, db);
   console.log('[socket.io] Real-time handlers registered');
 
+  // ── Turn regeneration — 5 turns every 15 minutes, max 200 ─────────────────
+  const REGEN_AMOUNT = 5;
+  const REGEN_MAX    = 200;
+  const REGEN_MS     = 15 * 60 * 1000;
+
+  setInterval(async () => {
+    try {
+      await db.run(`
+        UPDATE kingdoms
+        SET turns_stored = MIN(?, turns_stored + ?)
+        WHERE turns_stored < ?
+      `, [REGEN_MAX, REGEN_AMOUNT, REGEN_MAX]);
+      console.log('[turns] Regenerated ' + REGEN_AMOUNT + ' turns for all kingdoms');
+    } catch (err) {
+      console.error('[turns] Regen error:', err);
+    }
+  }, REGEN_MS);
+
+  console.log('[turns] Regen timer started — +' + REGEN_AMOUNT + ' turns every 15 min (max ' + REGEN_MAX + ')');
+
   server.listen(PORT, () => {
     console.log(`Narmir running on port ${PORT}`);
   });
