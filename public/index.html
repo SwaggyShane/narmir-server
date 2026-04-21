@@ -1586,6 +1586,7 @@ function showLoginModal() {
     document.getElementById('btn-register').disabled = false;
 
     if (result.error) { errEl.textContent = result.error; return; }
+    state.username = username;
     overlay.remove();
     loadKingdom();
   }
@@ -1620,7 +1621,8 @@ async function loadKingdom() {
   // Owner line: "Username of Kingdom"
   var ownerLine = document.getElementById('kingdom-owner-line');
   if (ownerLine) {
-    ownerLine.innerHTML = '<strong style="color:var(--text)">' + (kingdom.username || '') + '</strong>'
+    var displayName = kingdom.username || state.username || '';
+    ownerLine.innerHTML = '<strong style="color:var(--text)">' + displayName + '</strong>'
       + ' of <strong style="color:var(--gold)">' + kingdom.name + '</strong>';
   }
 
@@ -1676,6 +1678,7 @@ apiCall('GET', '/api/auth/me').then(function(me) {
   if (me.error) {
     showLoginModal();
   } else {
+    state.username = me.username;
     loadKingdom();
   }
 });
