@@ -237,6 +237,12 @@
     #attack > div, #spells > div, #covert > div { grid-template-columns: 1fr 320px !important; }
     #spells > div { grid-template-columns: 1fr 340px !important; }
     #alliances > div { grid-template-columns: 1fr 300px !important; }
+    /* Right action panel stays at top while target list scrolls */
+    #attack > div > div:last-child,
+    #spells > div > div:last-child,
+    #covert > div > div:last-child { position: sticky; top: 0; align-self: start; }
+    /* Cap target list height so it scrolls internally */
+    #target-list, #covert-target-list, #spell-list { max-height: 420px; overflow-y: auto; }
     input[type=number], input[type=text] { font-size: 13px; padding: 6px 10px; }
     input[type=text] { font-size: 13px; }
     select { font-size: 13px; }
@@ -292,9 +298,9 @@
     <div class="kingdom-header" style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
       <div>
         <h1 style="font-size:26px;font-weight:700;color:var(--text);line-height:1.2" id="kingdom-name">Ironveil</h1>
-        <div style="color:var(--text2);font-size:13px;margin-top:4px">Realm of the <strong style="color:var(--purple)">High Elves</strong> · Turn <span id="turn-num" style="color:var(--text);font-weight:600">143</span> · <span class="badge badge-green">Protected</span></div>
+        <div style="color:var(--text2);font-size:13px;margin-top:4px"><span id="kingdom-owner-line">Realm of the <strong style="color:var(--purple)">High Elves</strong></span> · Turn <span id="turn-num" style="color:var(--text);font-weight:600">143</span> · <span class="badge badge-green">Protected</span></div>
       </div>
-      <div class="race-tag"><strong>High Elf</strong> · +15% research efficiency · Powerful magic</div>
+      <div class="race-tag" id="race-tag-display"><strong>High Elf</strong> · +15% research efficiency · Powerful magic</div>
     </div>
 
     <!-- Metrics strip -->
@@ -1600,20 +1606,33 @@ async function loadKingdom() {
   document.getElementById('kingdom-name').textContent = kingdom.name;
   document.getElementById('turn-num').textContent = kingdom.turn;
 
-  // Populate race displays
-  var raceLabels = {
-    high_elf: 'High Elf · +15% research · powerful magic',
-    dwarf:    'Dwarf · +20% construction · strong war machines',
-    dire_wolf:'Dire Wolf · +25% military attack · poor research',
-    dark_elf: 'Dark Elf · +20% covert · stealth bonus',
-    human:    'Human · Balanced · no bonuses',
-    orc:      'Orc · +20% fighter strength · -10% economy',
+  // Race data
+  var raceData = {
+    high_elf:  { label: 'High Elf',   plural: 'High Elves',  bonus: '+15% research · powerful magic' },
+    dwarf:     { label: 'Dwarf',      plural: 'Dwarves',     bonus: '+20% construction · strong war machines' },
+    dire_wolf: { label: 'Dire Wolf',  plural: 'Dire Wolves', bonus: '+25% military attack · poor research' },
+    dark_elf:  { label: 'Dark Elf',   plural: 'Dark Elves',  bonus: '+20% covert · stealth bonus' },
+    human:     { label: 'Human',      plural: 'Humans',      bonus: 'Balanced · no bonuses or penalties' },
+    orc:       { label: 'Orc',        plural: 'Orcs',        bonus: '+20% fighter strength · -10% economy' },
   };
-  var raceLabel = raceLabels[kingdom.race] || kingdom.race;
-  var raceTagEl = document.querySelector('.race-tag');
-  if (raceTagEl) raceTagEl.innerHTML = '<strong>' + (kingdom.race || 'Human').replace('_',' ').replace(/\b\w/g,function(c){return c.toUpperCase();}) + '</strong> · ' + (raceLabels[kingdom.race] || '').split('·').slice(1).join('·').trim();
+  var race = raceData[kingdom.race] || { label: kingdom.race, plural: kingdom.race, bonus: '' };
+
+  // Owner line: "username's Realm of the High Elves"
+  var ownerLine = document.getElementById('kingdom-owner-line');
+  if (ownerLine) {
+    ownerLine.innerHTML = '<strong style="color:var(--text)">' + (kingdom.username || '') + '</strong>'
+      + (kingdom.username ? "'s " : '') + 'Realm of the <strong style="color:var(--purple)">' + race.plural + '</strong>';
+  }
+
+  // Race tag (top right of header)
+  var raceTagEl = document.getElementById('race-tag-display');
+  if (raceTagEl) {
+    raceTagEl.innerHTML = '<strong>' + race.label + '</strong> · ' + race.bonus;
+  }
+
+  // Options panel race display
   var optRaceEl = document.getElementById('options-race-display');
-  if (optRaceEl) optRaceEl.textContent = raceLabel;
+  if (optRaceEl) optRaceEl.textContent = race.label + ' — ' + race.bonus;
 
   loadRankings();
 }
