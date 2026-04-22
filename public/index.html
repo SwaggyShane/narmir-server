@@ -1095,6 +1095,8 @@ function populateInputs() {
   // Armor — forge enough to fully equip all fighters
   var ba = document.getElementById('b-armor');
   if (ba) ba.value = Math.max(0, (state.fighters || 0) - (state.armor_stockpile || 0));
+  // Spell power slider — max mana
+  var sp = document.getElementById('sl-power');
   if (sp) { sp.max = state.mana || 200000; sp.value = Math.min(state.mana || 0, 200000); updateSpellCalc(); }
 }
 
