@@ -14,16 +14,79 @@ const io     = new Server(server, { cors: { origin: '*', credentials: true } });
 
 const PORT = process.env.PORT || 3000;
 
+// ── Rate limiting ──────────────────────────────────────────────────────────────
+function makeRateLimiter(maxRequests, windowMs) {
+  const hits = new Map();
+  setInterval(() => hits.clear(), windowMs);
+  return function(req, res, next) {
+    const key = req.ip || 'unknown';
+    const count = (hits.get(key) || 0) + 1;
+    hits.set(key, count);
+    if (count > maxRequests) {
+      return res.status(429).json({ error: 'Too many requests — slow down' });
+    }
+    next();
+  };
+}
+
+const authLimiter   = makeRateLimiter(10, 60 * 1000);      // 10 auth attempts/min
+const turnLimiter   = makeRateLimiter(60, 60 * 1000);      // 60 turn/action requests/min
+const generalLimiter= makeRateLimiter(200, 60 * 1000);     // 200 general requests/min
+
 app.use(express.json());
 app.use(cookieParser());
+app.use(generalLimiter);
 app.use(express.static(path.join(__dirname, 'public')));
+
+// ── Turn regen constants ───────────────────────────────────────────────────────
+const REGEN_AMOUNT = 5;
+const REGEN_MAX    = 200;
+const REGEN_MS     = 15 * 60 * 1000;
+
+async function runRegen(db) {
+  await db.run(`
+    UPDATE kingdoms
+    SET turns_stored = MIN(?, turns_stored + ?)
+    WHERE turns_stored < ?
+  `, [REGEN_MAX, REGEN_AMOUNT, REGEN_MAX]);
+  await db.run(
+    "UPDATE server_state SET value = CAST(unixepoch() AS TEXT) WHERE key = 'last_regen_at'"
+  );
+  console.log('[turns] Regen complete — +' + REGEN_AMOUNT + ' turns to all kingdoms');
+}
 
 async function start() {
   const db = await initDb();
   console.log('[db] SQLite initialised');
 
-  app.use('/api/auth',    require('./routes/auth')(db));
-  app.use('/api/kingdom', require('./routes/kingdom')(db));
+  // ── Crash-safe regen on boot ─────────────────────────────────────────────────
+  // Calculate how many 15-min windows passed since last regen and apply them now
+  const regenRow = await db.get("SELECT value FROM server_state WHERE key = 'last_regen_at'");
+  if (regenRow) {
+    const lastRegen = Number(regenRow.value);
+    const now       = Math.floor(Date.now() / 1000);
+    const elapsed   = now - lastRegen;
+    const windows   = Math.floor(elapsed / (REGEN_MS / 1000));
+    if (windows > 0) {
+      const catchUp = Math.min(windows * REGEN_AMOUNT, REGEN_MAX);
+      await db.run(`
+        UPDATE kingdoms SET turns_stored = MIN(?, turns_stored + ?)
+      `, [REGEN_MAX, catchUp]);
+      await db.run(
+        "UPDATE server_state SET value = CAST(unixepoch() AS TEXT) WHERE key = 'last_regen_at'"
+      );
+      console.log('[turns] Boot catch-up: applied ' + windows + ' missed window(s), +'  + catchUp + ' turns');
+    }
+  }
+
+  // Schedule ongoing regen
+  setInterval(() => runRegen(db), REGEN_MS);
+  console.log('[turns] Regen timer started — +' + REGEN_AMOUNT + ' every 15 min (max ' + REGEN_MAX + ')');
+
+  // ── Routes ────────────────────────────────────────────────────────────────────
+  app.use('/api/auth',    authLimiter,  require('./routes/auth')(db));
+  app.use('/api/kingdom', turnLimiter,  require('./routes/kingdom')(db));
+  app.use('/api/admin',                 require('./routes/admin')(db, io));
 
   app.post('/api/alliance/create', requireAuth, async (req, res) => {
     const { name } = req.body;
@@ -79,7 +142,12 @@ async function start() {
     res.json(msgs.reverse());
   });
 
-  app.get('/api/health', (_req, res) => res.json({ ok: true, uptime: process.uptime() }));
+  app.get('/api/health', (_req, res) => res.json({ ok: true, uptime: Math.floor(process.uptime()) }));
+
+  // Admin panel HTML served at /admin
+  app.get('/admin', (_req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+  });
 
   app.get('*', (_req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -88,28 +156,8 @@ async function start() {
   setupSockets(io, db);
   console.log('[socket.io] Real-time handlers registered');
 
-  // ── Turn regeneration — 5 turns every 15 minutes, max 200 ─────────────────
-  const REGEN_AMOUNT = 5;
-  const REGEN_MAX    = 200;
-  const REGEN_MS     = 15 * 60 * 1000;
-
-  setInterval(async () => {
-    try {
-      await db.run(`
-        UPDATE kingdoms
-        SET turns_stored = MIN(?, turns_stored + ?)
-        WHERE turns_stored < ?
-      `, [REGEN_MAX, REGEN_AMOUNT, REGEN_MAX]);
-      console.log('[turns] Regenerated ' + REGEN_AMOUNT + ' turns for all kingdoms');
-    } catch (err) {
-      console.error('[turns] Regen error:', err);
-    }
-  }, REGEN_MS);
-
-  console.log('[turns] Regen timer started — +' + REGEN_AMOUNT + ' turns every 15 min (max ' + REGEN_MAX + ')');
-
   server.listen(PORT, () => {
-    console.log(`Narmir running on port ${PORT}`);
+    console.log('Narmir running on port ' + PORT);
   });
 }
 
