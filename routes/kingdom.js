@@ -34,6 +34,13 @@ module.exports = function(db) {
     res.json(items);
   });
 
+  router.delete('/news/clear', requireAuth, async (req, res) => {
+    const k = await db.get('SELECT id FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
+    if (!k) return res.status(404).json({ error: 'Kingdom not found' });
+    await db.run('DELETE FROM news WHERE kingdom_id = ?', [k.id]);
+    res.json({ ok: true });
+  });
+
   // ── Take turn (advance game state) ───────────────────────────────────────────
   router.post('/turn', requireAuth, async (req, res) => {
     const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
