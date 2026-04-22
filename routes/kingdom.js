@@ -12,7 +12,21 @@ module.exports = function(db) {
       [req.player.playerId]
     );
     if (!k) return res.status(404).json({ error: 'Kingdom not found' });
+    // Parse JSON allocation
+    try { k.research_allocation = JSON.parse(k.research_allocation || '{}'); } catch { k.research_allocation = {}; }
     res.json(k);
+  });
+
+  // ── Save research allocation ───────────────────────────────────────────────
+  router.post('/research-allocation', requireAuth, async (req, res) => {
+    const { allocation } = req.body;
+    if (!allocation || typeof allocation !== 'object') return res.status(400).json({ error: 'allocation object required' });
+    const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
+    if (!k) return res.status(404).json({ error: 'Kingdom not found' });
+    const total = Object.values(allocation).reduce((s, v) => s + (Number(v) || 0), 0);
+    if (total > k.researchers) return res.status(400).json({ error: `Total allocated (${total.toLocaleString()}) exceeds researchers (${k.researchers.toLocaleString()})` });
+    await db.run('UPDATE kingdoms SET research_allocation = ? WHERE id = ?', [JSON.stringify(allocation), k.id]);
+    res.json({ ok: true });
   });
 
   router.get('/rankings', requireAuth, async (_req, res) => {
