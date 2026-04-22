@@ -124,38 +124,46 @@ module.exports = function(db) {
     res.json({ ok: true, increment: resResult.increment, updates: finalUpdates, events, turns_stored: finalUpdates.turns_stored });
   });
 
-  // ── Build ─────────────────────────────────────────────────────────────────────
-  router.post('/build', requireAuth, async (req, res) => {
-    const { building, quantity } = req.body;
+  // ── Queue buildings (no turn cost — engineers work each turn automatically) ────
+  router.post('/build-queue', requireAuth, async (req, res) => {
+    const { orders } = req.body;
+    if (!orders || typeof orders !== 'object') return res.status(400).json({ error: 'orders required' });
+    const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
+    if (!k) return res.status(404).json({ error: 'Kingdom not found' });
+    try { k.build_queue = JSON.parse(k.build_queue || '{}'); } catch { k.build_queue = {}; }
+    const result = engine.queueBuildings(k, orders);
+    await applyUpdates(db, k.id, result.updates);
+    res.json({ ok: true, queue: JSON.parse(result.updates.build_queue) });
+  });
+
+  // ── Save build allocation ─────────────────────────────────────────────────────
+  router.post('/build-allocation', requireAuth, async (req, res) => {
+    const { allocation } = req.body;
+    if (!allocation || typeof allocation !== 'object') return res.status(400).json({ error: 'allocation required' });
+    const k = await db.get('SELECT id, engineers FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
+    if (!k) return res.status(404).json({ error: 'Kingdom not found' });
+    const total = Object.values(allocation).reduce((s, v) => s + (Number(v)||0), 0);
+    if (total > k.engineers) return res.status(400).json({ error: `Allocated ${total.toLocaleString()} but only have ${k.engineers.toLocaleString()} engineers` });
+    await db.run('UPDATE kingdoms SET build_allocation = ? WHERE id = ?', [JSON.stringify(allocation), k.id]);
+    res.json({ ok: true });
+  });
+
+  // ── Forge tools — costs 1 turn ────────────────────────────────────────────────
+  router.post('/forge-tools', requireAuth, async (req, res) => {
+    const { toolType, quantity } = req.body;
     const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
     if (!k) return res.status(404).json({ error: 'Kingdom not found' });
     if (k.turns_stored < 1) return res.status(429).json({ error: 'No turns available' });
-
-    // Run full turn first
     const { updates: turnUpdates, events } = engine.processTurn(k);
     turnUpdates.turns_stored = k.turns_stored - 1;
-
-    // Apply build on top of turn state
-    const kAfterTurn = { ...k, ...turnUpdates };
-    const buildResult = engine.buildStructure(kAfterTurn, building, Number(quantity));
-    if (buildResult.error) return res.status(400).json({ error: buildResult.error });
-
-    const finalUpdates = { ...turnUpdates, ...buildResult.updates };
+    const kAfter = { ...k, ...turnUpdates };
+    const result = engine.forgeTools(kAfter, toolType, Number(quantity));
+    if (result.error) return res.status(400).json({ error: result.error });
+    const finalUpdates = { ...turnUpdates, ...result.updates };
     await applyUpdates(db, k.id, finalUpdates);
-
-    const buildLabels = {
-      farms:'Farms', barracks:'Barracks', outposts:'Outposts', guard_towers:'Guard Towers',
-      schools:'Schools', armories:'Armories', vaults:'Vaults', smithies:'Smithies',
-      markets:'Market Places', cathedrals:'Cathedrals', training:'Training Fields',
-      colosseums:'Colosseums', castles:'Castles', weapons:'Weapons', armor:'Armor'
-    };
-    const buildEvent = { type: 'system', message: `🔨 Built ${Number(quantity).toLocaleString()} ${buildLabels[building] || building}. Engineers used: ${buildResult.piecesUsed.toLocaleString()} turns.` };
-    events.push(buildEvent);
-
     for (const ev of events)
-      await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)', [k.id, ev.type || 'system', ev.message, turnUpdates.turn || k.turn || 0]);
-
-    res.json({ ok: true, piecesUsed: buildResult.piecesUsed, updates: finalUpdates, events, turns_stored: finalUpdates.turns_stored });
+      await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)', [k.id, ev.type||'system', ev.message, turnUpdates.turn||k.turn||0]);
+    res.json({ ok: true, updates: finalUpdates, events, turns_stored: finalUpdates.turns_stored });
   });
 
   // ── Search (exploration) — costs 1 turn ───────────────────────────────────────
