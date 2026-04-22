@@ -89,7 +89,7 @@ function processTurn(k) {
   // ── 1. Gold income ───────────────────────────────────────────────────────────
   const income = goldPerTurn(k);
   updates.gold = k.gold + income;
-  events.push({ type: 'system', message: `💰 Turn ${updates.turn}: +${income.toLocaleString()} GC earned. Treasury: ${updates.gold.toLocaleString()} GC.` });
+  events.push({ type: 'system', message: `💰 Turn ${updates.turn}: +${income.toLocaleString()} gold earned. Treasury: ${updates.gold.toLocaleString()} gold.` });
 
   // ── 2. Mana regeneration ─────────────────────────────────────────────────────
   const manaGain = manaPerTurn(k);
@@ -142,7 +142,7 @@ function processTurn(k) {
   if (upkeep > 0) {
     updates.gold = (updates.gold || k.gold) - upkeep;
     if (updates.gold < 0) updates.gold = 0;
-    events.push({ type: 'system', message: `⚔️ Troop upkeep: -${upkeep.toLocaleString()} GC (${totalTroops.toLocaleString()} troops${barrackDiscount > 0 ? ', barracks discount applied' : ''}).` });
+    events.push({ type: 'system', message: `⚔️ Troop upkeep: -${upkeep.toLocaleString()} gold (${totalTroops.toLocaleString()} troops${barrackDiscount > 0 ? ', barracks discount applied' : ''}).` });
   }
 
   // ── 6. Morale ─────────────────────────────────────────────────────────────────
@@ -307,7 +307,7 @@ const CAPS = {
   // No cap on researchers or engineers
 
   // Buildings: small kingdoms start with low limits
-  bld_farms:        { base: 100,   max: 1000000 },
+  bld_farms:        { base: 500,   max: 1000000 },
   bld_barracks:     { base: 10,    max: 50000   },
   bld_outposts:     { base: 10,    max: 25000   },
   bld_guard_towers: { base: 10,    max: 25000   },
@@ -357,7 +357,7 @@ function hireUnits(k, unit, amount) {
   }
 
   const cost = amount * UNIT_COST;
-  if (k.gold < cost) return { error: `Not enough gold — need ${cost.toLocaleString()} GC` };
+  if (k.gold < cost) return { error: `Not enough gold — need ${cost.toLocaleString()} gold` };
   if (amount > k.population) return { error: 'Not enough population available' };
 
   return {
@@ -514,7 +514,7 @@ function queueBuildings(k, orders) {
   }
 
   if (totalCost > k.gold) {
-    return { error: `Need ${totalCost.toLocaleString()} GC but only have ${k.gold.toLocaleString()} GC` };
+    return { error: `Need ${totalCost.toLocaleString()} gold but only have ${k.gold.toLocaleString()} gold` };
   }
 
   for (const [building, qty] of Object.entries(orders)) {
@@ -634,7 +634,7 @@ function forgeTools(k, toolType, quantity) {
   const col  = TOOL_COL[toolType];
   if (!cost || !col) return { error: 'Unknown tool type' };
   const totalCost = cost * quantity;
-  if (totalCost > k.gold) return { error: `Need ${totalCost.toLocaleString()} GC but only have ${k.gold.toLocaleString()} GC` };
+  if (totalCost > k.gold) return { error: `Need ${totalCost.toLocaleString()} gold but only have ${k.gold.toLocaleString()} gold` };
   return {
     updates: {
       [col]: (k[col]||0) + quantity,
@@ -889,7 +889,7 @@ function covertLoot(thief, target, lootType, thievesSent) {
     stolen = Math.floor(thievesSent * (50 + Math.random() * 50));
     stolen = Math.min(stolen, Math.floor(target.gold * 0.05));
     targetUpdates.gold = target.gold - stolen;
-    desc = `${stolen.toLocaleString()} GC`;
+    desc = `${stolen.toLocaleString()} gold`;
   } else if (lootType === 'research') {
     stolen = Math.floor(thievesSent * 0.2);
     targetUpdates.res_economy = Math.max(0, target.res_economy - stolen);
