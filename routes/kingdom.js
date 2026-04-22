@@ -190,7 +190,7 @@ module.exports = function(db) {
       const found = Math.floor(r * 12 * tacticsMult);
       turnUpdates.gold = (turnUpdates.gold || kAfterTurn.gold || 0) + found;
       searchResult = { found, unit: 'GC' };
-      searchMessage = `💰 Rangers returned with ${found.toLocaleString()} GC from foraging.`;
+      searchMessage = `💰 Rangers returned with ${found.toLocaleString()} gold from foraging.`;
     } else if (type === 'targets') {
       const found = Math.floor(r * 0.002) + 2;
       searchResult = { found, unit: 'kingdoms' };
