@@ -1,4 +1,3 @@
-// src/db/schema.js
 const sqlite3 = require('sqlite3');
 const { open } = require('sqlite');
 const path = require('path');
@@ -20,6 +19,9 @@ async function initDb() {
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
       username    TEXT    NOT NULL UNIQUE,
       password    TEXT    NOT NULL,
+      is_admin    INTEGER NOT NULL DEFAULT 0,
+      is_banned   INTEGER NOT NULL DEFAULT 0,
+      ban_reason  TEXT,
       created_at  INTEGER NOT NULL DEFAULT (unixepoch())
     );
     CREATE TABLE IF NOT EXISTS kingdoms (
@@ -36,6 +38,7 @@ async function initDb() {
       food        INTEGER NOT NULL DEFAULT 0,
       turn        INTEGER NOT NULL DEFAULT 0,
       last_turn_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      turns_stored INTEGER NOT NULL DEFAULT 200,
       res_economy       INTEGER NOT NULL DEFAULT 100,
       res_weapons       INTEGER NOT NULL DEFAULT 100,
       res_armor         INTEGER NOT NULL DEFAULT 100,
@@ -109,10 +112,20 @@ async function initDb() {
       message     TEXT    NOT NULL,
       created_at  INTEGER NOT NULL DEFAULT (unixepoch())
     );
+    CREATE TABLE IF NOT EXISTS server_state (
+      key   TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
     CREATE INDEX IF NOT EXISTS idx_news_kingdom    ON news(kingdom_id, is_read);
     CREATE INDEX IF NOT EXISTS idx_combat_attacker ON combat_log(attacker_id);
     CREATE INDEX IF NOT EXISTS idx_combat_defender ON combat_log(defender_id);
     CREATE INDEX IF NOT EXISTS idx_chat_room       ON chat_messages(room, created_at);
+  `);
+
+  // Seed default server_state row for regen tracking
+  await _db.run(`
+    INSERT OR IGNORE INTO server_state (key, value)
+    VALUES ('last_regen_at', CAST(unixepoch() AS TEXT))
   `);
 
   return _db;
