@@ -319,6 +319,15 @@
         <h1 style="font-size:26px;font-weight:700;color:var(--text);line-height:1.2" id="kingdom-name">—</h1>
         <div style="color:var(--text2);font-size:13px;margin-top:4px"><span id="kingdom-owner-line">—</span> · Turn <span id="turn-num" style="color:var(--text);font-weight:600">0</span> · <span class="badge badge-green">Protected</span></div>
         <div style="margin-top:6px"><span class="race-tag" id="race-tag-display">—</span></div>
+        <div style="margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <span style="font-size:13px;color:var(--text3)">Level <span id="kingdom-level" style="color:var(--gold);font-weight:700;font-size:16px">1</span></span>
+          <div style="flex:1;min-width:120px;max-width:220px">
+            <div style="height:6px;background:var(--bg4);border-radius:3px;overflow:hidden">
+              <div id="xp-bar" style="height:6px;width:0%;background:linear-gradient(90deg,var(--purple),var(--gold));border-radius:3px;transition:width .4s"></div>
+            </div>
+          </div>
+          <span id="xp-label" style="font-size:11px;color:var(--text3)">0 / 100 XP</span>
+        </div>
       </div>
     </div>
 
@@ -1723,6 +1732,7 @@ function syncUI() {
   if (ts) ts.textContent = fmt(state.tools_scaffolding || 0);
   if (tb) tb.textContent = fmt(state.tools_blueprints || 0);
   renderBuildQueue();
+  updateXpDisplay();
   populateInputs();
 }
 
@@ -1973,6 +1983,8 @@ async function loadKingdom() {
     armor_stockpile:   kingdom.armor_stockpile   || 0,
     war_machines:      kingdom.war_machines       || 0,
     research_allocation: kingdom.research_allocation || {},
+    xp:    kingdom.xp    || 0,
+    level: kingdom.level || 1,
     tools_hammers:     kingdom.tools_hammers     || 0,
     tools_scaffolding: kingdom.tools_scaffolding || 0,
     tools_blueprints:  kingdom.tools_blueprints  || 0,
@@ -2168,6 +2180,8 @@ function applyServerUpdates(u) {
   ['bld_farms','bld_barracks','bld_outposts','bld_guard_towers','bld_schools','bld_armories',
    'bld_vaults','bld_smithies','bld_markets','bld_cathedrals','bld_training','bld_colosseums','bld_castles'
   ].forEach(function(k) { if (u[k] !== undefined) state[k] = u[k]; });
+  if (u.xp    !== undefined) state.xp    = u.xp;
+  if (u.level !== undefined) state.level = u.level;
   if (u.tools_hammers     !== undefined) state.tools_hammers     = u.tools_hammers;
   if (u.tools_scaffolding !== undefined) state.tools_scaffolding = u.tools_scaffolding;
   if (u.tools_blueprints  !== undefined) state.tools_blueprints  = u.tools_blueprints;
@@ -2416,6 +2430,32 @@ async function forgeTools() {
   applyServerUpdates(result.updates);
   syncUI();
   toast('Forged ' + qty + ' ' + toolType + ' for ' + fmt(cost) + ' GC', 'success');
+}
+
+// ── XP & Level system ─────────────────────────────────────────────────────────
+
+function xpForLevel(level) {
+  if (level <= 1)   return 0;
+  if (level <= 10)  return Math.floor(100  * Math.pow(level - 1, 2));
+  if (level <= 50)  return Math.floor(150  * Math.pow(level - 1, 2));
+  if (level <= 200) return Math.floor(200  * Math.pow(level - 1, 2));
+  if (level <= 500) return Math.floor(300  * Math.pow(level - 1, 2));
+  return              Math.floor(500  * Math.pow(level - 1, 2));
+}
+
+function updateXpDisplay() {
+  var level   = state.level  || 1;
+  var xp      = state.xp     || 0;
+  var thisLvl = xpForLevel(level);
+  var nextLvl = xpForLevel(level + 1);
+  var pct     = nextLvl > thisLvl ? Math.floor(((xp - thisLvl) / (nextLvl - thisLvl)) * 100) : 100;
+
+  var levelEl = document.getElementById('kingdom-level');
+  var barEl   = document.getElementById('xp-bar');
+  var labelEl = document.getElementById('xp-label');
+  if (levelEl) levelEl.textContent = level;
+  if (barEl)   barEl.style.width   = pct + '%';
+  if (labelEl) labelEl.textContent = fmt(xp - thisLvl) + ' / ' + fmt(nextLvl - thisLvl) + ' XP';
 }
 
 // Boot — check auth then show modal or load kingdom
