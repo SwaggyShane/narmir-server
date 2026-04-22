@@ -122,6 +122,30 @@ async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_chat_room       ON chat_messages(room, created_at);
   `);
 
+  // ── Migrations — add columns that may not exist in older databases ───────────
+  const cols = await _db.all("PRAGMA table_info(kingdoms)");
+  const colNames = cols.map(c => c.name);
+  if (!colNames.includes('turns_stored')) {
+    await _db.exec('ALTER TABLE kingdoms ADD COLUMN turns_stored INTEGER NOT NULL DEFAULT 200');
+    console.log('[db] Migration: added turns_stored column');
+  }
+
+  // Ensure player admin/ban columns exist
+  const playerCols = await _db.all("PRAGMA table_info(players)");
+  const playerColNames = playerCols.map(c => c.name);
+  if (!playerColNames.includes('is_admin')) {
+    await _db.exec('ALTER TABLE players ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0');
+    console.log('[db] Migration: added is_admin column');
+  }
+  if (!playerColNames.includes('is_banned')) {
+    await _db.exec('ALTER TABLE players ADD COLUMN is_banned INTEGER NOT NULL DEFAULT 0');
+    console.log('[db] Migration: added is_banned column');
+  }
+  if (!playerColNames.includes('ban_reason')) {
+    await _db.exec('ALTER TABLE players ADD COLUMN ban_reason TEXT');
+    console.log('[db] Migration: added ban_reason column');
+  }
+
   // Seed default server_state row for regen tracking
   await _db.run(`
     INSERT OR IGNORE INTO server_state (key, value)
