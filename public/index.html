@@ -159,6 +159,8 @@
   .btn-red:active { background: rgba(224,92,92,.15); }
   .btn-amber { background: transparent; border-color: var(--amber); color: var(--amber); }
   .btn-amber:active { background: rgba(240,168,50,.15); }
+  .btn-blue { background: transparent; border-color: var(--blue); color: var(--blue); }
+  .btn-blue:active { background: rgba(91,156,245,.15); }
 
   /* ── Badges ── */
   .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; }
@@ -259,7 +261,7 @@
       <div class="logo">NARMIR <span>Land of Magic and Conquest</span></div>
     </div>
     <div class="topbar-stats">
-      <div class="tstat hide-sm"><div class="val" id="top-rank">#47</div><div class="lbl">Rank</div></div>
+      <div class="tstat hide-sm"><div class="val" id="top-rank">—</div><div class="lbl">Rank</div></div>
       <div style="display:flex;align-items:center;gap:10px">
         <div style="text-align:right">
           <div style="display:flex;align-items:center;gap:6px">
@@ -304,9 +306,9 @@
     <!-- Kingdom header -->
     <div class="kingdom-header" style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
       <div>
-        <h1 style="font-size:26px;font-weight:700;color:var(--text);line-height:1.2" id="kingdom-name">Ironveil</h1>
-        <div style="color:var(--text2);font-size:13px;margin-top:4px"><span id="kingdom-owner-line">Realm of the <strong style="color:var(--purple)">High Elves</strong></span> · Turn <span id="turn-num" style="color:var(--text);font-weight:600">143</span> · <span class="badge badge-green">Protected</span></div>
-        <div style="margin-top:6px"><span class="race-tag" id="race-tag-display"><strong>High Elf</strong> · +15% research efficiency · Powerful magic</span></div>
+        <h1 style="font-size:26px;font-weight:700;color:var(--text);line-height:1.2" id="kingdom-name">—</h1>
+        <div style="color:var(--text2);font-size:13px;margin-top:4px"><span id="kingdom-owner-line">—</span> · Turn <span id="turn-num" style="color:var(--text);font-weight:600">0</span> · <span class="badge badge-green">Protected</span></div>
+        <div style="margin-top:6px"><span class="race-tag" id="race-tag-display">—</span></div>
       </div>
     </div>
 
@@ -314,33 +316,33 @@
     <div class="metrics">
       <div class="metric gold">
         <div class="lbl">Gold</div>
-        <div class="val" id="m-gold">48.2k</div>
-        <div class="sub" id="m-gold-sub">+4.8k/turn</div>
+        <div class="val" id="m-gold">10k</div>
+        <div class="sub" id="m-gold-sub">+0/turn</div>
       </div>
       <div class="metric">
         <div class="lbl">Mana</div>
-        <div class="val" id="m-mana">22.4k</div>
+        <div class="val" id="m-mana">5k</div>
         <div class="sub" id="m-mana-sub">+40/turn</div>
       </div>
       <div class="metric">
         <div class="lbl">Land</div>
-        <div class="val" id="m-land">1.8k</div>
+        <div class="val" id="m-land">500</div>
         <div class="sub">acres</div>
       </div>
       <div class="metric">
         <div class="lbl">Population</div>
-        <div class="val" id="m-pop">124.5k</div>
+        <div class="val" id="m-pop">50k</div>
         <div class="sub">+310/turn</div>
       </div>
       <div class="metric">
         <div class="lbl">Morale</div>
-        <div class="val" id="m-morale">87%</div>
+        <div class="val" id="m-morale">100%</div>
         <div class="sub">Tax: <span id="m-tax">42%</span></div>
       </div>
       <div class="metric">
         <div class="lbl">Food</div>
         <div class="val" id="m-food">OK</div>
-        <div class="sub">4,200 farms</div>
+        <div class="sub">200 farms</div>
       </div>
     </div>
 
@@ -352,35 +354,35 @@
         <div>
           <div class="card">
             <div class="card-title">Military &amp; support</div>
-            <div class="trow"><span class="name">Fighters</span><span class="count" id="s-fighters">12,400</span><span class="badge badge-red">Combat</span></div>
-            <div class="trow"><span class="name">Rangers</span><span class="count" id="s-rangers">3,200</span><span class="badge badge-blue">Scout</span></div>
-            <div class="trow"><span class="name">Clerics</span><span class="count" id="s-clerics">1,800</span><span class="badge badge-green">Heal</span></div>
-            <div class="trow"><span class="name">Mages</span><span class="count" id="s-mages">2,100</span><span class="badge badge-amber">Magic</span></div>
-            <div class="trow"><span class="name">Thieves</span><span class="count" id="s-thieves">900</span><span class="badge badge-amber">Covert</span></div>
-            <div class="trow"><span class="name">Ninjas</span><span class="count" id="s-ninjas">420</span><span class="badge badge-amber">Covert</span></div>
-            <div class="trow"><span class="name">Researchers</span><span class="count" id="s-researchers">8,000</span><span class="badge badge-blue">Study</span></div>
-            <div class="trow"><span class="name">Engineers</span><span class="count" id="s-engineers">2,200</span><span class="badge badge-blue">Build</span></div>
+            <div class="trow"><span class="name">Fighters</span><span class="count" id="s-fighters">0</span><span class="badge badge-red">Combat</span></div>
+            <div class="trow"><span class="name">Rangers</span><span class="count" id="s-rangers">0</span><span class="badge badge-blue">Scout</span></div>
+            <div class="trow"><span class="name">Clerics</span><span class="count" id="s-clerics">0</span><span class="badge badge-green">Heal</span></div>
+            <div class="trow"><span class="name">Mages</span><span class="count" id="s-mages">0</span><span class="badge badge-amber">Magic</span></div>
+            <div class="trow"><span class="name">Thieves</span><span class="count" id="s-thieves">0</span><span class="badge badge-amber">Covert</span></div>
+            <div class="trow"><span class="name">Ninjas</span><span class="count" id="s-ninjas">0</span><span class="badge badge-amber">Covert</span></div>
+            <div class="trow"><span class="name">Researchers</span><span class="count" id="s-researchers">500</span><span class="badge badge-blue">Study</span></div>
+            <div class="trow"><span class="name">Engineers</span><span class="count" id="s-engineers">0</span><span class="badge badge-blue">Build</span></div>
           </div>
         </div>
         <div>
           <div class="card">
             <div class="card-title">Research levels</div>
-            <div class="trow"><span class="name">Economy</span><div class="prog-wrap"><div class="prog-bar eco" style="width:74%"></div></div><span class="count">740%</span></div>
-            <div class="trow"><span class="name">Weapons</span><div class="prog-wrap"><div class="prog-bar wep" style="width:52%"></div></div><span class="count">520%</span></div>
-            <div class="trow"><span class="name">Armor</span><div class="prog-wrap"><div class="prog-bar arm" style="width:48%"></div></div><span class="count">480%</span></div>
-            <div class="trow"><span class="name">Military tactics</span><div class="prog-wrap"><div class="prog-bar mil" style="width:36%"></div></div><span class="count">360%</span></div>
-            <div class="trow"><span class="name">Spellbook</span><div class="prog-wrap"><div class="prog-bar spell" style="width:61%"></div></div><span class="count">6,100</span></div>
-            <div class="trow"><span class="name">Mana</span><div class="prog-wrap"><div class="prog-bar mana" style="width:55%"></div></div><span class="count">22,400</span></div>
-            <div class="trow"><span class="name">Entertainment</span><div class="prog-wrap"><div class="prog-bar" style="width:28%;background:var(--green)"></div></div><span class="count">280%</span></div>
+            <div class="trow"><span class="name">Economy</span><div class="prog-wrap"><div class="prog-bar eco" id="pb-eco" style="width:10%"></div></div><span class="count">100%</span></div>
+            <div class="trow"><span class="name">Weapons</span><div class="prog-wrap"><div class="prog-bar wep" id="pb-wep" style="width:10%"></div></div><span class="count">520%</span></div>
+            <div class="trow"><span class="name">Armor</span><div class="prog-wrap"><div class="prog-bar arm" id="pb-arm" style="width:10%"></div></div><span class="count">480%</span></div>
+            <div class="trow"><span class="name">Military tactics</span><div class="prog-wrap"><div class="prog-bar mil" id="pb-mil" style="width:10%"></div></div><span class="count">100%</span></div>
+            <div class="trow"><span class="name">Spellbook</span><div class="prog-wrap"><div class="prog-bar spell" id="pb-spell" style="width:5%"></div></div><span class="count">6,100</span></div>
+            <div class="trow"><span class="name">Mana</span><div class="prog-wrap"><div class="prog-bar mana" style="width:3%"></div></div><span class="count">22,400</span></div>
+            <div class="trow"><span class="name">Entertainment</span><div class="prog-wrap"><div class="prog-bar" style="width:10%;background:var(--green)"></div></div><span class="count">100%</span></div>
           </div>
           <div class="card">
             <div class="card-title">Key buildings</div>
-            <div class="trow"><span class="name">Farms</span><span class="count">4,200</span></div>
-            <div class="trow"><span class="name">Barracks</span><span class="count">640</span></div>
-            <div class="trow"><span class="name">Smithies</span><span class="count">180</span></div>
-            <div class="trow"><span class="name">Cathedrals</span><span class="count">32</span></div>
-            <div class="trow"><span class="name">Castles</span><span class="count">4</span></div>
-            <div class="trow"><span class="name">Guard towers</span><span class="count">72</span></div>
+            <div class="trow"><span class="name">Farms</span><span class="count">200</span></div>
+            <div class="trow"><span class="name">Barracks</span><span class="count">0</span></div>
+            <div class="trow"><span class="name">Smithies</span><span class="count">0</span></div>
+            <div class="trow"><span class="name">Cathedrals</span><span class="count">0</span></div>
+            <div class="trow"><span class="name">Castles</span><span class="count">0</span></div>
+            <div class="trow"><span class="name">Guard towers</span><span class="count">0</span></div>
           </div>
         </div>
       </div>
@@ -405,52 +407,52 @@
     <!-- HIRE -->
     <div id="hire" class="panel">
       <div class="card">
-        <div class="card-title">Hire units — 250 GC each · Population available: <span id="hire-pop">124,500</span></div>
+        <div class="card-title">Hire units — 250 GC each · Population available: <span id="hire-pop">50,000</span></div>
         <div class="trow">
           <span class="name">Fighters</span><span class="desc">Main attack &amp; defense force</span>
-          <span class="count" id="h-fighters">12,400</span>
+          <span class="count" id="h-fighters">0</span>
           <input type="number" id="hire-fighters" min="0" value="0" placeholder="0">
           <button class="btn btn-gold" onclick="hire('fighters')">Hire</button>
         </div>
         <div class="trow">
           <span class="name">Rangers</span><span class="desc">Search for land, gold &amp; targets</span>
-          <span class="count" id="h-rangers">3,200</span>
+          <span class="count" id="h-rangers">0</span>
           <input type="number" id="hire-rangers" min="0" value="0" placeholder="0">
           <button class="btn btn-gold" onclick="hire('rangers')">Hire</button>
         </div>
         <div class="trow">
           <span class="name">Clerics</span><span class="desc">Battlefield medics &amp; fighters</span>
-          <span class="count" id="h-clerics">1,800</span>
+          <span class="count" id="h-clerics">0</span>
           <input type="number" id="hire-clerics" min="0" value="0" placeholder="0">
           <button class="btn btn-gold" onclick="hire('clerics')">Hire</button>
         </div>
         <div class="trow">
           <span class="name">Mages</span><span class="desc">Attack magic, absorbs enemy spells</span>
-          <span class="count" id="h-mages">2,100</span>
+          <span class="count" id="h-mages">0</span>
           <input type="number" id="hire-mages" min="0" value="0" placeholder="0">
           <button class="btn btn-gold" onclick="hire('mages')">Hire</button>
         </div>
         <div class="trow">
           <span class="name">Thieves</span><span class="desc">Loot research, gold &amp; machines</span>
-          <span class="count" id="h-thieves">900</span>
+          <span class="count" id="h-thieves">0</span>
           <input type="number" id="hire-thieves" min="0" value="0" placeholder="0">
           <button class="btn btn-gold" onclick="hire('thieves')">Hire</button>
         </div>
         <div class="trow">
           <span class="name">Ninjas</span><span class="desc">Assassinate units &amp; sabotage</span>
-          <span class="count" id="h-ninjas">420</span>
+          <span class="count" id="h-ninjas">0</span>
           <input type="number" id="hire-ninjas" min="0" value="0" placeholder="0">
           <button class="btn btn-gold" onclick="hire('ninjas')">Hire</button>
         </div>
         <div class="trow">
           <span class="name">Researchers</span><span class="desc">Study all disciplines (max 1M)</span>
-          <span class="count" id="h-researchers">8,000</span>
+          <span class="count" id="h-researchers">500</span>
           <input type="number" id="hire-researchers" min="0" value="0" placeholder="0">
           <button class="btn btn-gold" onclick="hire('researchers')">Hire</button>
         </div>
         <div class="trow">
           <span class="name">Engineers</span><span class="desc">Construct buildings &amp; operate war machines</span>
-          <span class="count" id="h-engineers">2,200</span>
+          <span class="count" id="h-engineers">0</span>
           <input type="number" id="hire-engineers" min="0" value="0" placeholder="0">
           <button class="btn btn-gold" onclick="hire('engineers')">Hire</button>
         </div>
@@ -496,53 +498,53 @@
         <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Current levels</div>
         <div class="trow">
           <span class="name">Economy</span><span class="desc">Gold per turn</span>
-          <div class="prog-wrap"><div class="prog-bar eco" id="pb-eco" style="width:74%"></div></div>
-          <span class="count" id="rv-eco">740%</span>
+          <div class="prog-wrap"><div class="prog-bar eco" id="pb-eco" style="width:10%"></div></div>
+          <span class="count" id="rv-eco">100%</span>
         </div>
         <div class="trow">
           <span class="name">Weapons</span><span class="desc">Attack damage</span>
-          <div class="prog-wrap"><div class="prog-bar wep" id="pb-wep" style="width:52%"></div></div>
-          <span class="count" id="rv-wep">520%</span>
+          <div class="prog-wrap"><div class="prog-bar wep" id="pb-wep" style="width:10%"></div></div>
+          <span class="count" id="rv-wep">100%</span>
         </div>
         <div class="trow">
           <span class="name">Armor</span><span class="desc">Defense rating</span>
-          <div class="prog-wrap"><div class="prog-bar arm" id="pb-arm" style="width:48%"></div></div>
-          <span class="count" id="rv-arm">480%</span>
+          <div class="prog-wrap"><div class="prog-bar arm" id="pb-arm" style="width:10%"></div></div>
+          <span class="count" id="rv-arm">100%</span>
         </div>
         <div class="trow">
           <span class="name">Military tactics</span><span class="desc">Troop effectiveness</span>
-          <div class="prog-wrap"><div class="prog-bar mil" id="pb-mil" style="width:36%"></div></div>
-          <span class="count" id="rv-mil">360%</span>
+          <div class="prog-wrap"><div class="prog-bar mil" id="pb-mil" style="width:10%"></div></div>
+          <span class="count" id="rv-mil">100%</span>
         </div>
         <div class="trow">
           <span class="name">Spellbook</span><span class="desc">Spell power</span>
-          <div class="prog-wrap"><div class="prog-bar spell" id="pb-spell" style="width:61%"></div></div>
-          <span class="count" id="rv-spell">6,100</span>
+          <div class="prog-wrap"><div class="prog-bar spell" id="pb-spell" style="width:5%"></div></div>
+          <span class="count" id="rv-spell">500</span>
         </div>
         <div class="trow">
           <span class="name">Attack magic</span><span class="desc">Spell damage</span>
-          <div class="prog-wrap"><div class="prog-bar" style="width:41%;background:var(--red)" id="pb-atk"></div></div>
-          <span class="count" id="rv-atk">410%</span>
+          <div class="prog-wrap"><div class="prog-bar" style="width:10%;background:var(--red)" id="pb-atk"></div></div>
+          <span class="count" id="rv-atk">100%</span>
         </div>
         <div class="trow">
           <span class="name">Defense magic</span><span class="desc">Spell protection</span>
-          <div class="prog-wrap"><div class="prog-bar arm" id="pb-def" style="width:29%"></div></div>
-          <span class="count" id="rv-def">290%</span>
+          <div class="prog-wrap"><div class="prog-bar arm" id="pb-def" style="width:10%"></div></div>
+          <span class="count" id="rv-def">100%</span>
         </div>
         <div class="trow">
           <span class="name">Entertainment</span><span class="desc">Morale &amp; pop</span>
-          <div class="prog-wrap"><div class="prog-bar" style="width:28%;background:var(--green)" id="pb-ent"></div></div>
-          <span class="count" id="rv-ent">280%</span>
+          <div class="prog-wrap"><div class="prog-bar" style="width:10%;background:var(--green)" id="pb-ent"></div></div>
+          <span class="count" id="rv-ent">100%</span>
         </div>
         <div class="trow">
           <span class="name">Construction</span><span class="desc">Build speed</span>
-          <div class="prog-wrap"><div class="prog-bar" style="width:31%;background:var(--amber)" id="pb-con"></div></div>
-          <span class="count" id="rv-con">310%</span>
+          <div class="prog-wrap"><div class="prog-bar" style="width:10%;background:var(--amber)" id="pb-con"></div></div>
+          <span class="count" id="rv-con">100%</span>
         </div>
         <div class="trow">
           <span class="name">War machines</span><span class="desc">WM power</span>
-          <div class="prog-wrap"><div class="prog-bar" style="width:19%;background:var(--text3)" id="pb-wm"></div></div>
-          <span class="count" id="rv-wm">190%</span>
+          <div class="prog-wrap"><div class="prog-bar" style="width:10%;background:var(--text3)" id="pb-wm"></div></div>
+          <span class="count" id="rv-wm">100%</span>
         </div>
       </div>
     </div>
@@ -550,7 +552,7 @@
     <!-- BUILD -->
     <div id="build" class="panel">
       <div class="card">
-        <div class="card-title">Construction · Engineers: <span id="build-eng">2,200</span> available</div>
+        <div class="card-title">Construction · Engineers: <span id="build-eng">0</span> available</div>
         <div class="trow">
           <span class="name">Farms</span><span class="desc">Food supply · 10 pieces = 1 farm</span>
           <span class="count" id="bld-farms">0</span>
@@ -628,6 +630,19 @@
           <span class="count" id="bld-castles">0</span>
           <input type="number" id="b-castle" min="0" value="0">
           <button class="btn" onclick="build('castle',500,'Castles')">Build</button>
+        </div>
+        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;padding:14px 0 8px">Equipment — forged by engineers · more smithies = faster production</div>
+        <div class="trow">
+          <span class="name">Weapons</span><span class="desc">Each equips 1 fighter · +25% attack when fully equipped · lost in battle</span>
+          <span class="count" id="bld-weapons_stockpile">0</span>
+          <input type="number" id="b-weapons" min="0" value="0">
+          <button class="btn btn-red" onclick="build('weapons',1,'Weapons')">Forge</button>
+        </div>
+        <div class="trow">
+          <span class="name">Armor</span><span class="desc">Each equips 1 fighter · +25% defence when fully equipped · not lost in battle</span>
+          <span class="count" id="bld-armor_stockpile">0</span>
+          <input type="number" id="b-armor" min="0" value="0">
+          <button class="btn btn-blue" onclick="build('armor',1,'Armor')">Forge</button>
         </div>
       </div>
     </div>
@@ -757,7 +772,7 @@
           <input type="number" id="atk-mages" min="0" max="2100" value="500" style="width:90px">
         </div>
         <div style="font-size:12px;color:var(--text3);margin-bottom:14px">
-          You have <span style="color:var(--text)" id="atk-avail">12,400</span> fighters · <span id="atk-mages-avail" style="color:var(--text)">2,100</span> mages available
+          You have <span style="color:var(--text)" id="atk-avail">0</span> fighters · <span id="atk-mages-avail" style="color:var(--text)">0</span> mages available
         </div>
         <button class="btn btn-red" style="width:100%;font-size:14px;padding:10px" onclick="launchAttack()">Launch military attack</button>
       </div>
@@ -770,7 +785,7 @@
   <div style="display:grid;grid-template-columns:1fr 340px;gap:16px;align-items:start">
     <div>
       <div class="card">
-        <div class="card-title">Spellbook — Mana: <span id="spell-mana-disp">22,400</span> · Spellbook: <span id="spell-sb-disp">6,100</span></div>
+        <div class="card-title">Spellbook: <span id="spell-sb-disp">0</span> · Mana: <span id="spell-mana-disp">0</span></div>
         <div id="spell-list" style="max-height:460px;overflow-y:auto">
           <!-- populated by JS -->
         </div>
@@ -842,7 +857,7 @@
         <div class="op-title">Spy</div>
         <div class="op-desc">Sends thieves and ninjas to gather intelligence on the target kingdom. Report accuracy depends on unit experience. Requires: Thieves + Ninjas.</div>
         <div class="op-row">
-          <span style="font-size:12px;color:var(--text2);flex:1">Thieves: <strong style="color:var(--text)" id="spy-thieves-avail">900</strong></span>
+          <span style="font-size:12px;color:var(--text2);flex:1">Thieves: <strong style="color:var(--text)" id="spy-thieves-avail">0</strong></span>
           <input type="number" id="spy-units" min="0" value="200" style="width:80px">
           <button class="btn" onclick="covertOp('spy')">Spy</button>
         </div>
@@ -951,9 +966,9 @@
   <div style="display:grid;grid-template-columns:1fr 300px;gap:16px;align-items:start">
     <div>
       <div class="card">
-        <div class="card-title">Your alliance — <span style="color:var(--purple)">The Silver Veil</span></div>
+        <div class="card-title">Your alliance — <span style="color:var(--purple)">—</span></div>
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
-          <div style="font-size:13px;color:var(--text2)">6 members · Combined land: <span style="color:var(--gold)">14,820 acres</span></div>
+          <div style="font-size:13px;color:var(--text2)">— members · Combined land: <span style="color:var(--gold)">— acres</span></div>
           <div style="display:flex;gap:8px">
             <span class="badge badge-green">Active</span>
             <button class="btn btn-red" onclick="toast('Left alliance — you are now kingdomless','warn')">Leave</button>
@@ -1029,9 +1044,9 @@
 <script>
 /* ── Core state (defined first so all functions below can access it) ── */
 var state = {
-  gold: 48200, pop: 124500, land: 1840, morale: 87, tax: 42, turn: 143, mana: 22400,
-  fighters:12400, rangers:3200, clerics:1800, mages:2100,
-  thieves:900, ninjas:420, researchers:8000, engineers:2200
+  gold: 10000, pop: 50000, land: 500, morale: 100, tax: 42, turn: 0, mana: 5000,
+  fighters:0, rangers:0, clerics:0, mages:0,
+  thieves:0, ninjas:0, researchers:500, engineers:0
 };
 
 function fmt(n) { return Math.round(n).toLocaleString(); }
@@ -1072,8 +1087,12 @@ function populateInputs() {
   if (an) an.value = state.ninjas || 0;
   var sn = document.getElementById('sab-ninjas');
   if (sn) sn.value = state.ninjas || 0;
-  // Spell power — max mana
-  var sp = document.getElementById('sl-power');
+  // Weapons — forge enough to fully equip all fighters
+  var bw = document.getElementById('b-weapons');
+  if (bw) bw.value = Math.max(0, (state.fighters || 0) - (state.weapons_stockpile || 0));
+  // Armor — forge enough to fully equip all fighters
+  var ba = document.getElementById('b-armor');
+  if (ba) ba.value = Math.max(0, (state.fighters || 0) - (state.armor_stockpile || 0));
   if (sp) { sp.max = state.mana || 200000; sp.value = Math.min(state.mana || 0, 200000); updateSpellCalc(); }
 }
 
@@ -1249,13 +1268,28 @@ function searchAction(type) {
 /* ── Spells ── */
 function renderSpells() {
   var el = document.getElementById('spell-list');
-  el.innerHTML = spells.map(function(s) {
-    var canCast = 6100 >= s.minSB;
-    return '<div class="spell-card ' + (!canCast ? 'locked' : '') + '" id="sc-' + s.id + '" onclick="selectSpell(\'' + s.id + '\')" style="' + (!canCast ? 'opacity:.4;cursor:not-allowed' : '') + '">'
-      + '<div class="spell-name">' + s.name + (canCast ? '' : ' <span style="font-size:11px;color:var(--text3)">[SB ' + s.minSB + ' required]</span>') + '</div>'
+  if (!el) return;
+  var sb = state.res_spellbook || 0;
+  var known = spells.filter(function(s) { return sb >= s.minSB; });
+
+  if (known.length === 0) {
+    el.innerHTML = '<div style="font-size:13px;color:var(--text3);padding:12px 0">'
+      + 'No spells known yet. Research your Spellbook (currently ' + sb + ') to unlock spells. '
+      + 'First spell unlocks at Spellbook 200.</div>';
+    return;
+  }
+
+  el.innerHTML = known.map(function(s) {
+    return '<div class="spell-card" id="sc-' + s.id + '" onclick="selectSpell(\'' + s.id + '\')">'
+      + '<div class="spell-name">' + s.name
+      + ' <span style="font-size:11px;color:var(--text3)">· SB ' + s.minSB + '</span></div>'
       + '<div class="spell-desc">' + s.desc + '</div>'
       + '</div>';
   }).join('');
+
+  // Update the spellbook display
+  var sbDisp = document.getElementById('spell-sb-disp');
+  if (sbDisp) sbDisp.textContent = sb.toLocaleString();
 }
 
 function selectSpell(id) {
@@ -1487,21 +1521,47 @@ function hire(unit) {
   toast('Hired ' + fmt(n) + ' ' + unit + ' for ' + fmt(total) + ' GC', 'success');
 }
 
-function study(name) {
-  var keys = {Economy:'r-eco',Weapons:'r-wep',Armor:'r-arm','Military tactics':'r-mil',Spellbook:'r-spell','Attack magic':'r-atk','Defense magic':'r-def',Entertainment:'r-ent','Construction skills':'r-con','War machines':'r-wm'};
-  var id = keys[name];
-  var n = parseInt(document.getElementById(id).value) || 0;
+async function study(name) {
+  var disciplineMap = {
+    Economy:'economy', Weapons:'weapons', Armor:'armor', 'Military tactics':'military',
+    Spellbook:'spellbook', 'Attack magic':'attack_magic', 'Defense magic':'defense_magic',
+    Entertainment:'entertainment', 'Construction skills':'construction', 'War machines':'war_machines'
+  };
+  var n = parseInt(document.getElementById('r-amount')?.value) || 0;
   if (n <= 0) return toast('Enter a number of researchers to assign', 'error');
-  if (n > state.researchers) return toast('Only ' + fmt(state.researchers) + ' researchers available', 'error');
-  toast('Assigned ' + fmt(n) + ' researchers to ' + name, 'success');
+  if (state.turns_stored < 1) return toast('No turns available', 'warn');
+  var disc = disciplineMap[name];
+  if (!disc) return toast('Unknown discipline: ' + name, 'error');
+  var result = await apiCall('POST', '/api/kingdom/research', { discipline: disc, researchers: n });
+  if (result.error) return toast(result.error, 'error');
+  applyServerUpdates(result.updates);
+  if (result.turns_stored !== undefined) { state.turns_stored = result.turns_stored; updateTurnsDisplay(); }
+  syncUI();
+  if (result.events && result.events.length) appendNewsItems(result.events);
+  toast('+' + result.increment + ' to ' + name + ' · ' + state.turns_stored + ' turns left', 'success');
 }
 
-function build(key, piecesPerUnit, label) {
+async function build(key, piecesPerUnit, label) {
   var n = parseInt(document.getElementById('b-' + key).value) || 0;
   if (n <= 0) return toast('Enter a quantity to build', 'error');
-  var pieces = n * piecesPerUnit;
-  toast('Building ' + fmt(n) + ' ' + label + ' (' + fmt(pieces) + ' engineer-turns)...', 'success');
+  if (state.turns_stored < 1) return toast('No turns available', 'warn');
+  // Map HTML input key to engine building key
+  var buildingKeyMap = {
+    farm:'farms', barracks:'barracks', outpost:'outposts', tower:'guard_towers',
+    school:'schools', armory:'armories', vault:'vaults', smithy:'smithies',
+    market:'markets', cathedral:'cathedrals', training:'training',
+    colosseum:'colosseums', castle:'castles',
+    weapons:'weapons', armor:'armor'
+  };
+  var building = buildingKeyMap[key] || key;
+  var result = await apiCall('POST', '/api/kingdom/build', { building: building, quantity: n });
+  if (result.error) return toast(result.error, 'error');
+  applyServerUpdates(result.updates);
+  if (result.turns_stored !== undefined) { state.turns_stored = result.turns_stored; updateTurnsDisplay(); }
+  syncUI();
   document.getElementById('b-' + key).value = 0;
+  if (result.events && result.events.length) appendNewsItems(result.events);
+  toast('Built ' + fmt(n) + ' ' + label + ' · ' + state.turns_stored + ' turns left', 'success');
 }
 
 function updateTax(v) {
@@ -1566,12 +1626,18 @@ function syncUI() {
     var count = document.getElementById('rv-' + id);
     if (count) count.textContent = fmt(val) + (key !== 'res_spellbook' ? '%' : '');
   });
+  var spellMana = document.getElementById('spell-mana-disp');
+  if (spellMana) spellMana.textContent = fmt(state.mana || 0);
+  // Re-render spell list in case spellbook advanced
+  renderSpells();
   // Sync building counts
   var bldMap = {
     farms:'bld_farms', barracks:'bld_barracks', outposts:'bld_outposts',
     guard_towers:'bld_guard_towers', schools:'bld_schools', armories:'bld_armories',
     vaults:'bld_vaults', smithies:'bld_smithies', markets:'bld_markets',
-    cathedrals:'bld_cathedrals', training:'bld_training', colosseums:'bld_colosseums', castles:'bld_castles'
+    cathedrals:'bld_cathedrals', training:'bld_training', colosseums:'bld_colosseums',
+    castles:'bld_castles',
+    weapons_stockpile:'weapons_stockpile', armor_stockpile:'armor_stockpile'
   };
   Object.keys(bldMap).forEach(function(bld) {
     var el = document.getElementById('bld-' + bld);
@@ -1796,6 +1862,8 @@ async function loadKingdom() {
     bld_markets: kingdom.bld_markets, bld_cathedrals: kingdom.bld_cathedrals,
     bld_training: kingdom.bld_training, bld_colosseums: kingdom.bld_colosseums,
     bld_castles: kingdom.bld_castles,
+    weapons_stockpile: kingdom.weapons_stockpile || 0,
+    armor_stockpile:   kingdom.armor_stockpile   || 0,
   });
   syncUI();
   updateTurnsDisplay();
@@ -1928,7 +1996,8 @@ function applyServerUpdates(u) {
    'res_attack_magic','res_defense_magic','res_entertainment','res_construction','res_war_machines'
   ].forEach(function(k) { if (u[k] !== undefined) state[k] = u[k]; });
   ['bld_farms','bld_barracks','bld_outposts','bld_guard_towers','bld_schools','bld_armories',
-   'bld_vaults','bld_smithies','bld_markets','bld_cathedrals','bld_training','bld_colosseums','bld_castles'
+   'bld_vaults','bld_smithies','bld_markets','bld_cathedrals','bld_training','bld_colosseums','bld_castles',
+   'weapons_stockpile','armor_stockpile'
   ].forEach(function(k) { if (u[k] !== undefined) state[k] = u[k]; });
 }
 
@@ -1970,27 +2039,6 @@ hire = async function(unit) {
   if (hEl) hEl.textContent = fmt(state[unit]);
   if (result.events && result.events.length) appendNewsItems(result.events);
   toast('Hired ' + fmt(n) + ' ' + unit + ' · ' + state.turns_stored + ' turns left', 'success');
-};
-
-// Override study to hit real server and deduct turn
-study = async function(name) {
-  var disciplineMap = {
-    Economy:'economy', Weapons:'weapons', Armor:'armor', 'Military tactics':'military',
-    Spellbook:'spellbook', 'Attack magic':'attack_magic', 'Defense magic':'defense_magic',
-    Entertainment:'entertainment', 'Construction skills':'construction', 'War machines':'war_machines'
-  };
-  var n = parseInt(document.getElementById('r-amount')?.value) || 0;
-  if (n <= 0) return toast('Enter a number of researchers to assign', 'error');
-  if (state.turns_stored < 1) return toast('No turns available', 'warn');
-  var disc = disciplineMap[name];
-  if (!disc) return toast('Unknown discipline: ' + name, 'error');
-  var result = await apiCall('POST', '/api/kingdom/research', { discipline: disc, researchers: n });
-  if (result.error) return toast(result.error, 'error');
-  applyServerUpdates(result.updates);
-  if (result.turns_stored !== undefined) { state.turns_stored = result.turns_stored; updateTurnsDisplay(); }
-  syncUI();
-  if (result.events && result.events.length) appendNewsItems(result.events);
-  toast('+' + result.increment + ' to ' + name + ' · ' + state.turns_stored + ' turns left', 'success');
 };
 
 // Boot — check auth then show modal or load kingdom
