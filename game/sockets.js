@@ -47,6 +47,7 @@ module.exports = function(io, db) {
       if (!targetId || !fighters) return ack?.({ error: 'targetId and fighters required' });
 
       const attacker = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [playerId]);
+      if (attacker.turns_stored < 1) return ack?.({ error: 'No turns available' });
       const defender = await db.get('SELECT * FROM kingdoms WHERE id = ?', [targetId]);
       if (!defender) return ack?.({ error: 'Target not found' });
       if (attacker.id === defender.id) return ack?.({ error: 'Cannot attack yourself' });
@@ -54,6 +55,7 @@ module.exports = function(io, db) {
       const result = engine.resolveMilitaryAttack(attacker, defender, Number(fighters), Number(mages) || 0);
       if (result.error) return ack?.({ error: result.error });
 
+      result.attackerUpdates.turns_stored = attacker.turns_stored - 1;
       await applyUpdates(db, attacker.id, result.attackerUpdates);
       await applyUpdates(db, defender.id, result.defenderUpdates);
 
@@ -71,19 +73,21 @@ module.exports = function(io, db) {
         });
       }
 
-      ack?.({ ok: true, report: result.report });
+      ack?.({ ok: true, report: result.report, turns_stored: result.attackerUpdates.turns_stored });
     });
 
     // ── SPELL ────────────────────────────────────────────────────────────────
     socket.on('action:spell', async (data, ack) => {
       const { targetId, spellId, power, duration, obscure } = data;
       const caster = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [playerId]);
+      if (caster.turns_stored < 1) return ack?.({ error: 'No turns available' });
       const target = await db.get('SELECT * FROM kingdoms WHERE id = ?', [targetId]);
       if (!target) return ack?.({ error: 'Target not found' });
 
       const result = engine.castSpell(caster, target, spellId, Number(power) || 1000, Number(duration) || 1, Boolean(obscure));
       if (result.error) return ack?.({ error: result.error });
 
+      result.casterUpdates.turns_stored = caster.turns_stored - 1;
       await applyUpdates(db, caster.id, result.casterUpdates);
       if (result.targetUpdates && Object.keys(result.targetUpdates).length > 0)
         await applyUpdates(db, target.id, result.targetUpdates);
@@ -95,7 +99,7 @@ module.exports = function(io, db) {
       if (tgtSocketId && result.targetEvent)
         io.to(tgtSocketId).emit('event:spell_received', { from: obscure ? null : caster.name, spellId, message: result.targetEvent });
 
-      ack?.({ ok: true, report: result.report });
+      ack?.({ ok: true, report: result.report, turns_stored: result.casterUpdates.turns_stored });
     });
 
     // ── COVERT: SPY ──────────────────────────────────────────────────────────
