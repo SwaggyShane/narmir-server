@@ -1,4 +1,3 @@
-// src/routes/kingdom.js
 const express = require('express');
 const engine  = require('../game/engine');
 const { requireAuth } = require('./middleware');
@@ -35,6 +34,7 @@ module.exports = function(db) {
     res.json(items);
   });
 
+  // ── Take turn (advance game state) ───────────────────────────────────────────
   router.post('/turn', requireAuth, async (req, res) => {
     const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
     if (!k) return res.status(404).json({ error: 'Kingdom not found' });
@@ -49,26 +49,33 @@ module.exports = function(db) {
     res.json({ ok: true, updates, events, turns_stored: updates.turns_stored });
   });
 
+  // ── Hire units ────────────────────────────────────────────────────────────────
   router.post('/hire', requireAuth, async (req, res) => {
     const { unit, amount } = req.body;
     const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
     if (!k) return res.status(404).json({ error: 'Kingdom not found' });
+    if (k.turns_stored < 1) return res.status(429).json({ error: 'No turns available' });
     const result = engine.hireUnits(k, unit, Number(amount));
     if (result.error) return res.status(400).json({ error: result.error });
+    result.updates.turns_stored = k.turns_stored - 1;
     await applyUpdates(db, k.id, result.updates);
-    res.json({ ok: true, updates: result.updates });
+    res.json({ ok: true, updates: result.updates, turns_stored: result.updates.turns_stored });
   });
 
+  // ── Research ──────────────────────────────────────────────────────────────────
   router.post('/research', requireAuth, async (req, res) => {
     const { discipline, researchers } = req.body;
     const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
     if (!k) return res.status(404).json({ error: 'Kingdom not found' });
+    if (k.turns_stored < 1) return res.status(429).json({ error: 'No turns available' });
     const result = engine.studyDiscipline(k, discipline, Number(researchers));
     if (result.error) return res.status(400).json({ error: result.error });
+    result.updates.turns_stored = k.turns_stored - 1;
     await applyUpdates(db, k.id, result.updates);
-    res.json({ ok: true, increment: result.increment, updates: result.updates });
+    res.json({ ok: true, increment: result.increment, updates: result.updates, turns_stored: result.updates.turns_stored });
   });
 
+  // ── Build ─────────────────────────────────────────────────────────────────────
   router.post('/build', requireAuth, async (req, res) => {
     const { building, quantity } = req.body;
     const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
@@ -79,6 +86,47 @@ module.exports = function(db) {
     res.json({ ok: true, piecesUsed: result.piecesUsed, updates: result.updates });
   });
 
+  // ── Search (exploration) — costs 1 turn ───────────────────────────────────────
+  router.post('/search', requireAuth, async (req, res) => {
+    const { type, rangers } = req.body;
+    const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
+    if (!k) return res.status(404).json({ error: 'Kingdom not found' });
+    if (k.turns_stored < 1) return res.status(429).json({ error: 'No turns available' });
+
+    const r = Number(rangers) || 0;
+    if (r <= 0) return res.status(400).json({ error: 'Send at least some rangers' });
+    if (r > k.rangers) return res.status(400).json({ error: 'Not enough rangers' });
+
+    const tacticsMult = 1 + (k.res_military / 1000);
+    let result = {};
+    let message = '';
+    const updates = { turns_stored: k.turns_stored - 1, updated_at: Math.floor(Date.now() / 1000) };
+
+    if (type === 'land') {
+      const found = Math.floor(r * 0.04 * tacticsMult);
+      updates.land = k.land + found;
+      result = { found, unit: 'acres' };
+      message = `Rangers discovered +${found.toLocaleString()} acres of unclaimed land.`;
+    } else if (type === 'gold') {
+      const found = Math.floor(r * 12 * tacticsMult);
+      updates.gold = k.gold + found;
+      result = { found, unit: 'GC' };
+      message = `Rangers returned with ${found.toLocaleString()} GC from foraging.`;
+    } else if (type === 'targets') {
+      const found = Math.floor(r * 0.002) + 2;
+      result = { found, unit: 'kingdoms' };
+      message = `Rangers scouted ${found} new target kingdoms.`;
+    } else {
+      return res.status(400).json({ error: 'Invalid search type' });
+    }
+
+    await applyUpdates(db, k.id, updates);
+    await db.run('INSERT INTO news (kingdom_id, type, message) VALUES (?, ?, ?)', [k.id, 'system', message]);
+
+    res.json({ ok: true, type, result, message, turns_stored: updates.turns_stored });
+  });
+
+  // ── Options ───────────────────────────────────────────────────────────────────
   router.post('/options', requireAuth, async (req, res) => {
     const { tax, name } = req.body;
     const k = await db.get('SELECT id FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
