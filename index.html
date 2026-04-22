@@ -220,7 +220,7 @@
     .tstat .val { font-size: 15px; }
     .tstat .lbl { font-size: 11px; }
     .turn-btn { padding: 8px 18px; font-size: 13px; }
-    .metrics { grid-template-columns: repeat(5, minmax(0,1fr)); gap: 12px; margin-bottom: 24px; }
+    .metrics { grid-template-columns: repeat(6, minmax(0,1fr)); gap: 12px; margin-bottom: 24px; }
     .metric { padding: 14px 16px; }
     .metric .val { font-size: 22px; }
     .metric .lbl { font-size: 11px; }
@@ -259,8 +259,6 @@
       <div class="logo">NARMIR <span>Land of Magic and Conquest</span></div>
     </div>
     <div class="topbar-stats">
-      <div class="tstat"><div class="val" id="top-gold">48,200 GC</div><div class="lbl">Gold</div></div>
-      <div class="tstat"><div class="val" id="top-mana">22,400</div><div class="lbl">Mana</div></div>
       <div class="tstat hide-sm"><div class="val" id="top-rank">#47</div><div class="lbl">Rank</div></div>
       <div style="display:flex;align-items:center;gap:10px">
         <div style="text-align:right">
@@ -290,11 +288,15 @@
     <button class="nav-item" onclick="switchTab('attack',this)"><span class="icon">&#9876;</span>Attack</button>
     <button class="nav-item" onclick="switchTab('spells',this)"><span class="icon">&#10024;</span>Spells</button>
     <button class="nav-item" onclick="switchTab('covert',this)"><span class="icon">&#128373;</span>Covert</button>
+    <button class="nav-item" onclick="switchTab('exploration',this)"><span class="icon">&#9685;</span>Exploration</button>
 
     <div class="nav-section">Social</div>
     <button class="nav-item" onclick="switchTab('alliances',this)"><span class="icon">&#9876;</span>Alliances</button>
     <button class="nav-item" onclick="switchTab('news',this)"><span class="icon">&#9741;</span>News <span id="news-badge" class="nav-badge">3</span></button>
     <button class="nav-item" onclick="toast('Chat will connect via Socket.io in the next build','warn');this.classList.remove('active')"><span class="icon">&#9650;</span>Chat</button>
+
+    <div style="flex:1"></div>
+    <button class="nav-item" onclick="doLogout()" style="color:var(--red);margin-top:8px"><span class="icon">&#10005;</span>Logout</button>
   </nav>
 
   <!-- Main content -->
@@ -313,18 +315,23 @@
     <div class="metrics">
       <div class="metric gold">
         <div class="lbl">Gold</div>
-        <div class="val" id="m-gold">48,200</div>
-        <div class="sub" id="m-gold-sub">+4,820 GC/turn</div>
+        <div class="val" id="m-gold">48.2k</div>
+        <div class="sub" id="m-gold-sub">+4.8k/turn</div>
       </div>
       <div class="metric">
-        <div class="lbl">Population</div>
-        <div class="val" id="m-pop">124,500</div>
-        <div class="sub">+310/turn</div>
+        <div class="lbl">Mana</div>
+        <div class="val" id="m-mana">22.4k</div>
+        <div class="sub" id="m-mana-sub">+40/turn</div>
       </div>
       <div class="metric">
         <div class="lbl">Land</div>
-        <div class="val" id="m-land">1,840</div>
+        <div class="val" id="m-land">1.8k</div>
         <div class="sub">acres</div>
+      </div>
+      <div class="metric">
+        <div class="lbl">Population</div>
+        <div class="val" id="m-pop">124.5k</div>
+        <div class="sub">+310/turn</div>
       </div>
       <div class="metric">
         <div class="lbl">Morale</div>
@@ -637,15 +644,16 @@
     <!-- NEWS -->
     <div id="news" class="panel">
       <div class="card">
-        <div class="card-title">Kingdom news — Turn 143</div>
-        <div class="news-item"><span class="time">Just now</span><span class="news-hl">Grumthar</span> launched a military attack on your kingdom — <span class="news-attack">repelled at the walls</span>. You lost 240 fighters defending.</div>
-        <div class="news-item"><span class="time">2 turns ago</span>Your rangers discovered <span class="news-good">+120 acres</span> of unclaimed land to the north-east.</div>
-        <div class="news-item"><span class="time">3 turns ago</span>Economy research increased to <span class="news-hl">740%</span>. Gold per turn is now 4,820 GC.</div>
-        <div class="news-item"><span class="time">5 turns ago</span>A <span class="news-magic">Rain spell</span> of unknown origin struck your city — minor flooding. Lost 12 farms and 3 barracks.</div>
-        <div class="news-item"><span class="time">7 turns ago</span>Alliance signal flare from <span class="news-hl">Sylvara</span> — you dispatched 3% of fighters to defend.</div>
-        <div class="news-item"><span class="time">9 turns ago</span>Your ninjas successfully assassinated 1,200 enemy fighters in <span class="news-hl">The Iron Wastes</span>.</div>
-        <div class="news-item"><span class="time">10 turns ago</span>Population grew to 124,500. Entertainment at 280% is supporting steady growth.</div>
-        <div class="news-item"><span class="time">12 turns ago</span>Treasury: <span class="news-hl">48,200 GC</span> earned · 18,400 GC in expenses · Net +29,800 GC this cycle.</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+          <div class="card-title" style="margin-bottom:0" id="news-card-title">Kingdom news — Turn <span id="news-turn-num">0</span></div>
+          <div style="display:flex;gap:8px">
+            <button class="btn" onclick="loadNews()">Refresh</button>
+            <button class="btn btn-red" onclick="clearNews()">Clear all</button>
+          </div>
+        </div>
+        <div id="news-list">
+          <div style="color:var(--text3);font-size:13px;padding:8px 0">Loading news...</div>
+        </div>
       </div>
     </div>
 
@@ -740,20 +748,6 @@
           You have <span style="color:var(--text)" id="atk-avail">12,400</span> fighters · <span id="atk-mages-avail" style="color:var(--text)">2,100</span> mages available
         </div>
         <button class="btn btn-red" style="width:100%;font-size:14px;padding:10px" onclick="launchAttack()">Launch military attack</button>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Search for targets</div>
-        <div style="font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.6">Send rangers to scout the realm for new targets to attack or ally with.</div>
-        <div class="trow" style="margin-bottom:12px">
-          <span class="name" style="font-size:13px">Rangers to send</span>
-          <input type="number" id="search-rangers" min="0" max="3200" value="500" style="width:90px">
-        </div>
-        <div style="display:flex;gap:8px">
-          <button class="btn" style="flex:1" onclick="searchAction('land')">Search for land</button>
-          <button class="btn" style="flex:1" onclick="searchAction('gold')">Search for gold</button>
-          <button class="btn" style="flex:1" onclick="searchAction('targets')">Scout targets</button>
-        </div>
       </div>
     </div>
   </div>
@@ -891,6 +885,55 @@
   </div>
 </div>
 
+<!-- ═══════════════════════════════════════════ EXPLORATION PANEL ══ -->
+<div id="exploration" class="panel" style="display:none">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
+
+    <div class="card">
+      <div class="card-title">Scout &amp; search</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.7">
+        Send rangers into the realm to find unclaimed land, forage for gold, or locate enemy kingdoms to attack or ally with. The more rangers you send, the better the results.
+      </div>
+      <div class="trow" style="margin-bottom:14px">
+        <span class="name">Rangers to send</span>
+        <span style="font-size:12px;color:var(--text3);margin-right:8px">Available: <span id="exp-rangers-avail">3,200</span></span>
+        <input type="number" id="search-rangers" min="0" value="500" style="width:90px">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <button class="btn" style="padding:10px;font-size:13px" onclick="searchAction('land')">
+          <div style="font-size:16px;margin-bottom:4px">&#127758;</div>
+          Search for land
+        </button>
+        <button class="btn" style="padding:10px;font-size:13px" onclick="searchAction('gold')">
+          <div style="font-size:16px;margin-bottom:4px">&#9775;</div>
+          Forage for gold
+        </button>
+        <button class="btn" style="padding:10px;font-size:13px" onclick="searchAction('targets')">
+          <div style="font-size:16px;margin-bottom:4px">&#128269;</div>
+          Scout targets
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Exploration log</div>
+      <div id="exploration-log" style="display:flex;flex-direction:column;gap:8px;min-height:120px">
+        <div style="font-size:13px;color:var(--text3);padding:12px 0">No expeditions sent yet this session.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="card" style="margin-top:0">
+    <div class="card-title">Ranger tips</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;font-size:13px;color:var(--text2);line-height:1.7">
+      <div><strong style="color:var(--text)">Land search</strong><br>Rangers find unclaimed acres and bring them back to your kingdom. Results scale with ranger count and Military Tactics research.</div>
+      <div><strong style="color:var(--text)">Gold foraging</strong><br>Rangers pillage and forage through the wilderness, returning with raw gold. Useful when your economy is still developing.</div>
+      <div><strong style="color:var(--text)">Target scouting</strong><br>Rangers locate other kingdoms and add them to your attack target list. You won't find the same kingdom twice until all are discovered.</div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════════════════════════════════ ALLIANCES PANEL ══ -->
 <div id="alliances" class="panel" style="display:none">
   <div style="display:grid;grid-template-columns:1fr 300px;gap:16px;align-items:start">
@@ -980,6 +1023,49 @@ var state = {
 };
 
 function fmt(n) { return Math.round(n).toLocaleString(); }
+
+function trunc(n) {
+  n = Math.round(n);
+  if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+  if (n >= 1000)    return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+  return String(n);
+}
+
+function populateInputs() {
+  // Hire — max affordable with current gold and pop
+  var maxHire = Math.min(state.pop || 0, Math.floor((state.gold || 0) / 250));
+  ['fighters','rangers','clerics','mages','thieves','ninjas','researchers','engineers'].forEach(function(u) {
+    var el = document.getElementById('hire-' + u);
+    if (el) el.value = maxHire;
+  });
+  // Research — all researchers
+  ['r-eco','r-wep','r-arm','r-mil','r-spell','r-atk','r-def','r-ent','r-con','r-wm'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.value = state.researchers || 0;
+  });
+  // Attack — all available fighters/mages
+  var af = document.getElementById('atk-fighters');
+  var am = document.getElementById('atk-mages');
+  if (af) af.value = state.fighters || 0;
+  if (am) am.value = state.mages || 0;
+  // Search — all rangers
+  var sr = document.getElementById('search-rangers');
+  if (sr) sr.value = state.rangers || 0;
+  // Spy — all thieves+ninjas
+  var su = document.getElementById('spy-units');
+  if (su) su.value = (state.thieves || 0) + (state.ninjas || 0);
+  // Loot — all thieves
+  var lt = document.getElementById('loot-thieves');
+  if (lt) lt.value = state.thieves || 0;
+  // Assassinate / sabotage — all ninjas
+  var an = document.getElementById('assn-ninjas');
+  if (an) an.value = state.ninjas || 0;
+  var sn = document.getElementById('sab-ninjas');
+  if (sn) sn.value = state.ninjas || 0;
+  // Spell power — max mana
+  var sp = document.getElementById('sl-power');
+  if (sp) { sp.max = state.mana || 200000; sp.value = Math.min(state.mana || 0, 200000); updateSpellCalc(); }
+}
 
 /* ── Shared data ── */
 var targets = [
@@ -1076,6 +1162,7 @@ function selectCovertTarget(id, containerId) {
 /* ── Attack ── */
 function launchAttack() {
   if (!selectedTarget) return toast('Select a target kingdom first', 'error');
+  if (state.turns_stored < 1) return toast('No turns available', 'warn');
   var f = parseInt(document.getElementById('atk-fighters').value) || 0;
   var m = parseInt(document.getElementById('atk-mages').value) || 0;
   if (f <= 0) return toast('Send at least some fighters', 'error');
@@ -1094,7 +1181,9 @@ function launchAttack() {
   state.fighters -= fLost;
   state.mages -= mLost;
   if (win) { state.land += landGained; t.land -= landGained; }
+  state.turns_stored = Math.max(0, state.turns_stored - 1);
   syncUI();
+  updateTurnsDisplay();
 
   showBattleReport({
     type: 'Military attack',
@@ -1107,6 +1196,7 @@ function launchAttack() {
       ['Your fighters lost', fmt(fLost)],
       ['Your mages lost', fmt(mLost)],
       ['Land ' + (win ? 'captured' : 'lost'), win ? '+' + fmt(landGained) + ' acres' : '0 acres'],
+      ['Turns remaining', String(state.turns_stored)],
     ]
   });
 }
@@ -1115,16 +1205,33 @@ function searchAction(type) {
   var r = parseInt(document.getElementById('search-rangers').value) || 0;
   if (r <= 0) return toast('Assign some rangers first', 'error');
   if (r > state.rangers) return toast('Not enough rangers', 'error');
-  var results = { land: Math.floor(r * 0.04), gold: Math.floor(r * 12), targets: Math.floor(r * 0.002) + 2 };
-  var msgs = {
-    land: 'Rangers found +' + fmt(results.land) + ' acres of unclaimed land',
-    gold: 'Rangers returned with ' + fmt(results.gold) + ' GC from foraging',
-    targets: 'Rangers scouted ' + results.targets + ' new target kingdoms'
-  };
-  if (type === 'land') state.land += results.land;
-  if (type === 'gold') state.gold += results.gold;
-  syncUI();
-  toast(msgs[type], 'success');
+  if (state.turns_stored < 1) return toast('No turns available', 'warn');
+
+  apiCall('POST', '/api/kingdom/search', { type: type, rangers: r }).then(function(result) {
+    if (result.error) return toast(result.error, 'error');
+
+    if (result.turns_stored !== undefined) {
+      state.turns_stored = result.turns_stored;
+      updateTurnsDisplay();
+    }
+    if (result.type === 'land' && result.result) state.land += result.result.found;
+    if (result.type === 'gold' && result.result) state.gold += result.result.found;
+    syncUI();
+    toast(result.message, 'success');
+
+    var icons = { land: '&#127758;', gold: '&#9775;', targets: '&#128269;' };
+    var log = document.getElementById('exploration-log');
+    if (log) {
+      var empty = log.querySelector('[style*="No expeditions"]');
+      if (empty) empty.remove();
+      var entry = document.createElement('div');
+      entry.style.cssText = 'display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px';
+      entry.innerHTML = '<span style="font-size:18px;flex-shrink:0">' + (icons[type] || '&#9685;') + '</span>'
+        + '<div><div style="color:var(--text)">' + result.message + '</div>'
+        + '<div style="font-size:11px;color:var(--text3);margin-top:2px">Sent ' + fmt(r) + ' rangers · 1 turn used · ' + (result.turns_stored || 0) + ' turns left</div></div>';
+      log.insertBefore(entry, log.firstChild);
+    }
+  });
 }
 
 /* ── Spells ── */
@@ -1167,16 +1274,17 @@ function updateSpellCalc() {
 function castSpell() {
   if (!selectedSpell) return toast('Select a spell first', 'error');
   if (!selectedTarget && document.getElementById('cast-target-name').textContent === '— none selected —') return toast('Select a target kingdom first', 'error');
+  if (state.turns_stored < 1) return toast('No turns available', 'warn');
   var total = parseInt(document.getElementById('calc-total').textContent.replace(/,/g, ''));
   if (total > state.mana) return toast('Not enough mana — need ' + fmt(total), 'error');
   state.mana -= total;
+  state.turns_stored = Math.max(0, state.turns_stored - 1);
   syncUI();
-  document.getElementById('top-mana').textContent = fmt(state.mana);
-  document.getElementById('spell-mana-disp').textContent = fmt(state.mana);
+  updateTurnsDisplay();
+  document.getElementById('spell-mana-disp').textContent = trunc(state.mana);
   var targetName = document.getElementById('cast-target-name').textContent;
-  var dur = parseInt(document.getElementById('sl-duration-val').textContent);
   var obscure = parseInt(document.getElementById('sl-obscure').value);
-  toast((obscure ? 'Obscured ' : '') + selectedSpell.name + ' cast on ' + targetName + ' — ' + fmt(total) + ' mana consumed', 'success');
+  toast((obscure ? 'Obscured ' : '') + selectedSpell.name + ' cast on ' + targetName + ' — ' + fmt(total) + ' mana · ' + state.turns_stored + ' turns left', 'success');
 }
 
 /* ── Covert ── */
@@ -1344,6 +1452,7 @@ function switchTab(id, btn) {
   if (id === 'news') {
     var nb = document.getElementById('news-badge');
     if (nb) nb.remove();
+    loadNews();
   }
 }
 
@@ -1385,7 +1494,7 @@ function updateTax(v) {
   document.getElementById('tax-disp').textContent = v + '%';
   document.getElementById('m-tax').textContent = v + '%';
   var rate = Math.round(state.land * v * 0.12);
-  document.getElementById('m-gold-sub').textContent = '+' + fmt(rate) + ' GC/turn';
+  document.getElementById('m-gold-sub').textContent = '+' + trunc(rate) + '/turn';
 }
 
 function setTax(v) {
@@ -1414,18 +1523,44 @@ function takeTurn() {
 }
 
 function syncUI() {
-  document.getElementById('m-gold').textContent = fmt(state.gold);
-  document.getElementById('m-pop').textContent = fmt(state.pop);
-  document.getElementById('m-land').textContent = fmt(state.land);
-  document.getElementById('top-gold').textContent = fmt(state.gold) + ' GC';
-  document.getElementById('top-mana').textContent = fmt(state.mana);
-  document.getElementById('hire-pop').textContent = fmt(state.pop);
-  document.getElementById('build-eng').textContent = fmt(state.engineers);
-  // sync status panel unit counts
+  document.getElementById('m-gold').textContent = trunc(state.gold || 0);
+  document.getElementById('m-mana').textContent = trunc(state.mana || 0);
+  document.getElementById('m-pop').textContent  = trunc(state.pop  || 0);
+  document.getElementById('m-land').textContent = trunc(state.land || 0);
+  var moraleEl = document.getElementById('m-morale');
+  if (moraleEl) moraleEl.textContent = (state.morale || 0) + '%';
+  document.getElementById('hire-pop').textContent = fmt(state.pop || 0);
+  document.getElementById('build-eng').textContent = fmt(state.engineers || 0);
+  var expRangers = document.getElementById('exp-rangers-avail');
+  if (expRangers) expRangers.textContent = fmt(state.rangers || 0);
+  var atkAvail = document.getElementById('atk-avail');
+  if (atkAvail) atkAvail.textContent = fmt(state.fighters || 0);
+  var atkMagesAvail = document.getElementById('atk-mages-avail');
+  if (atkMagesAvail) atkMagesAvail.textContent = fmt(state.mages || 0);
+  // Sync status panel unit counts
   ['fighters','rangers','clerics','mages','thieves','ninjas','researchers','engineers'].forEach(function(u){
     var el = document.getElementById('s-' + u);
     if (el) el.textContent = fmt(state[u]||0);
   });
+  // Sync research progress bars
+  var resMap = {
+    res_economy:'eco', res_weapons:'wep', res_armor:'arm', res_military:'mil',
+    res_spellbook:'spell', res_entertainment:'ent', res_attack_magic:'atk', res_defense_magic:'def'
+  };
+  Object.keys(resMap).forEach(function(key) {
+    var bar = document.querySelector('.prog-bar.' + resMap[key]);
+    if (bar) bar.style.width = Math.min(100, (state[key]||0) / 10) + '%';
+    // Update count display in status panel
+    var countEl = document.querySelector('.trow .prog-bar.' + resMap[key]);
+    if (countEl) {
+      var row = countEl.closest('.trow');
+      if (row) {
+        var count = row.querySelector('.count');
+        if (count) count.textContent = fmt(state[key]||0) + (key !== 'res_spellbook' && key !== 'res_mana' ? '%' : '');
+      }
+    }
+  });
+  populateInputs();
 }
 
 // Regen countdown — syncs to server's 15-min cycle
@@ -1462,10 +1597,13 @@ function updateTurnsDisplay() {
   <button class="bnav-item" onclick="switchTabMobile('attack',this)"><span class="bicon">&#9876;</span>Attack</button>
   <button class="bnav-item" onclick="switchTabMobile('spells',this)"><span class="bicon">&#10024;</span>Spells</button>
   <button class="bnav-item" onclick="switchTabMobile('covert',this)"><span class="bicon">&#128373;</span>Covert</button>
+  <button class="bnav-item" onclick="switchTabMobile('exploration',this)"><span class="bicon">&#9685;</span>Explore</button>
   <div class="bnav-sep"></div>
   <button class="bnav-item" onclick="switchTabMobile('alliances',this)"><span class="bicon">&#9876;</span>Allies</button>
   <button class="bnav-item" onclick="switchTabMobile('news',this)"><span class="bicon">&#9741;</span>News<span id="bnav-news-badge" class="bnav-badge">3</span></button>
   <button class="bnav-item" onclick="switchTabMobile('options',this)"><span class="bicon">&#9881;</span>Options</button>
+  <div class="bnav-sep"></div>
+  <button class="bnav-item" onclick="doLogout()" style="color:var(--red)"><span class="bicon">&#10005;</span>Logout</button>
 </nav>
 
 <script>
@@ -1633,6 +1771,9 @@ async function loadKingdom() {
   updateTurnsDisplay();
   document.getElementById('kingdom-name').textContent = kingdom.name;
   document.getElementById('turn-num').textContent = kingdom.turn;
+  // Set morale display (not in syncUI since it's a percentage)
+  var moraleEl = document.getElementById('m-morale');
+  if (moraleEl) moraleEl.textContent = (kingdom.morale || 0) + '%';
 
   // Race data
   var raceData = {
@@ -1664,6 +1805,66 @@ async function loadKingdom() {
   if (optRaceEl) optRaceEl.textContent = race.label + ' — ' + race.bonus;
 
   loadRankings();
+  loadNews();
+}
+
+async function loadNews() {
+  var items = await apiCall('GET', '/api/kingdom/news/list');
+  var list = document.getElementById('news-list');
+  var titleTurn = document.getElementById('news-turn-num');
+  if (titleTurn) titleTurn.textContent = state.turn || 0;
+  if (!list) return;
+  if (!Array.isArray(items) || items.length === 0) {
+    list.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:8px 0">No news yet — take some turns!</div>';
+    return;
+  }
+  var typeClass = { attack:'news-attack', spell:'news-magic', alliance:'news-hl', covert:'news-hl' };
+  list.innerHTML = items.map(function(item) {
+    var cls = typeClass[item.type] || 'news-hl';
+    var ago = timeAgo(item.created_at);
+    return '<div class="news-item">'
+      + '<span class="time">' + ago + '</span>'
+      + '<span class="' + cls + '">' + item.message + '</span>'
+      + '</div>';
+  }).join('');
+  // Clear badge
+  ['news-badge','bnav-news-badge'].forEach(function(id) {
+    var b = document.getElementById(id);
+    if (b) b.remove();
+  });
+}
+
+function timeAgo(unixTs) {
+  if (!unixTs) return 'Just now';
+  var secs = Math.floor(Date.now() / 1000) - unixTs;
+  if (secs < 60)   return 'Just now';
+  if (secs < 3600) return Math.floor(secs / 60) + 'm ago';
+  if (secs < 86400)return Math.floor(secs / 3600) + 'h ago';
+  return Math.floor(secs / 86400) + 'd ago';
+}
+
+async function clearNews() {
+  var result = await apiCall('DELETE', '/api/kingdom/news/clear');
+  if (result.error) return toast(result.error, 'error');
+  var list = document.getElementById('news-list');
+  if (list) list.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:8px 0">News cleared.</div>';
+  toast('News cleared', 'success');
+}
+
+function appendNewsItems(events) {
+  if (!events || !events.length) return;
+  var list = document.getElementById('news-list');
+  if (!list) return;
+  // Remove any placeholder text divs
+  Array.from(list.children).forEach(function(child) {
+    if (!child.classList.contains('news-item')) child.remove();
+  });
+  var html = events.map(function(ev) {
+    var msg = ev.message || ev;
+    var cls = { attack:'news-attack', spell:'news-magic', covert:'news-hl', alliance:'news-hl' }[ev.type] || 'news-hl';
+    return '<div class="news-item"><span class="time">Just now</span><span class="' + cls + '">' + msg + '</span></div>';
+  }).join('');
+  list.insertAdjacentHTML('afterbegin', html);
 }
 
 async function loadRankings() {
@@ -1688,11 +1889,33 @@ takeTurn = async function() {
   takingTurn = false;
   if (btn) btn.style.opacity = state.turns_stored > 0 ? '1' : '0.4';
   if (result.error) return toast(result.error, 'error');
-  Object.assign(state, result.updates);
+  var u = result.updates || {};
+  // Remap server keys to frontend state keys
+  if (u.population !== undefined) state.pop      = u.population;
+  if (u.gold       !== undefined) state.gold      = u.gold;
+  if (u.mana       !== undefined) state.mana      = u.mana;
+  if (u.land       !== undefined) state.land      = u.land;
+  if (u.morale     !== undefined) state.morale    = u.morale;
+  if (u.turn       !== undefined) state.turn      = u.turn;
+  if (u.fighters   !== undefined) state.fighters  = u.fighters;
+  if (u.rangers    !== undefined) state.rangers   = u.rangers;
+  if (u.clerics    !== undefined) state.clerics   = u.clerics;
+  if (u.mages      !== undefined) state.mages     = u.mages;
+  if (u.thieves    !== undefined) state.thieves   = u.thieves;
+  if (u.ninjas     !== undefined) state.ninjas    = u.ninjas;
+  if (u.researchers!== undefined) state.researchers = u.researchers;
+  if (u.engineers  !== undefined) state.engineers = u.engineers;
+  // Research values
+  ['res_economy','res_weapons','res_armor','res_military','res_spellbook',
+   'res_attack_magic','res_defense_magic','res_entertainment','res_construction','res_war_machines'
+  ].forEach(function(k) { if (u[k] !== undefined) state[k] = u[k]; });
   if (result.turns_stored !== undefined) state.turns_stored = result.turns_stored;
   syncUI();
   updateTurnsDisplay();
   document.getElementById('turn-num').textContent = state.turn;
+  var newsTurn = document.getElementById('news-turn-num');
+  if (newsTurn) newsTurn.textContent = state.turn;
+  if (result.events && result.events.length) appendNewsItems(result.events);
   toast('Turn ' + state.turn + ' · ' + state.turns_stored + ' turns left', 'success');
 };
 
@@ -1700,14 +1923,29 @@ takeTurn = async function() {
 hire = async function(unit) {
   var n = parseInt(document.getElementById('hire-' + unit).value) || 0;
   if (n <= 0) return toast('Enter an amount', 'error');
+  if (state.turns_stored < 1) return toast('No turns available', 'warn');
   var result = await apiCall('POST', '/api/kingdom/hire', { unit: unit, amount: n });
   if (result.error) return toast(result.error, 'error');
   Object.assign(state, result.updates);
+  if (result.turns_stored !== undefined) { state.turns_stored = result.turns_stored; updateTurnsDisplay(); }
   syncUI();
   document.getElementById('hire-' + unit).value = 0;
   var hEl = document.getElementById('h-' + unit);
   if (hEl) hEl.textContent = fmt(state[unit]);
-  toast('Hired ' + fmt(n) + ' ' + unit, 'success');
+  toast('Hired ' + fmt(n) + ' ' + unit + ' · 1 turn used · ' + state.turns_stored + ' left', 'success');
+};
+
+// Override study to hit real server and deduct turn
+study = async function(name) {
+  var idMap = { Economy:'r-eco', Weapons:'r-wep', Armor:'r-arm', 'Military tactics':'r-mil', Spellbook:'r-spell', 'Attack magic':'r-atk', 'Defense magic':'r-def', Entertainment:'r-ent', 'Construction skills':'r-con', 'War machines':'r-wm' };
+  var disciplineMap = { Economy:'economy', Weapons:'weapons', Armor:'armor', 'Military tactics':'military', Spellbook:'spellbook', 'Attack magic':'attack_magic', 'Defense magic':'defense_magic', Entertainment:'entertainment', 'Construction skills':'construction', 'War machines':'war_machines' };
+  var n = parseInt(document.getElementById(idMap[name])?.value) || 0;
+  if (n <= 0) return toast('Enter a number of researchers', 'error');
+  if (state.turns_stored < 1) return toast('No turns available', 'warn');
+  var result = await apiCall('POST', '/api/kingdom/research', { discipline: disciplineMap[name], researchers: n });
+  if (result.error) return toast(result.error, 'error');
+  if (result.turns_stored !== undefined) { state.turns_stored = result.turns_stored; updateTurnsDisplay(); }
+  toast('+' + result.increment + ' to ' + name + ' · 1 turn used · ' + state.turns_stored + ' left', 'success');
 };
 
 // Boot — check auth then show modal or load kingdom
