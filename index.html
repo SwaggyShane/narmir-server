@@ -159,6 +159,8 @@
   .btn-red:active { background: rgba(224,92,92,.15); }
   .btn-amber { background: transparent; border-color: var(--amber); color: var(--amber); }
   .btn-amber:active { background: rgba(240,168,50,.15); }
+  .btn-blue { background: transparent; border-color: var(--blue); color: var(--blue); }
+  .btn-blue:active { background: rgba(91,156,245,.15); }
 
   /* ── Badges ── */
   .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; }
@@ -259,7 +261,7 @@
       <div class="logo">NARMIR <span>Land of Magic and Conquest</span></div>
     </div>
     <div class="topbar-stats">
-      <div class="tstat hide-sm"><div class="val" id="top-rank">#47</div><div class="lbl">Rank</div></div>
+      <div class="tstat hide-sm"><div class="val" id="top-rank">—</div><div class="lbl">Rank</div></div>
       <div style="display:flex;align-items:center;gap:10px">
         <div style="text-align:right">
           <div style="display:flex;align-items:center;gap:6px">
@@ -282,13 +284,12 @@
     <button class="nav-item" onclick="switchTab('hire',this)"><span class="icon">&#9651;</span>Hire</button>
     <button class="nav-item" onclick="switchTab('research',this)"><span class="icon">&#9670;</span>Research</button>
     <button class="nav-item" onclick="switchTab('build',this)"><span class="icon">&#9650;</span>Build</button>
-    <button class="nav-item" onclick="switchTab('options',this)"><span class="icon">&#9881;</span>Options</button>
+    <button class="nav-item" onclick="switchTab('exploration',this)"><span class="icon">&#9685;</span>Exploration</button>
 
     <div class="nav-section">Warfare</div>
     <button class="nav-item" onclick="switchTab('attack',this)"><span class="icon">&#9876;</span>Attack</button>
     <button class="nav-item" onclick="switchTab('spells',this)"><span class="icon">&#10024;</span>Spells</button>
     <button class="nav-item" onclick="switchTab('covert',this)"><span class="icon">&#128373;</span>Covert</button>
-    <button class="nav-item" onclick="switchTab('exploration',this)"><span class="icon">&#9685;</span>Exploration</button>
 
     <div class="nav-section">Social</div>
     <button class="nav-item" onclick="switchTab('alliances',this)"><span class="icon">&#9876;</span>Alliances</button>
@@ -305,9 +306,9 @@
     <!-- Kingdom header -->
     <div class="kingdom-header" style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
       <div>
-        <h1 style="font-size:26px;font-weight:700;color:var(--text);line-height:1.2" id="kingdom-name">Ironveil</h1>
-        <div style="color:var(--text2);font-size:13px;margin-top:4px"><span id="kingdom-owner-line">Realm of the <strong style="color:var(--purple)">High Elves</strong></span> · Turn <span id="turn-num" style="color:var(--text);font-weight:600">143</span> · <span class="badge badge-green">Protected</span></div>
-        <div style="margin-top:6px"><span class="race-tag" id="race-tag-display"><strong>High Elf</strong> · +15% research efficiency · Powerful magic</span></div>
+        <h1 style="font-size:26px;font-weight:700;color:var(--text);line-height:1.2" id="kingdom-name">—</h1>
+        <div style="color:var(--text2);font-size:13px;margin-top:4px"><span id="kingdom-owner-line">—</span> · Turn <span id="turn-num" style="color:var(--text);font-weight:600">0</span> · <span class="badge badge-green">Protected</span></div>
+        <div style="margin-top:6px"><span class="race-tag" id="race-tag-display">—</span></div>
       </div>
     </div>
 
@@ -315,33 +316,33 @@
     <div class="metrics">
       <div class="metric gold">
         <div class="lbl">Gold</div>
-        <div class="val" id="m-gold">48.2k</div>
-        <div class="sub" id="m-gold-sub">+4.8k/turn</div>
+        <div class="val" id="m-gold">10k</div>
+        <div class="sub" id="m-gold-sub">+0/turn</div>
       </div>
       <div class="metric">
         <div class="lbl">Mana</div>
-        <div class="val" id="m-mana">22.4k</div>
+        <div class="val" id="m-mana">5k</div>
         <div class="sub" id="m-mana-sub">+40/turn</div>
       </div>
       <div class="metric">
         <div class="lbl">Land</div>
-        <div class="val" id="m-land">1.8k</div>
+        <div class="val" id="m-land">500</div>
         <div class="sub">acres</div>
       </div>
       <div class="metric">
         <div class="lbl">Population</div>
-        <div class="val" id="m-pop">124.5k</div>
+        <div class="val" id="m-pop">50k</div>
         <div class="sub">+310/turn</div>
       </div>
       <div class="metric">
         <div class="lbl">Morale</div>
-        <div class="val" id="m-morale">87%</div>
+        <div class="val" id="m-morale">100%</div>
         <div class="sub">Tax: <span id="m-tax">42%</span></div>
       </div>
       <div class="metric">
         <div class="lbl">Food</div>
         <div class="val" id="m-food">OK</div>
-        <div class="sub">4,200 farms</div>
+        <div class="sub">200 farms</div>
       </div>
     </div>
 
@@ -353,89 +354,105 @@
         <div>
           <div class="card">
             <div class="card-title">Military &amp; support</div>
-            <div class="trow"><span class="name">Fighters</span><span class="count" id="s-fighters">12,400</span><span class="badge badge-red">Combat</span></div>
-            <div class="trow"><span class="name">Rangers</span><span class="count" id="s-rangers">3,200</span><span class="badge badge-blue">Scout</span></div>
-            <div class="trow"><span class="name">Clerics</span><span class="count" id="s-clerics">1,800</span><span class="badge badge-green">Heal</span></div>
-            <div class="trow"><span class="name">Mages</span><span class="count" id="s-mages">2,100</span><span class="badge badge-amber">Magic</span></div>
-            <div class="trow"><span class="name">Thieves</span><span class="count" id="s-thieves">900</span><span class="badge badge-amber">Covert</span></div>
-            <div class="trow"><span class="name">Ninjas</span><span class="count" id="s-ninjas">420</span><span class="badge badge-amber">Covert</span></div>
-            <div class="trow"><span class="name">Researchers</span><span class="count" id="s-researchers">8,000</span><span class="badge badge-blue">Study</span></div>
-            <div class="trow"><span class="name">Engineers</span><span class="count" id="s-engineers">2,200</span><span class="badge badge-blue">Build</span></div>
+            <div class="trow"><span class="name">Fighters</span><span class="count" id="s-fighters">0</span><span class="badge badge-red">Combat</span></div>
+            <div class="trow"><span class="name">Rangers</span><span class="count" id="s-rangers">0</span><span class="badge badge-blue">Scout</span></div>
+            <div class="trow"><span class="name">Clerics</span><span class="count" id="s-clerics">0</span><span class="badge badge-green">Heal</span></div>
+            <div class="trow"><span class="name">Mages</span><span class="count" id="s-mages">0</span><span class="badge badge-amber">Magic</span></div>
+            <div class="trow"><span class="name">Thieves</span><span class="count" id="s-thieves">0</span><span class="badge badge-amber">Covert</span></div>
+            <div class="trow"><span class="name">Ninjas</span><span class="count" id="s-ninjas">0</span><span class="badge badge-amber">Covert</span></div>
+            <div class="trow"><span class="name">Researchers</span><span class="count" id="s-researchers">500</span><span class="badge badge-blue">Study</span></div>
+            <div class="trow"><span class="name">Engineers</span><span class="count" id="s-engineers">0</span><span class="badge badge-blue">Build</span></div>
           </div>
         </div>
         <div>
           <div class="card">
             <div class="card-title">Research levels</div>
-            <div class="trow"><span class="name">Economy</span><div class="prog-wrap"><div class="prog-bar eco" style="width:74%"></div></div><span class="count">740%</span></div>
-            <div class="trow"><span class="name">Weapons</span><div class="prog-wrap"><div class="prog-bar wep" style="width:52%"></div></div><span class="count">520%</span></div>
-            <div class="trow"><span class="name">Armor</span><div class="prog-wrap"><div class="prog-bar arm" style="width:48%"></div></div><span class="count">480%</span></div>
-            <div class="trow"><span class="name">Military tactics</span><div class="prog-wrap"><div class="prog-bar mil" style="width:36%"></div></div><span class="count">360%</span></div>
-            <div class="trow"><span class="name">Spellbook</span><div class="prog-wrap"><div class="prog-bar spell" style="width:61%"></div></div><span class="count">6,100</span></div>
-            <div class="trow"><span class="name">Mana</span><div class="prog-wrap"><div class="prog-bar mana" style="width:55%"></div></div><span class="count">22,400</span></div>
-            <div class="trow"><span class="name">Entertainment</span><div class="prog-wrap"><div class="prog-bar" style="width:28%;background:var(--green)"></div></div><span class="count">280%</span></div>
+            <div class="trow"><span class="name">Economy</span><div class="prog-wrap"><div class="prog-bar eco" id="pb-eco" style="width:10%"></div></div><span class="count">100%</span></div>
+            <div class="trow"><span class="name">Weapons</span><div class="prog-wrap"><div class="prog-bar wep" id="pb-wep" style="width:10%"></div></div><span class="count">520%</span></div>
+            <div class="trow"><span class="name">Armor</span><div class="prog-wrap"><div class="prog-bar arm" id="pb-arm" style="width:10%"></div></div><span class="count">480%</span></div>
+            <div class="trow"><span class="name">Military tactics</span><div class="prog-wrap"><div class="prog-bar mil" id="pb-mil" style="width:10%"></div></div><span class="count">100%</span></div>
+            <div class="trow"><span class="name">Spellbook</span><div class="prog-wrap"><div class="prog-bar spell" id="pb-spell" style="width:5%"></div></div><span class="count">6,100</span></div>
+            <div class="trow"><span class="name">Mana</span><div class="prog-wrap"><div class="prog-bar mana" style="width:3%"></div></div><span class="count">22,400</span></div>
+            <div class="trow"><span class="name">Entertainment</span><div class="prog-wrap"><div class="prog-bar" style="width:10%;background:var(--green)"></div></div><span class="count">100%</span></div>
           </div>
           <div class="card">
             <div class="card-title">Key buildings</div>
-            <div class="trow"><span class="name">Farms</span><span class="count">4,200</span></div>
-            <div class="trow"><span class="name">Barracks</span><span class="count">640</span></div>
-            <div class="trow"><span class="name">Smithies</span><span class="count">180</span></div>
-            <div class="trow"><span class="name">Cathedrals</span><span class="count">32</span></div>
-            <div class="trow"><span class="name">Castles</span><span class="count">4</span></div>
-            <div class="trow"><span class="name">Guard towers</span><span class="count">72</span></div>
+            <div class="trow"><span class="name">Farms</span><span class="count">200</span></div>
+            <div class="trow"><span class="name">Barracks</span><span class="count">0</span></div>
+            <div class="trow"><span class="name">Smithies</span><span class="count">0</span></div>
+            <div class="trow"><span class="name">Cathedrals</span><span class="count">0</span></div>
+            <div class="trow"><span class="name">Castles</span><span class="count">0</span></div>
+            <div class="trow"><span class="name">Guard towers</span><span class="count">0</span></div>
           </div>
         </div>
       </div>
+
+      <!-- Tax rate -->
+      <div class="card" style="margin-top:0">
+        <div class="card-title">Tax rate</div>
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:10px">
+          <input type="range" id="tax-slider" min="0" max="100" step="1" value="42" oninput="updateTax(this.value)" style="flex:1">
+          <span style="font-size:22px;font-weight:700;color:var(--gold);min-width:48px" id="tax-disp">42%</span>
+          <div style="display:flex;gap:8px">
+            <button class="btn" onclick="setTax(42)">42%</button>
+            <button class="btn" onclick="setTax(50)">50%</button>
+            <button class="btn btn-red" onclick="setTax(0)">0%</button>
+          </div>
+        </div>
+        <div style="font-size:12px;color:var(--text3);line-height:1.7">42% is the sweet spot — max gold without morale penalty. Above 50%: citizens leave. Below 30%: minimal income.</div>
+      </div>
+
     </div>
 
     <!-- HIRE -->
     <div id="hire" class="panel">
       <div class="card">
-        <div class="card-title">Hire units — 250 GC each · Population available: <span id="hire-pop">124,500</span></div>
+        <div class="card-title">Hire units — 250 GC each · Population available: <span id="hire-pop">50,000</span></div>
         <div class="trow">
           <span class="name">Fighters</span><span class="desc">Main attack &amp; defense force</span>
-          <span class="count" id="h-fighters">12,400</span>
+          <span class="count" id="h-fighters">0</span>
           <input type="number" id="hire-fighters" min="0" value="0" placeholder="0">
           <button class="btn btn-gold" onclick="hire('fighters')">Hire</button>
         </div>
         <div class="trow">
           <span class="name">Rangers</span><span class="desc">Search for land, gold &amp; targets</span>
-          <span class="count" id="h-rangers">3,200</span>
+          <span class="count" id="h-rangers">0</span>
           <input type="number" id="hire-rangers" min="0" value="0" placeholder="0">
           <button class="btn btn-gold" onclick="hire('rangers')">Hire</button>
         </div>
         <div class="trow">
           <span class="name">Clerics</span><span class="desc">Battlefield medics &amp; fighters</span>
-          <span class="count" id="h-clerics">1,800</span>
+          <span class="count" id="h-clerics">0</span>
           <input type="number" id="hire-clerics" min="0" value="0" placeholder="0">
           <button class="btn btn-gold" onclick="hire('clerics')">Hire</button>
         </div>
         <div class="trow">
           <span class="name">Mages</span><span class="desc">Attack magic, absorbs enemy spells</span>
-          <span class="count" id="h-mages">2,100</span>
+          <span class="count" id="h-mages">0</span>
           <input type="number" id="hire-mages" min="0" value="0" placeholder="0">
           <button class="btn btn-gold" onclick="hire('mages')">Hire</button>
         </div>
         <div class="trow">
           <span class="name">Thieves</span><span class="desc">Loot research, gold &amp; machines</span>
-          <span class="count" id="h-thieves">900</span>
+          <span class="count" id="h-thieves">0</span>
           <input type="number" id="hire-thieves" min="0" value="0" placeholder="0">
           <button class="btn btn-gold" onclick="hire('thieves')">Hire</button>
         </div>
         <div class="trow">
           <span class="name">Ninjas</span><span class="desc">Assassinate units &amp; sabotage</span>
-          <span class="count" id="h-ninjas">420</span>
+          <span class="count" id="h-ninjas">0</span>
           <input type="number" id="hire-ninjas" min="0" value="0" placeholder="0">
           <button class="btn btn-gold" onclick="hire('ninjas')">Hire</button>
         </div>
         <div class="trow">
           <span class="name">Researchers</span><span class="desc">Study all disciplines (max 1M)</span>
-          <span class="count" id="h-researchers">8,000</span>
+          <span class="count" id="h-researchers">500</span>
           <input type="number" id="hire-researchers" min="0" value="0" placeholder="0">
           <button class="btn btn-gold" onclick="hire('researchers')">Hire</button>
         </div>
         <div class="trow">
           <span class="name">Engineers</span><span class="desc">Construct buildings &amp; operate war machines</span>
-          <span class="count" id="h-engineers">2,200</span>
+          <span class="count" id="h-engineers">0</span>
           <input type="number" id="hire-engineers" min="0" value="0" placeholder="0">
           <button class="btn btn-gold" onclick="hire('engineers')">Hire</button>
         </div>
@@ -446,66 +463,88 @@
     <!-- RESEARCH -->
     <div id="research" class="panel">
       <div class="card">
-        <div class="card-title">Research — assign researchers to disciplines · ~2,000 researchers = max increment</div>
+        <div class="card-title">Research</div>
+
+        <!-- Single control row -->
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Researchers to assign</label>
+            <input type="number" id="r-amount" min="0" max="1000000" value="0"
+              style="width:130px;font-size:15px;padding:8px 10px;text-align:left">
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:200px">
+            <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Discipline</label>
+            <select id="r-discipline" style="width:100%;padding:8px 10px;font-size:14px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text)">
+              <option value="Economy">Economy — gold earned per turn</option>
+              <option value="Weapons">Weapons — attack damage bonus</option>
+              <option value="Armor">Armor — defense rating bonus</option>
+              <option value="Military tactics">Military tactics — all troop effectiveness</option>
+              <option value="Spellbook">Spellbook — more &amp; stronger spells</option>
+              <option value="Attack magic">Attack magic — destructive spell damage</option>
+              <option value="Defense magic">Defense magic — protective spell power</option>
+              <option value="Entertainment">Entertainment — morale &amp; population growth</option>
+              <option value="Construction skills">Construction skills — build more per turn</option>
+              <option value="War machines">War machines — WM power &amp; durability</option>
+            </select>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">&nbsp;</label>
+            <button class="btn btn-purple" onclick="study(document.getElementById('r-discipline').value)"
+              style="padding:8px 20px;font-size:14px;white-space:nowrap">Study</button>
+          </div>
+        </div>
+
+        <!-- Current levels table -->
+        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Current levels</div>
         <div class="trow">
-          <span class="name">Economy</span><span class="desc">Gold earned per turn</span>
-          <span class="count">740%</span><span class="badge badge-green">+5/turn</span>
-          <input type="number" id="r-eco" min="0" max="1000000" value="2000">
-          <button class="btn btn-purple" onclick="study('Economy')">Study</button>
+          <span class="name">Economy</span><span class="desc">Gold per turn</span>
+          <div class="prog-wrap"><div class="prog-bar eco" id="pb-eco" style="width:10%"></div></div>
+          <span class="count" id="rv-eco">100%</span>
         </div>
         <div class="trow">
-          <span class="name">Weapons</span><span class="desc">Attack damage bonus</span>
-          <span class="count">520%</span><span class="badge badge-blue">+3/turn</span>
-          <input type="number" id="r-wep" min="0" max="1000000" value="1200">
-          <button class="btn btn-purple" onclick="study('Weapons')">Study</button>
+          <span class="name">Weapons</span><span class="desc">Attack damage</span>
+          <div class="prog-wrap"><div class="prog-bar wep" id="pb-wep" style="width:10%"></div></div>
+          <span class="count" id="rv-wep">100%</span>
         </div>
         <div class="trow">
-          <span class="name">Armor</span><span class="desc">Defense rating bonus</span>
-          <span class="count">480%</span><span class="badge badge-blue">+3/turn</span>
-          <input type="number" id="r-arm" min="0" max="1000000" value="1200">
-          <button class="btn btn-purple" onclick="study('Armor')">Study</button>
+          <span class="name">Armor</span><span class="desc">Defense rating</span>
+          <div class="prog-wrap"><div class="prog-bar arm" id="pb-arm" style="width:10%"></div></div>
+          <span class="count" id="rv-arm">100%</span>
         </div>
         <div class="trow">
-          <span class="name">Military tactics</span><span class="desc">All troop effectiveness</span>
-          <span class="count">360%</span><span class="badge badge-amber">+2/turn</span>
-          <input type="number" id="r-mil" min="0" max="1000000" value="800">
-          <button class="btn btn-purple" onclick="study('Military tactics')">Study</button>
+          <span class="name">Military tactics</span><span class="desc">Troop effectiveness</span>
+          <div class="prog-wrap"><div class="prog-bar mil" id="pb-mil" style="width:10%"></div></div>
+          <span class="count" id="rv-mil">100%</span>
         </div>
         <div class="trow">
-          <span class="name">Spellbook</span><span class="desc">More &amp; stronger spells</span>
-          <span class="count">6,100</span><span class="badge badge-green">+5/turn</span>
-          <input type="number" id="r-spell" min="0" max="1000000" value="2000">
-          <button class="btn btn-purple" onclick="study('Spellbook')">Study</button>
+          <span class="name">Spellbook</span><span class="desc">Spell power</span>
+          <div class="prog-wrap"><div class="prog-bar spell" id="pb-spell" style="width:5%"></div></div>
+          <span class="count" id="rv-spell">500</span>
         </div>
         <div class="trow">
-          <span class="name">Attack magic</span><span class="desc">Destructive spell damage</span>
-          <span class="count">410%</span><span class="badge badge-blue">+3/turn</span>
-          <input type="number" id="r-atk" min="0" max="1000000" value="1200">
-          <button class="btn btn-purple" onclick="study('Attack magic')">Study</button>
+          <span class="name">Attack magic</span><span class="desc">Spell damage</span>
+          <div class="prog-wrap"><div class="prog-bar" style="width:10%;background:var(--red)" id="pb-atk"></div></div>
+          <span class="count" id="rv-atk">100%</span>
         </div>
         <div class="trow">
-          <span class="name">Defense magic</span><span class="desc">Protective spell power</span>
-          <span class="count">290%</span><span class="badge badge-amber">+2/turn</span>
-          <input type="number" id="r-def" min="0" max="1000000" value="800">
-          <button class="btn btn-purple" onclick="study('Defense magic')">Study</button>
+          <span class="name">Defense magic</span><span class="desc">Spell protection</span>
+          <div class="prog-wrap"><div class="prog-bar arm" id="pb-def" style="width:10%"></div></div>
+          <span class="count" id="rv-def">100%</span>
         </div>
         <div class="trow">
-          <span class="name">Entertainment</span><span class="desc">Morale &amp; population growth</span>
-          <span class="count">280%</span><span class="badge badge-amber">+2/turn</span>
-          <input type="number" id="r-ent" min="0" max="1000000" value="600">
-          <button class="btn btn-purple" onclick="study('Entertainment')">Study</button>
+          <span class="name">Entertainment</span><span class="desc">Morale &amp; pop</span>
+          <div class="prog-wrap"><div class="prog-bar" style="width:10%;background:var(--green)" id="pb-ent"></div></div>
+          <span class="count" id="rv-ent">100%</span>
         </div>
         <div class="trow">
-          <span class="name">Construction skills</span><span class="desc">Build more per turn</span>
-          <span class="count">310%</span><span class="badge badge-amber">+2/turn</span>
-          <input type="number" id="r-con" min="0" max="1000000" value="600">
-          <button class="btn btn-purple" onclick="study('Construction skills')">Study</button>
+          <span class="name">Construction</span><span class="desc">Build speed</span>
+          <div class="prog-wrap"><div class="prog-bar" style="width:10%;background:var(--amber)" id="pb-con"></div></div>
+          <span class="count" id="rv-con">100%</span>
         </div>
         <div class="trow">
-          <span class="name">War machines</span><span class="desc">WM power &amp; durability</span>
-          <span class="count">190%</span><span class="badge badge-amber">+1/turn</span>
-          <input type="number" id="r-wm" min="0" max="1000000" value="400">
-          <button class="btn btn-purple" onclick="study('War machines')">Study</button>
+          <span class="name">War machines</span><span class="desc">WM power</span>
+          <div class="prog-wrap"><div class="prog-bar" style="width:10%;background:var(--text3)" id="pb-wm"></div></div>
+          <span class="count" id="rv-wm">100%</span>
         </div>
       </div>
     </div>
@@ -513,131 +552,119 @@
     <!-- BUILD -->
     <div id="build" class="panel">
       <div class="card">
-        <div class="card-title">Construction · Engineers: <span id="build-eng">2,200</span> available</div>
+        <div class="card-title">Construction · Engineers: <span id="build-eng">0</span> available</div>
         <div class="trow">
           <span class="name">Farms</span><span class="desc">Food supply · 10 pieces = 1 farm</span>
-          <span class="count">4,200</span>
+          <span class="count" id="bld-farms">0</span>
           <input type="number" id="b-farm" min="0" value="0">
           <button class="btn" onclick="build('farm',10,'Farms')">Build</button>
         </div>
         <div class="trow">
           <span class="name">Barracks</span><span class="desc">Reduces troop upkeep · 2 pieces</span>
-          <span class="count">640</span>
+          <span class="count" id="bld-barracks">0</span>
           <input type="number" id="b-barracks" min="0" value="0">
           <button class="btn" onclick="build('barracks',2,'Barracks')">Build</button>
         </div>
         <div class="trow">
           <span class="name">Outposts</span><span class="desc">Early attack warning · 2 pieces</span>
-          <span class="count">94</span>
+          <span class="count" id="bld-outposts">0</span>
           <input type="number" id="b-outpost" min="0" value="0">
           <button class="btn" onclick="build('outpost',2,'Outposts')">Build</button>
         </div>
         <div class="trow">
           <span class="name">Guard towers</span><span class="desc">Blocks enemy covert ops · 2 pieces</span>
-          <span class="count">72</span>
+          <span class="count" id="bld-guard_towers">0</span>
           <input type="number" id="b-tower" min="0" value="0">
           <button class="btn" onclick="build('tower',2,'Guard towers')">Build</button>
         </div>
         <div class="trow">
           <span class="name">Schools</span><span class="desc">Accelerates research · 5 pieces</span>
-          <span class="count">18</span>
+          <span class="count" id="bld-schools">0</span>
           <input type="number" id="b-school" min="0" value="0">
           <button class="btn" onclick="build('school',5,'Schools')">Build</button>
         </div>
         <div class="trow">
           <span class="name">Armories</span><span class="desc">Protects weapons from thieves · 5 pieces</span>
-          <span class="count">9</span>
+          <span class="count" id="bld-armories">0</span>
           <input type="number" id="b-armory" min="0" value="0">
           <button class="btn" onclick="build('armory',5,'Armories')">Build</button>
         </div>
         <div class="trow">
           <span class="name">Vaults</span><span class="desc">Protects gold from thieves · 5 pieces</span>
-          <span class="count">12</span>
+          <span class="count" id="bld-vaults">0</span>
           <input type="number" id="b-vault" min="0" value="0">
           <button class="btn" onclick="build('vault',5,'Vaults')">Build</button>
         </div>
         <div class="trow">
           <span class="name">Smithies</span><span class="desc">Engineers build faster · 15 pieces</span>
-          <span class="count">180</span>
+          <span class="count" id="bld-smithies">0</span>
           <input type="number" id="b-smithy" min="0" value="0">
           <button class="btn" onclick="build('smithy',15,'Smithies')">Build</button>
         </div>
         <div class="trow">
           <span class="name">Market places</span><span class="desc">Trade revenue · 30 pieces</span>
-          <span class="count">8</span>
+          <span class="count" id="bld-markets">0</span>
           <input type="number" id="b-market" min="0" value="0">
           <button class="btn" onclick="build('market',30,'Market places')">Build</button>
         </div>
         <div class="trow">
           <span class="name">Cathedrals</span><span class="desc">Mana per turn, attracts pop · 25 pieces</span>
-          <span class="count">32</span>
+          <span class="count" id="bld-cathedrals">0</span>
           <input type="number" id="b-cathedral" min="0" value="0">
           <button class="btn" onclick="build('cathedral',25,'Cathedrals')">Build</button>
         </div>
         <div class="trow">
           <span class="name">Training fields</span><span class="desc">Auto military tactics training · 50 pieces</span>
-          <span class="count">0</span>
+          <span class="count" id="bld-training">0</span>
           <input type="number" id="b-training" min="0" value="0">
           <button class="btn" onclick="build('training',50,'Training fields')">Build</button>
         </div>
         <div class="trow">
           <span class="name">Colosseums</span><span class="desc">Entertainment &amp; population · 25 pieces</span>
-          <span class="count">3</span>
+          <span class="count" id="bld-colosseums">0</span>
           <input type="number" id="b-colosseum" min="0" value="0">
           <button class="btn" onclick="build('colosseum',25,'Colosseums')">Build</button>
         </div>
         <div class="trow">
           <span class="name">Castles</span><span class="desc">Food, economy, defences boost · 500 pieces</span>
-          <span class="count">4</span>
+          <span class="count" id="bld-castles">0</span>
           <input type="number" id="b-castle" min="0" value="0">
           <button class="btn" onclick="build('castle',500,'Castles')">Build</button>
+        </div>
+        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;padding:14px 0 8px">Equipment — forged by engineers · more smithies = faster production</div>
+        <div class="trow">
+          <span class="name">Weapons</span><span class="desc">Each equips 1 fighter · +25% attack when fully equipped · lost in battle</span>
+          <span class="count" id="bld-weapons_stockpile">0</span>
+          <input type="number" id="b-weapons" min="0" value="0">
+          <button class="btn btn-red" onclick="build('weapons',1,'Weapons')">Forge</button>
+        </div>
+        <div class="trow">
+          <span class="name">Armor</span><span class="desc">Each equips 1 fighter · +25% defence when fully equipped · not lost in battle</span>
+          <span class="count" id="bld-armor_stockpile">0</span>
+          <input type="number" id="b-armor" min="0" value="0">
+          <button class="btn btn-blue" onclick="build('armor',1,'Armor')">Forge</button>
         </div>
       </div>
     </div>
 
-    <!-- OPTIONS -->
+    <!-- OPTIONS (hidden panel) -->
     <div id="options" class="panel">
       <div class="two-col">
         <div class="card">
-          <div class="card-title">Tax rate</div>
-          <div class="option-row">
-            <span class="option-label">Current tax</span>
-            <input type="range" id="tax-slider" min="0" max="100" step="1" value="42" oninput="updateTax(this.value)" style="flex:1">
-            <span class="option-val" id="tax-disp">42%</span>
-          </div>
-          <div style="font-size:12px;color:var(--text3);line-height:1.7;margin-bottom:14px">
-            42% is the sweet spot — maximum gold without morale penalty.<br>
-            Above 50%: citizens will leave, harming your population.<br>
-            Below 30%: you earn almost nothing from taxation.
-          </div>
-          <div style="display:flex;gap:8px">
-            <button class="btn" onclick="setTax(42)">Set 42%</button>
-            <button class="btn" onclick="setTax(50)">Set 50%</button>
-            <button class="btn btn-red" onclick="setTax(0)">0% (crisis)</button>
-          </div>
-        </div>
-        <div class="card">
           <div class="card-title">Kingdom identity</div>
-          <div style="margin-bottom:14px">
-            <div style="font-size:12px;color:var(--text3);margin-bottom:6px">Kingdom name</div>
-            <div style="display:flex;gap:8px">
-              <input type="text" id="kname-inp" value="Ironveil" style="width:160px;font-size:14px;padding:7px 10px">
-              <button class="btn btn-purple" onclick="saveName()">Save</button>
-            </div>
-          </div>
           <div>
             <div style="font-size:12px;color:var(--text3);margin-bottom:6px">Race <span style="color:var(--text3);font-style:italic">(permanent — chosen at registration)</span></div>
             <div id="options-race-display" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--purple);padding:8px 10px;font-size:13px;font-weight:600;">—</div>
           </div>
         </div>
-      </div>
-      <div class="card">
-        <div class="card-title">Vacation mode</div>
-        <div style="font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.7">
-          While on vacation your kingdom cannot be attacked or targeted by spells, but you cannot take turns or interact with others.
-          Intended for planned real-world absences. This feature is currently restricted by the game admin due to prior abuse.
+        <div class="card">
+          <div class="card-title">Vacation mode</div>
+          <div style="font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.7">
+            While on vacation your kingdom cannot be attacked or targeted by spells, but you cannot take turns or interact with others.
+            Intended for planned real-world absences. This feature is currently restricted by the game admin.
+          </div>
+          <button class="btn btn-red" onclick="toast('Vacation mode is currently disabled by admin','warn')">Request vacation mode</button>
         </div>
-        <button class="btn btn-red" onclick="toast('Vacation mode is currently disabled by admin','warn')">Request vacation mode</button>
       </div>
     </div>
 
@@ -745,7 +772,7 @@
           <input type="number" id="atk-mages" min="0" max="2100" value="500" style="width:90px">
         </div>
         <div style="font-size:12px;color:var(--text3);margin-bottom:14px">
-          You have <span style="color:var(--text)" id="atk-avail">12,400</span> fighters · <span id="atk-mages-avail" style="color:var(--text)">2,100</span> mages available
+          You have <span style="color:var(--text)" id="atk-avail">0</span> fighters · <span id="atk-mages-avail" style="color:var(--text)">0</span> mages available
         </div>
         <button class="btn btn-red" style="width:100%;font-size:14px;padding:10px" onclick="launchAttack()">Launch military attack</button>
       </div>
@@ -758,7 +785,7 @@
   <div style="display:grid;grid-template-columns:1fr 340px;gap:16px;align-items:start">
     <div>
       <div class="card">
-        <div class="card-title">Spellbook — Mana: <span id="spell-mana-disp">22,400</span> · Spellbook: <span id="spell-sb-disp">6,100</span></div>
+        <div class="card-title">Spellbook: <span id="spell-sb-disp">0</span> · Mana: <span id="spell-mana-disp">0</span></div>
         <div id="spell-list" style="max-height:460px;overflow-y:auto">
           <!-- populated by JS -->
         </div>
@@ -830,7 +857,7 @@
         <div class="op-title">Spy</div>
         <div class="op-desc">Sends thieves and ninjas to gather intelligence on the target kingdom. Report accuracy depends on unit experience. Requires: Thieves + Ninjas.</div>
         <div class="op-row">
-          <span style="font-size:12px;color:var(--text2);flex:1">Thieves: <strong style="color:var(--text)" id="spy-thieves-avail">900</strong></span>
+          <span style="font-size:12px;color:var(--text2);flex:1">Thieves: <strong style="color:var(--text)" id="spy-thieves-avail">0</strong></span>
           <input type="number" id="spy-units" min="0" value="200" style="width:80px">
           <button class="btn" onclick="covertOp('spy')">Spy</button>
         </div>
@@ -887,7 +914,7 @@
 
 <!-- ═══════════════════════════════════════════ EXPLORATION PANEL ══ -->
 <div id="exploration" class="panel" style="display:none">
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:stretch">
 
     <div class="card">
       <div class="card-title">Scout &amp; search</div>
@@ -915,9 +942,9 @@
       </div>
     </div>
 
-    <div class="card">
+    <div class="card" style="display:flex;flex-direction:column">
       <div class="card-title">Exploration log</div>
-      <div id="exploration-log" style="display:flex;flex-direction:column;gap:8px;min-height:120px">
+      <div id="exploration-log" style="flex:1;overflow-y:auto;max-height:320px;display:flex;flex-direction:column;gap:8px">
         <div style="font-size:13px;color:var(--text3);padding:12px 0">No expeditions sent yet this session.</div>
       </div>
     </div>
@@ -939,9 +966,9 @@
   <div style="display:grid;grid-template-columns:1fr 300px;gap:16px;align-items:start">
     <div>
       <div class="card">
-        <div class="card-title">Your alliance — <span style="color:var(--purple)">The Silver Veil</span></div>
+        <div class="card-title">Your alliance — <span style="color:var(--purple)">—</span></div>
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
-          <div style="font-size:13px;color:var(--text2)">6 members · Combined land: <span style="color:var(--gold)">14,820 acres</span></div>
+          <div style="font-size:13px;color:var(--text2)">— members · Combined land: <span style="color:var(--gold)">— acres</span></div>
           <div style="display:flex;gap:8px">
             <span class="badge badge-green">Active</span>
             <button class="btn btn-red" onclick="toast('Left alliance — you are now kingdomless','warn')">Leave</button>
@@ -1017,9 +1044,9 @@
 <script>
 /* ── Core state (defined first so all functions below can access it) ── */
 var state = {
-  gold: 48200, pop: 124500, land: 1840, morale: 87, tax: 42, turn: 143, mana: 22400,
-  fighters:12400, rangers:3200, clerics:1800, mages:2100,
-  thieves:900, ninjas:420, researchers:8000, engineers:2200
+  gold: 10000, pop: 50000, land: 500, morale: 100, tax: 42, turn: 0, mana: 5000,
+  fighters:0, rangers:0, clerics:0, mages:0,
+  thieves:0, ninjas:0, researchers:500, engineers:0
 };
 
 function fmt(n) { return Math.round(n).toLocaleString(); }
@@ -1038,11 +1065,9 @@ function populateInputs() {
     var el = document.getElementById('hire-' + u);
     if (el) el.value = maxHire;
   });
-  // Research — all researchers
-  ['r-eco','r-wep','r-arm','r-mil','r-spell','r-atk','r-def','r-ent','r-con','r-wm'].forEach(function(id) {
-    var el = document.getElementById(id);
-    if (el) el.value = state.researchers || 0;
-  });
+  // Research — single researcher input
+  var ra = document.getElementById('r-amount');
+  if (ra) ra.value = state.researchers || 0;
   // Attack — all available fighters/mages
   var af = document.getElementById('atk-fighters');
   var am = document.getElementById('atk-mages');
@@ -1062,8 +1087,12 @@ function populateInputs() {
   if (an) an.value = state.ninjas || 0;
   var sn = document.getElementById('sab-ninjas');
   if (sn) sn.value = state.ninjas || 0;
-  // Spell power — max mana
-  var sp = document.getElementById('sl-power');
+  // Weapons — forge enough to fully equip all fighters
+  var bw = document.getElementById('b-weapons');
+  if (bw) bw.value = Math.max(0, (state.fighters || 0) - (state.weapons_stockpile || 0));
+  // Armor — forge enough to fully equip all fighters
+  var ba = document.getElementById('b-armor');
+  if (ba) ba.value = Math.max(0, (state.fighters || 0) - (state.armor_stockpile || 0));
   if (sp) { sp.max = state.mana || 200000; sp.value = Math.min(state.mana || 0, 200000); updateSpellCalc(); }
 }
 
@@ -1214,9 +1243,11 @@ function searchAction(type) {
       state.turns_stored = result.turns_stored;
       updateTurnsDisplay();
     }
-    if (result.type === 'land' && result.result) state.land += result.result.found;
-    if (result.type === 'gold' && result.result) state.gold += result.result.found;
+    applyServerUpdates(result.updates || {});
+    if (result.type === 'land' && result.result) state.land = (state.land || 0) + result.result.found;
+    if (result.type === 'gold' && result.result) state.gold = (state.gold || 0) + result.result.found;
     syncUI();
+    if (result.events && result.events.length) appendNewsItems(result.events);
     toast(result.message, 'success');
 
     var icons = { land: '&#127758;', gold: '&#9775;', targets: '&#128269;' };
@@ -1237,13 +1268,28 @@ function searchAction(type) {
 /* ── Spells ── */
 function renderSpells() {
   var el = document.getElementById('spell-list');
-  el.innerHTML = spells.map(function(s) {
-    var canCast = 6100 >= s.minSB;
-    return '<div class="spell-card ' + (!canCast ? 'locked' : '') + '" id="sc-' + s.id + '" onclick="selectSpell(\'' + s.id + '\')" style="' + (!canCast ? 'opacity:.4;cursor:not-allowed' : '') + '">'
-      + '<div class="spell-name">' + s.name + (canCast ? '' : ' <span style="font-size:11px;color:var(--text3)">[SB ' + s.minSB + ' required]</span>') + '</div>'
+  if (!el) return;
+  var sb = state.res_spellbook || 0;
+  var known = spells.filter(function(s) { return sb >= s.minSB; });
+
+  if (known.length === 0) {
+    el.innerHTML = '<div style="font-size:13px;color:var(--text3);padding:12px 0">'
+      + 'No spells known yet. Research your Spellbook (currently ' + sb + ') to unlock spells. '
+      + 'First spell unlocks at Spellbook 200.</div>';
+    return;
+  }
+
+  el.innerHTML = known.map(function(s) {
+    return '<div class="spell-card" id="sc-' + s.id + '" onclick="selectSpell(\'' + s.id + '\')">'
+      + '<div class="spell-name">' + s.name
+      + ' <span style="font-size:11px;color:var(--text3)">· SB ' + s.minSB + '</span></div>'
       + '<div class="spell-desc">' + s.desc + '</div>'
       + '</div>';
   }).join('');
+
+  // Update the spellbook display
+  var sbDisp = document.getElementById('spell-sb-disp');
+  if (sbDisp) sbDisp.textContent = sb.toLocaleString();
 }
 
 function selectSpell(id) {
@@ -1454,6 +1500,10 @@ function switchTab(id, btn) {
     if (nb) nb.remove();
     loadNews();
   }
+  if (id === 'research') {
+    var ra = document.getElementById('r-amount');
+    if (ra) ra.value = state.researchers || 0;
+  }
 }
 
 function hire(unit) {
@@ -1471,21 +1521,47 @@ function hire(unit) {
   toast('Hired ' + fmt(n) + ' ' + unit + ' for ' + fmt(total) + ' GC', 'success');
 }
 
-function study(name) {
-  var keys = {Economy:'r-eco',Weapons:'r-wep',Armor:'r-arm','Military tactics':'r-mil',Spellbook:'r-spell','Attack magic':'r-atk','Defense magic':'r-def',Entertainment:'r-ent','Construction skills':'r-con','War machines':'r-wm'};
-  var id = keys[name];
-  var n = parseInt(document.getElementById(id).value) || 0;
+async function study(name) {
+  var disciplineMap = {
+    Economy:'economy', Weapons:'weapons', Armor:'armor', 'Military tactics':'military',
+    Spellbook:'spellbook', 'Attack magic':'attack_magic', 'Defense magic':'defense_magic',
+    Entertainment:'entertainment', 'Construction skills':'construction', 'War machines':'war_machines'
+  };
+  var n = parseInt(document.getElementById('r-amount')?.value) || 0;
   if (n <= 0) return toast('Enter a number of researchers to assign', 'error');
-  if (n > state.researchers) return toast('Only ' + fmt(state.researchers) + ' researchers available', 'error');
-  toast('Assigned ' + fmt(n) + ' researchers to ' + name, 'success');
+  if (state.turns_stored < 1) return toast('No turns available', 'warn');
+  var disc = disciplineMap[name];
+  if (!disc) return toast('Unknown discipline: ' + name, 'error');
+  var result = await apiCall('POST', '/api/kingdom/research', { discipline: disc, researchers: n });
+  if (result.error) return toast(result.error, 'error');
+  applyServerUpdates(result.updates);
+  if (result.turns_stored !== undefined) { state.turns_stored = result.turns_stored; updateTurnsDisplay(); }
+  syncUI();
+  if (result.events && result.events.length) appendNewsItems(result.events);
+  toast('+' + result.increment + ' to ' + name + ' · ' + state.turns_stored + ' turns left', 'success');
 }
 
-function build(key, piecesPerUnit, label) {
+async function build(key, piecesPerUnit, label) {
   var n = parseInt(document.getElementById('b-' + key).value) || 0;
   if (n <= 0) return toast('Enter a quantity to build', 'error');
-  var pieces = n * piecesPerUnit;
-  toast('Building ' + fmt(n) + ' ' + label + ' (' + fmt(pieces) + ' engineer-turns)...', 'success');
+  if (state.turns_stored < 1) return toast('No turns available', 'warn');
+  // Map HTML input key to engine building key
+  var buildingKeyMap = {
+    farm:'farms', barracks:'barracks', outpost:'outposts', tower:'guard_towers',
+    school:'schools', armory:'armories', vault:'vaults', smithy:'smithies',
+    market:'markets', cathedral:'cathedrals', training:'training',
+    colosseum:'colosseums', castle:'castles',
+    weapons:'weapons', armor:'armor'
+  };
+  var building = buildingKeyMap[key] || key;
+  var result = await apiCall('POST', '/api/kingdom/build', { building: building, quantity: n });
+  if (result.error) return toast(result.error, 'error');
+  applyServerUpdates(result.updates);
+  if (result.turns_stored !== undefined) { state.turns_stored = result.turns_stored; updateTurnsDisplay(); }
+  syncUI();
   document.getElementById('b-' + key).value = 0;
+  if (result.events && result.events.length) appendNewsItems(result.events);
+  toast('Built ' + fmt(n) + ' ' + label + ' · ' + state.turns_stored + ' turns left', 'success');
 }
 
 function updateTax(v) {
@@ -1503,12 +1579,6 @@ function setTax(v) {
   toast('Tax rate set to ' + v + '%', v > 50 ? 'warn' : 'success');
 }
 
-function saveName() {
-  var n = document.getElementById('kname-inp').value.trim();
-  if (!n) return;
-  document.getElementById('kingdom-name').textContent = n;
-  toast('Kingdom renamed to ' + n, 'success');
-}
 
 function takeTurn() {
   state.turn++;
@@ -1542,23 +1612,36 @@ function syncUI() {
     var el = document.getElementById('s-' + u);
     if (el) el.textContent = fmt(state[u]||0);
   });
-  // Sync research progress bars
-  var resMap = {
+  // Sync research levels display
+  var resDisplay = {
     res_economy:'eco', res_weapons:'wep', res_armor:'arm', res_military:'mil',
-    res_spellbook:'spell', res_entertainment:'ent', res_attack_magic:'atk', res_defense_magic:'def'
+    res_spellbook:'spell', res_attack_magic:'atk', res_defense_magic:'def',
+    res_entertainment:'ent', res_construction:'con', res_war_machines:'wm'
   };
-  Object.keys(resMap).forEach(function(key) {
-    var bar = document.querySelector('.prog-bar.' + resMap[key]);
-    if (bar) bar.style.width = Math.min(100, (state[key]||0) / 10) + '%';
-    // Update count display in status panel
-    var countEl = document.querySelector('.trow .prog-bar.' + resMap[key]);
-    if (countEl) {
-      var row = countEl.closest('.trow');
-      if (row) {
-        var count = row.querySelector('.count');
-        if (count) count.textContent = fmt(state[key]||0) + (key !== 'res_spellbook' && key !== 'res_mana' ? '%' : '');
-      }
-    }
+  Object.keys(resDisplay).forEach(function(key) {
+    var id = resDisplay[key];
+    var val = state[key] || 0;
+    var bar = document.getElementById('pb-' + id);
+    if (bar) bar.style.width = Math.min(100, val / 10) + '%';
+    var count = document.getElementById('rv-' + id);
+    if (count) count.textContent = fmt(val) + (key !== 'res_spellbook' ? '%' : '');
+  });
+  var spellMana = document.getElementById('spell-mana-disp');
+  if (spellMana) spellMana.textContent = fmt(state.mana || 0);
+  // Re-render spell list in case spellbook advanced
+  renderSpells();
+  // Sync building counts
+  var bldMap = {
+    farms:'bld_farms', barracks:'bld_barracks', outposts:'bld_outposts',
+    guard_towers:'bld_guard_towers', schools:'bld_schools', armories:'bld_armories',
+    vaults:'bld_vaults', smithies:'bld_smithies', markets:'bld_markets',
+    cathedrals:'bld_cathedrals', training:'bld_training', colosseums:'bld_colosseums',
+    castles:'bld_castles',
+    weapons_stockpile:'weapons_stockpile', armor_stockpile:'armor_stockpile'
+  };
+  Object.keys(bldMap).forEach(function(bld) {
+    var el = document.getElementById('bld-' + bld);
+    if (el) el.textContent = fmt(state[bldMap[bld]] || 0);
   });
   populateInputs();
 }
@@ -1593,15 +1676,14 @@ function updateTurnsDisplay() {
   <button class="bnav-item" onclick="switchTabMobile('hire',this)"><span class="bicon">&#9651;</span>Hire</button>
   <button class="bnav-item" onclick="switchTabMobile('research',this)"><span class="bicon">&#9670;</span>Study</button>
   <button class="bnav-item" onclick="switchTabMobile('build',this)"><span class="bicon">&#9650;</span>Build</button>
+  <button class="bnav-item" onclick="switchTabMobile('exploration',this)"><span class="bicon">&#9685;</span>Explore</button>
   <div class="bnav-sep"></div>
   <button class="bnav-item" onclick="switchTabMobile('attack',this)"><span class="bicon">&#9876;</span>Attack</button>
   <button class="bnav-item" onclick="switchTabMobile('spells',this)"><span class="bicon">&#10024;</span>Spells</button>
   <button class="bnav-item" onclick="switchTabMobile('covert',this)"><span class="bicon">&#128373;</span>Covert</button>
-  <button class="bnav-item" onclick="switchTabMobile('exploration',this)"><span class="bicon">&#9685;</span>Explore</button>
   <div class="bnav-sep"></div>
   <button class="bnav-item" onclick="switchTabMobile('alliances',this)"><span class="bicon">&#9876;</span>Allies</button>
   <button class="bnav-item" onclick="switchTabMobile('news',this)"><span class="bicon">&#9741;</span>News<span id="bnav-news-badge" class="bnav-badge">3</span></button>
-  <button class="bnav-item" onclick="switchTabMobile('options',this)"><span class="bicon">&#9881;</span>Options</button>
   <div class="bnav-sep"></div>
   <button class="bnav-item" onclick="doLogout()" style="color:var(--red)"><span class="bicon">&#10005;</span>Logout</button>
 </nav>
@@ -1643,12 +1725,12 @@ function showLoginModal() {
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(13,14,20,.97);z-index:9999;display:flex;align-items:center;justify-content:center;';
 
   var races = [
-    { value:'high_elf',  label:'High Elf',  bonus:'+15% research · powerful magic' },
-    { value:'dwarf',     label:'Dwarf',      bonus:'+20% construction · strong war machines' },
-    { value:'dire_wolf', label:'Dire Wolf',  bonus:'+25% military attack · poor research' },
-    { value:'dark_elf',  label:'Dark Elf',   bonus:'+20% covert · stealth bonus' },
-    { value:'human',     label:'Human',      bonus:'Balanced · no bonuses or penalties' },
-    { value:'orc',       label:'Orc',        bonus:'+20% fighter strength · -10% economy' },
+    { value:'high_elf',  label:'High Elf',  bonus:'+15% research · +20% magic power · -10% military' },
+    { value:'dwarf',     label:'Dwarf',      bonus:'+20% construction · +25% war machines · +10% economy · -25% magic · -10% research' },
+    { value:'dire_wolf', label:'Dire Wolf',  bonus:'+30% military · +10% covert · -30% research · -40% magic · -15% economy' },
+    { value:'dark_elf',  label:'Dark Elf',   bonus:'+25% covert · +30% stealth · +10% magic · -15% military · -10% economy' },
+    { value:'human',     label:'Human',      bonus:'No bonuses or penalties — master of none, threat to all' },
+    { value:'orc',       label:'Orc',        bonus:'+20% military · +10% economy · -20% research · -35% magic · -10% construction' },
   ];
 
   var raceOptions = races.map(function(r) {
@@ -1750,14 +1832,26 @@ function showLoginModal() {
     if (result.error) { errEl.textContent = result.error; return; }
     if (result.token) localStorage.setItem('narmir_token', result.token);
     state.username = username;
-    overlay.remove();
-    loadKingdom();
+    // Show loading state while kingdom loads
+    overlay.innerHTML = '<div style="color:#e8b84b;font-size:16px;font-weight:600;text-align:center">Loading your kingdom...</div>';
+    try {
+      await loadKingdom();
+      overlay.remove();
+    } catch(e) {
+      console.error('loadKingdom error:', e);
+      overlay.remove();
+    }
   }
 }
 
 async function loadKingdom() {
   var kingdom = await apiCall('GET', '/api/kingdom/me');
-  if (kingdom.error) { showLoginModal(); return; }
+  if (kingdom.error) {
+    // If called from boot (not after login), show modal
+    // If called after login, let the caller handle it
+    if (!state.username) { showLoginModal(); }
+    return;
+  }
   Object.assign(state, {
     gold: kingdom.gold, pop: kingdom.population, land: kingdom.land,
     morale: kingdom.morale, tax: kingdom.tax, turn: kingdom.turn, mana: kingdom.mana,
@@ -1766,6 +1860,22 @@ async function loadKingdom() {
     researchers: kingdom.researchers, engineers: kingdom.engineers,
     kingdomId: kingdom.id, kingdomName: kingdom.name,
     turns_stored: kingdom.turns_stored !== undefined ? kingdom.turns_stored : 200,
+    // Research
+    res_economy: kingdom.res_economy, res_weapons: kingdom.res_weapons,
+    res_armor: kingdom.res_armor, res_military: kingdom.res_military,
+    res_spellbook: kingdom.res_spellbook, res_attack_magic: kingdom.res_attack_magic,
+    res_defense_magic: kingdom.res_defense_magic, res_entertainment: kingdom.res_entertainment,
+    res_construction: kingdom.res_construction, res_war_machines: kingdom.res_war_machines,
+    // Buildings
+    bld_farms: kingdom.bld_farms, bld_barracks: kingdom.bld_barracks,
+    bld_outposts: kingdom.bld_outposts, bld_guard_towers: kingdom.bld_guard_towers,
+    bld_schools: kingdom.bld_schools, bld_armories: kingdom.bld_armories,
+    bld_vaults: kingdom.bld_vaults, bld_smithies: kingdom.bld_smithies,
+    bld_markets: kingdom.bld_markets, bld_cathedrals: kingdom.bld_cathedrals,
+    bld_training: kingdom.bld_training, bld_colosseums: kingdom.bld_colosseums,
+    bld_castles: kingdom.bld_castles,
+    weapons_stockpile: kingdom.weapons_stockpile || 0,
+    armor_stockpile:   kingdom.armor_stockpile   || 0,
   });
   syncUI();
   updateTurnsDisplay();
@@ -1777,12 +1887,12 @@ async function loadKingdom() {
 
   // Race data
   var raceData = {
-    high_elf:  { label: 'High Elf',   plural: 'High Elves',  bonus: '+15% research · powerful magic' },
-    dwarf:     { label: 'Dwarf',      plural: 'Dwarves',     bonus: '+20% construction · strong war machines' },
-    dire_wolf: { label: 'Dire Wolf',  plural: 'Dire Wolves', bonus: '+25% military attack · poor research' },
-    dark_elf:  { label: 'Dark Elf',   plural: 'Dark Elves',  bonus: '+20% covert · stealth bonus' },
-    human:     { label: 'Human',      plural: 'Humans',      bonus: 'Balanced · no bonuses or penalties' },
-    orc:       { label: 'Orc',        plural: 'Orcs',        bonus: '+20% fighter strength · -10% economy' },
+    high_elf:  { label: 'High Elf',   plural: 'High Elves',  bonus: '+15% research · +20% magic · -10% military' },
+    dwarf:     { label: 'Dwarf',      plural: 'Dwarves',     bonus: '+20% construction · +25% war machines · +10% economy · -25% magic · -10% research' },
+    dire_wolf: { label: 'Dire Wolf',  plural: 'Dire Wolves', bonus: '+30% military · +10% covert · -30% research · -40% magic · -15% economy' },
+    dark_elf:  { label: 'Dark Elf',   plural: 'Dark Elves',  bonus: '+25% covert · +30% stealth · +10% magic · -15% military · -10% economy' },
+    human:     { label: 'Human',      plural: 'Humans',      bonus: 'No bonuses or penalties' },
+    orc:       { label: 'Orc',        plural: 'Orcs',        bonus: '+20% military · +10% economy · -20% research · -35% magic · -10% construction' },
   };
   var race = raceData[kingdom.race] || { label: kingdom.race, plural: kingdom.race, bonus: '' };
 
@@ -1877,6 +1987,32 @@ async function loadRankings() {
   renderTargets(targets, 'covert-target-list', 'selectCovertTarget');
 }
 
+// Central helper — remaps server update keys to frontend state keys
+function applyServerUpdates(u) {
+  if (!u) return;
+  if (u.population  !== undefined) state.pop        = u.population;
+  if (u.gold        !== undefined) state.gold        = u.gold;
+  if (u.mana        !== undefined) state.mana        = u.mana;
+  if (u.land        !== undefined) state.land        = u.land;
+  if (u.morale      !== undefined) state.morale      = u.morale;
+  if (u.turn        !== undefined) state.turn        = u.turn;
+  if (u.fighters    !== undefined) state.fighters    = u.fighters;
+  if (u.rangers     !== undefined) state.rangers     = u.rangers;
+  if (u.clerics     !== undefined) state.clerics     = u.clerics;
+  if (u.mages       !== undefined) state.mages       = u.mages;
+  if (u.thieves     !== undefined) state.thieves     = u.thieves;
+  if (u.ninjas      !== undefined) state.ninjas      = u.ninjas;
+  if (u.researchers !== undefined) state.researchers = u.researchers;
+  if (u.engineers   !== undefined) state.engineers   = u.engineers;
+  ['res_economy','res_weapons','res_armor','res_military','res_spellbook',
+   'res_attack_magic','res_defense_magic','res_entertainment','res_construction','res_war_machines'
+  ].forEach(function(k) { if (u[k] !== undefined) state[k] = u[k]; });
+  ['bld_farms','bld_barracks','bld_outposts','bld_guard_towers','bld_schools','bld_armories',
+   'bld_vaults','bld_smithies','bld_markets','bld_cathedrals','bld_training','bld_colosseums','bld_castles',
+   'weapons_stockpile','armor_stockpile'
+  ].forEach(function(k) { if (u[k] !== undefined) state[k] = u[k]; });
+}
+
 // Override takeTurn to hit real server
 var takingTurn = false;
 takeTurn = async function() {
@@ -1889,26 +2025,7 @@ takeTurn = async function() {
   takingTurn = false;
   if (btn) btn.style.opacity = state.turns_stored > 0 ? '1' : '0.4';
   if (result.error) return toast(result.error, 'error');
-  var u = result.updates || {};
-  // Remap server keys to frontend state keys
-  if (u.population !== undefined) state.pop      = u.population;
-  if (u.gold       !== undefined) state.gold      = u.gold;
-  if (u.mana       !== undefined) state.mana      = u.mana;
-  if (u.land       !== undefined) state.land      = u.land;
-  if (u.morale     !== undefined) state.morale    = u.morale;
-  if (u.turn       !== undefined) state.turn      = u.turn;
-  if (u.fighters   !== undefined) state.fighters  = u.fighters;
-  if (u.rangers    !== undefined) state.rangers   = u.rangers;
-  if (u.clerics    !== undefined) state.clerics   = u.clerics;
-  if (u.mages      !== undefined) state.mages     = u.mages;
-  if (u.thieves    !== undefined) state.thieves   = u.thieves;
-  if (u.ninjas     !== undefined) state.ninjas    = u.ninjas;
-  if (u.researchers!== undefined) state.researchers = u.researchers;
-  if (u.engineers  !== undefined) state.engineers = u.engineers;
-  // Research values
-  ['res_economy','res_weapons','res_armor','res_military','res_spellbook',
-   'res_attack_magic','res_defense_magic','res_entertainment','res_construction','res_war_machines'
-  ].forEach(function(k) { if (u[k] !== undefined) state[k] = u[k]; });
+  applyServerUpdates(result.updates);
   if (result.turns_stored !== undefined) state.turns_stored = result.turns_stored;
   syncUI();
   updateTurnsDisplay();
@@ -1926,26 +2043,14 @@ hire = async function(unit) {
   if (state.turns_stored < 1) return toast('No turns available', 'warn');
   var result = await apiCall('POST', '/api/kingdom/hire', { unit: unit, amount: n });
   if (result.error) return toast(result.error, 'error');
-  Object.assign(state, result.updates);
+  applyServerUpdates(result.updates);
   if (result.turns_stored !== undefined) { state.turns_stored = result.turns_stored; updateTurnsDisplay(); }
   syncUI();
   document.getElementById('hire-' + unit).value = 0;
   var hEl = document.getElementById('h-' + unit);
   if (hEl) hEl.textContent = fmt(state[unit]);
-  toast('Hired ' + fmt(n) + ' ' + unit + ' · 1 turn used · ' + state.turns_stored + ' left', 'success');
-};
-
-// Override study to hit real server and deduct turn
-study = async function(name) {
-  var idMap = { Economy:'r-eco', Weapons:'r-wep', Armor:'r-arm', 'Military tactics':'r-mil', Spellbook:'r-spell', 'Attack magic':'r-atk', 'Defense magic':'r-def', Entertainment:'r-ent', 'Construction skills':'r-con', 'War machines':'r-wm' };
-  var disciplineMap = { Economy:'economy', Weapons:'weapons', Armor:'armor', 'Military tactics':'military', Spellbook:'spellbook', 'Attack magic':'attack_magic', 'Defense magic':'defense_magic', Entertainment:'entertainment', 'Construction skills':'construction', 'War machines':'war_machines' };
-  var n = parseInt(document.getElementById(idMap[name])?.value) || 0;
-  if (n <= 0) return toast('Enter a number of researchers', 'error');
-  if (state.turns_stored < 1) return toast('No turns available', 'warn');
-  var result = await apiCall('POST', '/api/kingdom/research', { discipline: disciplineMap[name], researchers: n });
-  if (result.error) return toast(result.error, 'error');
-  if (result.turns_stored !== undefined) { state.turns_stored = result.turns_stored; updateTurnsDisplay(); }
-  toast('+' + result.increment + ' to ' + name + ' · 1 turn used · ' + state.turns_stored + ' left', 'success');
+  if (result.events && result.events.length) appendNewsItems(result.events);
+  toast('Hired ' + fmt(n) + ' ' + unit + ' · ' + state.turns_stored + ' turns left', 'success');
 };
 
 // Boot — check auth then show modal or load kingdom
