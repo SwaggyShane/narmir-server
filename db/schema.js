@@ -75,6 +75,12 @@ async function initDb() {
       armor_stockpile   INTEGER NOT NULL DEFAULT 0,
       turns_stored      INTEGER NOT NULL DEFAULT 200,
       research_allocation TEXT NOT NULL DEFAULT '{}',
+      build_queue       TEXT NOT NULL DEFAULT '{}',
+      build_progress    TEXT NOT NULL DEFAULT '{}',
+      build_allocation  TEXT NOT NULL DEFAULT '{}',
+      tools_hammers     INTEGER NOT NULL DEFAULT 0,
+      tools_scaffolding INTEGER NOT NULL DEFAULT 0,
+      tools_blueprints  INTEGER NOT NULL DEFAULT 0,
       created_at  INTEGER NOT NULL DEFAULT (unixepoch()),
       updated_at  INTEGER NOT NULL DEFAULT (unixepoch())
     );
@@ -140,6 +146,12 @@ async function initDb() {
   const cols = (await _db.all('PRAGMA table_info(kingdoms)')).map(c => c.name);
   if (!cols.includes('turns_stored'))        await addColumn('kingdoms', 'turns_stored',        'INTEGER NOT NULL DEFAULT 200');
   if (!cols.includes('research_allocation')) await addColumn('kingdoms', 'research_allocation', "TEXT NOT NULL DEFAULT '{}'");
+  if (!cols.includes('build_queue'))         await addColumn('kingdoms', 'build_queue',         "TEXT NOT NULL DEFAULT '{}'");
+  if (!cols.includes('build_progress'))      await addColumn('kingdoms', 'build_progress',      "TEXT NOT NULL DEFAULT '{}'");
+  if (!cols.includes('build_allocation'))    await addColumn('kingdoms', 'build_allocation',    "TEXT NOT NULL DEFAULT '{}'");
+  if (!cols.includes('tools_hammers'))       await addColumn('kingdoms', 'tools_hammers',       'INTEGER NOT NULL DEFAULT 0');
+  if (!cols.includes('tools_scaffolding'))   await addColumn('kingdoms', 'tools_scaffolding',   'INTEGER NOT NULL DEFAULT 0');
+  if (!cols.includes('tools_blueprints'))    await addColumn('kingdoms', 'tools_blueprints',    'INTEGER NOT NULL DEFAULT 0');;
   if (!cols.includes('weapons_stockpile'))   await addColumn('kingdoms', 'weapons_stockpile',   'INTEGER NOT NULL DEFAULT 0');
   if (!cols.includes('armor_stockpile'))     await addColumn('kingdoms', 'armor_stockpile',     'INTEGER NOT NULL DEFAULT 0');
 
