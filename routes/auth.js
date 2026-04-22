@@ -1,4 +1,3 @@
-// src/routes/auth.js
 const express = require('express');
 const bcrypt  = require('bcryptjs');
 const jwt     = require('jsonwebtoken');
@@ -14,6 +13,10 @@ module.exports = function(db) {
       return res.status(400).json({ error: 'username, password and kingdomName are required' });
     if (password.length < 6)
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    if (username.length < 3 || username.length > 20)
+      return res.status(400).json({ error: 'Username must be 3–20 characters' });
+    if (!/^[a-zA-Z0-9_]+$/.test(username))
+      return res.status(400).json({ error: 'Username can only contain letters, numbers and underscores' });
 
     const validRaces = ['human','high_elf','dwarf','dire_wolf','dark_elf','orc'];
     const chosenRace = validRaces.includes(race) ? race : 'human';
@@ -24,10 +27,13 @@ module.exports = function(db) {
         'INSERT INTO players (username, password) VALUES (?, ?)', [username, hash]
       );
       await db.run(
-        'INSERT INTO kingdoms (player_id, name, race, gold, land, population, researchers) VALUES (?, ?, ?, 10000, 500, 50000, 500)',
+        'INSERT INTO kingdoms (player_id, name, race, gold, land, population, researchers, turns_stored) VALUES (?, ?, ?, 10000, 500, 50000, 500, 200)',
         [playerResult.lastID, kingdomName, chosenRace]
       );
-      const token = jwt.sign({ playerId: playerResult.lastID, username }, JWT_SECRET, { expiresIn: '30d' });
+      const token = jwt.sign(
+        { playerId: playerResult.lastID, username, isAdmin: false },
+        JWT_SECRET, { expiresIn: '30d' }
+      );
       res.cookie('token', token, { httpOnly: true, maxAge: 30*24*60*60*1000 });
       res.json({ ok: true, username, kingdomName });
     } catch (err) {
@@ -42,12 +48,20 @@ module.exports = function(db) {
     const { username, password } = req.body;
     if (!username || !password)
       return res.status(400).json({ error: 'username and password required' });
+
     const player = await db.get('SELECT * FROM players WHERE username = ?', [username]);
     if (!player || !bcrypt.compareSync(password, player.password))
       return res.status(401).json({ error: 'Invalid username or password' });
-    const token = jwt.sign({ playerId: player.id, username }, JWT_SECRET, { expiresIn: '30d' });
+
+    if (player.is_banned)
+      return res.status(403).json({ error: 'Account banned' + (player.ban_reason ? ': ' + player.ban_reason : '') });
+
+    const token = jwt.sign(
+      { playerId: player.id, username, isAdmin: player.is_admin === 1 },
+      JWT_SECRET, { expiresIn: '30d' }
+    );
     res.cookie('token', token, { httpOnly: true, maxAge: 30*24*60*60*1000 });
-    res.json({ ok: true, username });
+    res.json({ ok: true, username, isAdmin: player.is_admin === 1 });
   });
 
   router.post('/logout', (_req, res) => {
@@ -60,7 +74,7 @@ module.exports = function(db) {
     if (!token) return res.status(401).json({ error: 'Not authenticated' });
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
-      res.json({ playerId: decoded.playerId, username: decoded.username });
+      res.json({ playerId: decoded.playerId, username: decoded.username, isAdmin: decoded.isAdmin || false });
     } catch {
       res.status(401).json({ error: 'Invalid or expired token' });
     }
