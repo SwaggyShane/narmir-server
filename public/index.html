@@ -1579,16 +1579,26 @@ function setTax(v) {
 }
 
 
-function takeTurn() {
-  state.turn++;
-  var income = Math.round(state.land * state.tax * 0.12);
-  state.gold += income;
-  state.pop += 310;
-  state.land += Math.floor(Math.random() * 6);
-  state.mana += 400;
+var takingTurn = false;
+async function takeTurn() {
+  if (takingTurn) return;
+  if (state.turns_stored < 1) return toast('No turns available — refills in ' + document.getElementById('regen-countdown').textContent, 'warn');
+  takingTurn = true;
+  var btn = document.querySelector('.turn-btn');
+  if (btn) btn.style.opacity = '0.6';
+  var result = await apiCall('POST', '/api/kingdom/turn');
+  takingTurn = false;
+  if (btn) btn.style.opacity = state.turns_stored > 0 ? '1' : '0.4';
+  if (result.error) return toast(result.error, 'error');
+  applyServerUpdates(result.updates);
+  if (result.turns_stored !== undefined) state.turns_stored = result.turns_stored;
   syncUI();
+  updateTurnsDisplay();
   document.getElementById('turn-num').textContent = state.turn;
-  toast('Turn ' + state.turn + ' complete — +' + fmt(income) + ' GC earned', 'success');
+  var newsTurn = document.getElementById('news-turn-num');
+  if (newsTurn) newsTurn.textContent = state.turn;
+  if (result.events && result.events.length) appendNewsItems(result.events);
+  toast('Turn ' + state.turn + ' · ' + state.turns_stored + ' turns left', 'success');
 }
 
 function syncUI() {
@@ -1862,8 +1872,9 @@ async function loadKingdom() {
     // Research
     res_economy: kingdom.res_economy, res_weapons: kingdom.res_weapons,
     res_armor: kingdom.res_armor, res_military: kingdom.res_military,
-    res_spellbook: kingdom.res_spellbook, res_attack_magic: kingdom.res_attack_magic,
-    res_defense_magic: kingdom.res_defense_magic, res_entertainment: kingdom.res_entertainment,
+    res_spellbook: kingdom.res_spellbook || 0,
+    res_attack_magic: kingdom.res_attack_magic, res_defense_magic: kingdom.res_defense_magic,
+    res_entertainment: kingdom.res_entertainment,
     res_construction: kingdom.res_construction, res_war_machines: kingdom.res_war_machines,
     // Buildings
     bld_farms: kingdom.bld_farms, bld_barracks: kingdom.bld_barracks,
@@ -2034,29 +2045,6 @@ function applyServerUpdates(u) {
    'weapons_stockpile','armor_stockpile'
   ].forEach(function(k) { if (u[k] !== undefined) state[k] = u[k]; });
 }
-
-// Override takeTurn to hit real server
-var takingTurn = false;
-takeTurn = async function() {
-  if (takingTurn) return;
-  if (state.turns_stored < 1) return toast('No turns available — refills in ' + document.getElementById('regen-countdown').textContent, 'warn');
-  takingTurn = true;
-  var btn = document.querySelector('.turn-btn');
-  if (btn) btn.style.opacity = '0.6';
-  var result = await apiCall('POST', '/api/kingdom/turn');
-  takingTurn = false;
-  if (btn) btn.style.opacity = state.turns_stored > 0 ? '1' : '0.4';
-  if (result.error) return toast(result.error, 'error');
-  applyServerUpdates(result.updates);
-  if (result.turns_stored !== undefined) state.turns_stored = result.turns_stored;
-  syncUI();
-  updateTurnsDisplay();
-  document.getElementById('turn-num').textContent = state.turn;
-  var newsTurn = document.getElementById('news-turn-num');
-  if (newsTurn) newsTurn.textContent = state.turn;
-  if (result.events && result.events.length) appendNewsItems(result.events);
-  toast('Turn ' + state.turn + ' · ' + state.turns_stored + ' turns left', 'success');
-};
 
 // Override hire to hit real server
 hire = async function(unit) {
