@@ -70,7 +70,9 @@ async function initDb() {
       ninjas      INTEGER NOT NULL DEFAULT 0,
       researchers INTEGER NOT NULL DEFAULT 0,
       engineers   INTEGER NOT NULL DEFAULT 0,
-      war_machines INTEGER NOT NULL DEFAULT 0,
+      war_machines     INTEGER NOT NULL DEFAULT 0,
+      weapons_stockpile INTEGER NOT NULL DEFAULT 0,
+      armor_stockpile   INTEGER NOT NULL DEFAULT 0,
       created_at  INTEGER NOT NULL DEFAULT (unixepoch()),
       updated_at  INTEGER NOT NULL DEFAULT (unixepoch())
     );
@@ -128,6 +130,14 @@ async function initDb() {
   if (!colNames.includes('turns_stored')) {
     await _db.exec('ALTER TABLE kingdoms ADD COLUMN turns_stored INTEGER NOT NULL DEFAULT 200');
     console.log('[db] Migration: added turns_stored column');
+  }
+  if (!colNames.includes('weapons_stockpile')) {
+    await _db.exec('ALTER TABLE kingdoms ADD COLUMN weapons_stockpile INTEGER NOT NULL DEFAULT 0');
+    console.log('[db] Migration: added weapons_stockpile column');
+  }
+  if (!colNames.includes('armor_stockpile')) {
+    await _db.exec('ALTER TABLE kingdoms ADD COLUMN armor_stockpile INTEGER NOT NULL DEFAULT 0');
+    console.log('[db] Migration: added armor_stockpile column');
   }
 
   // Ensure player admin/ban columns exist
