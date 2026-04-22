@@ -367,22 +367,22 @@
         <div>
           <div class="card">
             <div class="card-title">Research levels</div>
-            <div class="trow"><span class="name">Economy</span><div class="prog-wrap"><div class="prog-bar eco" id="pb-eco" style="width:10%"></div></div><span class="count">100%</span></div>
-            <div class="trow"><span class="name">Weapons</span><div class="prog-wrap"><div class="prog-bar wep" id="pb-wep" style="width:10%"></div></div><span class="count">520%</span></div>
-            <div class="trow"><span class="name">Armor</span><div class="prog-wrap"><div class="prog-bar arm" id="pb-arm" style="width:10%"></div></div><span class="count">480%</span></div>
-            <div class="trow"><span class="name">Military tactics</span><div class="prog-wrap"><div class="prog-bar mil" id="pb-mil" style="width:10%"></div></div><span class="count">100%</span></div>
-            <div class="trow"><span class="name">Spellbook</span><div class="prog-wrap"><div class="prog-bar spell" id="pb-spell" style="width:5%"></div></div><span class="count">6,100</span></div>
-            <div class="trow"><span class="name">Mana</span><div class="prog-wrap"><div class="prog-bar mana" style="width:3%"></div></div><span class="count">22,400</span></div>
-            <div class="trow"><span class="name">Entertainment</span><div class="prog-wrap"><div class="prog-bar" style="width:10%;background:var(--green)"></div></div><span class="count">100%</span></div>
+            <div class="trow"><span class="name">Economy</span><div class="prog-wrap"><div class="prog-bar eco" id="pb-eco" style="width:0%"></div></div><span class="count" id="rv-eco-s">0%</span></div>
+            <div class="trow"><span class="name">Weapons</span><div class="prog-wrap"><div class="prog-bar wep" id="pb-wep" style="width:0%"></div></div><span class="count" id="rv-wep-s">0%</span></div>
+            <div class="trow"><span class="name">Armor</span><div class="prog-wrap"><div class="prog-bar arm" id="pb-arm" style="width:0%"></div></div><span class="count" id="rv-arm-s">0%</span></div>
+            <div class="trow"><span class="name">Military tactics</span><div class="prog-wrap"><div class="prog-bar mil" id="pb-mil" style="width:0%"></div></div><span class="count" id="rv-mil-s">0%</span></div>
+            <div class="trow"><span class="name">Spellbook</span><div class="prog-wrap"><div class="prog-bar spell" id="pb-spell" style="width:0%"></div></div><span class="count" id="rv-spell-s">0</span></div>
+            <div class="trow"><span class="name">Mana</span><div class="prog-wrap"><div class="prog-bar mana" id="pb-mana-s" style="width:0%"></div></div><span class="count" id="rv-mana-s">0</span></div>
+            <div class="trow"><span class="name">Entertainment</span><div class="prog-wrap"><div class="prog-bar" id="pb-ent-s" style="width:0%;background:var(--green)"></div></div><span class="count" id="rv-ent-s">0%</span></div>
           </div>
           <div class="card">
             <div class="card-title">Key buildings</div>
-            <div class="trow"><span class="name">Farms</span><span class="count">200</span></div>
-            <div class="trow"><span class="name">Barracks</span><span class="count">0</span></div>
-            <div class="trow"><span class="name">Smithies</span><span class="count">0</span></div>
-            <div class="trow"><span class="name">Cathedrals</span><span class="count">0</span></div>
-            <div class="trow"><span class="name">Castles</span><span class="count">0</span></div>
-            <div class="trow"><span class="name">Guard towers</span><span class="count">0</span></div>
+            <div class="trow"><span class="name">Farms</span><span class="count" id="kb-farms">0</span></div>
+            <div class="trow"><span class="name">Barracks</span><span class="count" id="kb-barracks">0</span></div>
+            <div class="trow"><span class="name">Smithies</span><span class="count" id="kb-smithies">0</span></div>
+            <div class="trow"><span class="name">Cathedrals</span><span class="count" id="kb-cathedrals">0</span></div>
+            <div class="trow"><span class="name">Castles</span><span class="count" id="kb-castles">0</span></div>
+            <div class="trow"><span class="name">Guard towers</span><span class="count" id="kb-guard_towers">0</span></div>
           </div>
         </div>
       </div>
@@ -1023,11 +1023,7 @@
           <div style="font-size:12px;color:var(--text3);margin-bottom:6px">Dismiss member</div>
           <div style="display:flex;gap:8px">
             <select id="dismiss-sel" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);padding:6px 8px;font-size:12px">
-              <option>Sylvara</option>
-              <option>Thornwall</option>
-              <option>Grumthar</option>
-              <option>Miravel</option>
-              <option>Darkveil</option>
+              <option>— no members —</option>
             </select>
             <button class="btn btn-red" onclick="dismissAlly()">Dismiss</button>
           </div>
@@ -1103,24 +1099,9 @@ function populateInputs() {
 }
 
 /* ── Shared data ── */
-var targets = [
-  { id:1, name:'Grumthar',    race:'Orc',       rank:31,  land:2140, fighters:18200, mages:800,  status:'online' },
-  { id:2, name:'Miravel',     race:'High Elf',  rank:44,  land:1720, fighters:9800,  mages:3200, status:'offline' },
-  { id:3, name:'Thornwall',   race:'Dwarf',     rank:52,  land:1580, fighters:14000, mages:200,  status:'offline' },
-  { id:4, name:'Shadowmere',  race:'Dark Elf',  rank:63,  land:1490, fighters:7200,  mages:1800, status:'online' },
-  { id:5, name:'Bladeholm',   race:'Human',     rank:71,  land:1350, fighters:11000, mages:900,  status:'offline' },
-  { id:6, name:'Darkveil',    race:'Dark Elf',  rank:88,  land:1200, fighters:6500,  mages:2100, status:'online' },
-  { id:7, name:'Ironmantle',  race:'Dwarf',     rank:102, land:1100, fighters:12800, mages:300,  status:'offline' },
-  { id:8, name:'Wolfspire',   race:'Dire Wolf', rank:115, land:980,  fighters:22000, mages:0,    status:'online' },
-];
-
-var allies = [
-  { name:'Sylvara',   race:'High Elf',  rank:38,  pledge:5, land:2200 },
-  { name:'Thornwall', race:'Dwarf',     rank:52,  pledge:3, land:1580 },
-  { name:'Miravel',   race:'High Elf',  rank:44,  pledge:3, land:1720 },
-  { name:'Grumthar',  race:'Orc',       rank:31,  pledge:2, land:2140 },
-  { name:'Darkveil',  race:'Dark Elf',  rank:88,  pledge:1, land:1200 },
-];
+var targets = [];
+var allies = [];
+var allyMessages = [];
 
 var spells = [
   { id:'fire',     name:'Fire',      desc:'Sets the target city ablaze. Each turn the fire burns, buildings are destroyed.',       minSB:200,   manaPer:1 },
@@ -1137,11 +1118,7 @@ var spells = [
 var selectedTarget = null;
 var selectedCovertTarget = null;
 var selectedSpell = null;
-var allyMessages = [
-  { from:'Sylvara', text:'Watch out — Wolfspire has been scouting our borders.' },
-  { from:'Thornwall', text:'I can provide 5% pledge backup if you need it.' },
-  { from:'Miravel', text:'Just repelled an attack from Shadowmere. Thank you for the flare response!' },
-];
+var allyMessages = [];
 
 /* ── Target list renderer ── */
 function renderTargets(list, containerId, selectFn) {
@@ -1639,8 +1616,24 @@ function syncUI() {
     var val = state[key] || 0;
     var bar = document.getElementById('pb-' + id);
     if (bar) bar.style.width = Math.min(100, val / 10) + '%';
+    // Research panel counts
     var count = document.getElementById('rv-' + id);
     if (count) count.textContent = fmt(val) + (key !== 'res_spellbook' ? '%' : '');
+    // Status panel counts (different IDs)
+    var scount = document.getElementById('rv-' + id + '-s');
+    if (scount) scount.textContent = fmt(val) + (key !== 'res_spellbook' ? '%' : '');
+  });
+  // Status panel mana bar
+  var manaPct = Math.min(100, (state.mana || 0) / 500);
+  var manaBar = document.getElementById('pb-mana-s');
+  if (manaBar) manaBar.style.width = manaPct + '%';
+  var manaCount = document.getElementById('rv-mana-s');
+  if (manaCount) manaCount.textContent = trunc(state.mana || 0);
+  // Key buildings in status panel
+  var kbMap = { farms:'bld_farms', barracks:'bld_barracks', smithies:'bld_smithies', cathedrals:'bld_cathedrals', castles:'bld_castles', guard_towers:'bld_guard_towers' };
+  Object.keys(kbMap).forEach(function(bld) {
+    var el = document.getElementById('kb-' + bld);
+    if (el) el.textContent = fmt(state[kbMap[bld]] || 0);
   });
   var spellMana = document.getElementById('spell-mana-disp');
   if (spellMana) spellMana.textContent = fmt(state.mana || 0);
@@ -1849,14 +1842,24 @@ function showLoginModal() {
     if (result.error) { errEl.textContent = result.error; return; }
     if (result.token) localStorage.setItem('narmir_token', result.token);
     state.username = username;
-    // Show loading state while kingdom loads
-    overlay.innerHTML = '<div style="color:#e8b84b;font-size:16px;font-weight:600;text-align:center">Loading your kingdom...</div>';
-    try {
-      await loadKingdom();
-      overlay.remove();
-    } catch(e) {
-      console.error('loadKingdom error:', e);
-      overlay.remove();
+    overlay.innerHTML = '<div style="color:#e8b84b;font-size:16px;font-weight:600;text-align:center;padding:40px">Loading your kingdom...</div>';
+
+    // Try to load kingdom — retry once after 1s if it fails (cookie timing on Render)
+    var loaded = false;
+    for (var attempt = 0; attempt < 3; attempt++) {
+      try {
+        await loadKingdom();
+        loaded = true;
+        break;
+      } catch(e) {
+        console.warn('[narmir] loadKingdom attempt ' + (attempt+1) + ' failed:', e.message);
+        if (attempt < 2) await new Promise(function(r){ setTimeout(r, 1000); });
+      }
+    }
+    overlay.remove();
+    if (!loaded) {
+      // Still failed — show error but stay logged in
+      toast('Logged in but kingdom failed to load. Try refreshing.', 'warn');
     }
   }
 }
@@ -1864,10 +1867,8 @@ function showLoginModal() {
 async function loadKingdom() {
   var kingdom = await apiCall('GET', '/api/kingdom/me');
   if (kingdom.error) {
-    // If called from boot (not after login), show modal
-    // If called after login, let the caller handle it
-    if (!state.username) { showLoginModal(); }
-    return;
+    if (!state.username) showLoginModal();
+    throw new Error(kingdom.error);
   }
   Object.assign(state, {
     gold: kingdom.gold, pop: kingdom.population, land: kingdom.land,
@@ -2001,22 +2002,30 @@ function appendNewsItems(events) {
 
   // Update badge to show new news available
   var count = events.length;
-  ['news-badge','bnav-news-badge'].forEach(function(id) {
-    var b = document.getElementById(id);
-    if (b) {
-      b.textContent = (parseInt(b.textContent) || 0) + count;
-    } else {
-      // Create badge if it doesn't exist
-      var navBtn = document.querySelector('.nav-item[onclick*="news"]');
-      if (navBtn && id === 'news-badge') {
-        var badge = document.createElement('span');
-        badge.id = id;
-        badge.className = 'nav-badge';
-        badge.textContent = count;
-        navBtn.appendChild(badge);
-      }
-    }
-  });
+  // Update or create news badge on sidebar nav
+  var sideBtn = document.querySelector('.nav-item[onclick*="\'news\'"]');
+  var sideB = document.getElementById('news-badge');
+  if (sideB) {
+    sideB.textContent = (parseInt(sideB.textContent) || 0) + count;
+  } else if (sideBtn) {
+    var badge = document.createElement('span');
+    badge.id = 'news-badge';
+    badge.className = 'nav-badge';
+    badge.textContent = count;
+    sideBtn.appendChild(badge);
+  }
+  // Update or create news badge on bottom nav
+  var bnavBtn = document.querySelector('.bnav-item[onclick*="\'news\'"]');
+  var bnavB = document.getElementById('bnav-news-badge');
+  if (bnavB) {
+    bnavB.textContent = (parseInt(bnavB.textContent) || 0) + count;
+  } else if (bnavBtn) {
+    var bbadge = document.createElement('span');
+    bbadge.id = 'bnav-news-badge';
+    bbadge.className = 'bnav-badge';
+    bbadge.textContent = count;
+    bnavBtn.appendChild(bbadge);
+  }
 }
 
 async function loadRankings() {
