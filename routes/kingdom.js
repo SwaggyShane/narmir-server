@@ -62,11 +62,22 @@ module.exports = function(db) {
     const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
     if (!k) return res.status(404).json({ error: 'Kingdom not found' });
     if (k.turns_stored < 1) return res.status(429).json({ error: 'No turns available' });
-    const result = engine.hireUnits(k, unit, Number(amount));
-    if (result.error) return res.status(400).json({ error: result.error });
-    result.updates.turns_stored = k.turns_stored - 1;
-    await applyUpdates(db, k.id, result.updates);
-    res.json({ ok: true, updates: result.updates, turns_stored: result.updates.turns_stored });
+
+    // Run full turn first
+    const { updates: turnUpdates, events } = engine.processTurn(k);
+    turnUpdates.turns_stored = k.turns_stored - 1;
+
+    // Apply hire on top of turn state
+    const kAfterTurn = { ...k, ...turnUpdates };
+    const hireResult = engine.hireUnits(kAfterTurn, unit, Number(amount));
+    if (hireResult.error) return res.status(400).json({ error: hireResult.error });
+
+    const finalUpdates = { ...turnUpdates, ...hireResult.updates };
+    await applyUpdates(db, k.id, finalUpdates);
+    for (const ev of events)
+      await db.run('INSERT INTO news (kingdom_id, type, message) VALUES (?, ?, ?)', [k.id, ev.type || 'system', ev.message]);
+
+    res.json({ ok: true, updates: finalUpdates, events, turns_stored: finalUpdates.turns_stored });
   });
 
   // ── Research ──────────────────────────────────────────────────────────────────
@@ -75,11 +86,28 @@ module.exports = function(db) {
     const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
     if (!k) return res.status(404).json({ error: 'Kingdom not found' });
     if (k.turns_stored < 1) return res.status(429).json({ error: 'No turns available' });
-    const result = engine.studyDiscipline(k, discipline, Number(researchers));
-    if (result.error) return res.status(400).json({ error: result.error });
-    result.updates.turns_stored = k.turns_stored - 1;
-    await applyUpdates(db, k.id, result.updates);
-    res.json({ ok: true, increment: result.increment, updates: result.updates, turns_stored: result.updates.turns_stored });
+
+    // Run full turn first
+    const { updates: turnUpdates, events } = engine.processTurn(k);
+    turnUpdates.turns_stored = k.turns_stored - 1;
+
+    // Apply research on top of turn state
+    const kAfterTurn = { ...k, ...turnUpdates };
+    const resResult = engine.studyDiscipline(kAfterTurn, discipline, Number(researchers));
+    if (resResult.error) return res.status(400).json({ error: resResult.error });
+
+    const finalUpdates = { ...turnUpdates, ...resResult.updates };
+    await applyUpdates(db, k.id, finalUpdates);
+
+    const resCol = Object.keys(resResult.updates).find(k => k.startsWith('res_'));
+    const newVal = resCol ? finalUpdates[resCol] : '?';
+    const resEvent = { type: 'system', message: `📚 Studied ${discipline} with ${Number(researchers).toLocaleString()} researchers · +${resResult.increment} → now ${newVal}${discipline !== 'spellbook' ? '%' : ''}.` };
+    events.push(resEvent);
+
+    for (const ev of events)
+      await db.run('INSERT INTO news (kingdom_id, type, message) VALUES (?, ?, ?)', [k.id, ev.type || 'system', ev.message]);
+
+    res.json({ ok: true, increment: resResult.increment, updates: finalUpdates, events, turns_stored: finalUpdates.turns_stored });
   });
 
   // ── Build ─────────────────────────────────────────────────────────────────────
@@ -87,10 +115,33 @@ module.exports = function(db) {
     const { building, quantity } = req.body;
     const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
     if (!k) return res.status(404).json({ error: 'Kingdom not found' });
-    const result = engine.buildStructure(k, building, Number(quantity));
-    if (result.error) return res.status(400).json({ error: result.error });
-    await applyUpdates(db, k.id, result.updates);
-    res.json({ ok: true, piecesUsed: result.piecesUsed, updates: result.updates });
+    if (k.turns_stored < 1) return res.status(429).json({ error: 'No turns available' });
+
+    // Run full turn first
+    const { updates: turnUpdates, events } = engine.processTurn(k);
+    turnUpdates.turns_stored = k.turns_stored - 1;
+
+    // Apply build on top of turn state
+    const kAfterTurn = { ...k, ...turnUpdates };
+    const buildResult = engine.buildStructure(kAfterTurn, building, Number(quantity));
+    if (buildResult.error) return res.status(400).json({ error: buildResult.error });
+
+    const finalUpdates = { ...turnUpdates, ...buildResult.updates };
+    await applyUpdates(db, k.id, finalUpdates);
+
+    const buildLabels = {
+      farms:'Farms', barracks:'Barracks', outposts:'Outposts', guard_towers:'Guard Towers',
+      schools:'Schools', armories:'Armories', vaults:'Vaults', smithies:'Smithies',
+      markets:'Market Places', cathedrals:'Cathedrals', training:'Training Fields',
+      colosseums:'Colosseums', castles:'Castles', weapons:'Weapons', armor:'Armor'
+    };
+    const buildEvent = { type: 'system', message: `🔨 Built ${Number(quantity).toLocaleString()} ${buildLabels[building] || building}. Engineers used: ${buildResult.piecesUsed.toLocaleString()} turns.` };
+    events.push(buildEvent);
+
+    for (const ev of events)
+      await db.run('INSERT INTO news (kingdom_id, type, message) VALUES (?, ?, ?)', [k.id, ev.type || 'system', ev.message]);
+
+    res.json({ ok: true, piecesUsed: buildResult.piecesUsed, updates: finalUpdates, events, turns_stored: finalUpdates.turns_stored });
   });
 
   // ── Search (exploration) — costs 1 turn ───────────────────────────────────────
@@ -104,33 +155,41 @@ module.exports = function(db) {
     if (r <= 0) return res.status(400).json({ error: 'Send at least some rangers' });
     if (r > k.rangers) return res.status(400).json({ error: 'Not enough rangers' });
 
-    const tacticsMult = 1 + (k.res_military / 1000);
-    let result = {};
-    let message = '';
-    const updates = { turns_stored: k.turns_stored - 1, updated_at: Math.floor(Date.now() / 1000) };
+    // Run full turn first
+    const { updates: turnUpdates, events } = engine.processTurn(k);
+    turnUpdates.turns_stored = k.turns_stored - 1;
+
+    // Apply search on top of turn state
+    const kAfterTurn = { ...k, ...turnUpdates };
+    const tacticsMult = 1 + ((kAfterTurn.res_military || 0) / 1000);
+    let searchResult = {};
+    let searchMessage = '';
 
     if (type === 'land') {
       const found = Math.floor(r * 0.04 * tacticsMult);
-      updates.land = k.land + found;
-      result = { found, unit: 'acres' };
-      message = `Rangers discovered +${found.toLocaleString()} acres of unclaimed land.`;
+      turnUpdates.land = (kAfterTurn.land || 0) + found;
+      searchResult = { found, unit: 'acres' };
+      searchMessage = `🗺️ Rangers discovered +${found.toLocaleString()} acres of unclaimed land.`;
     } else if (type === 'gold') {
       const found = Math.floor(r * 12 * tacticsMult);
-      updates.gold = k.gold + found;
-      result = { found, unit: 'GC' };
-      message = `Rangers returned with ${found.toLocaleString()} GC from foraging.`;
+      turnUpdates.gold = (turnUpdates.gold || kAfterTurn.gold || 0) + found;
+      searchResult = { found, unit: 'GC' };
+      searchMessage = `💰 Rangers returned with ${found.toLocaleString()} GC from foraging.`;
     } else if (type === 'targets') {
       const found = Math.floor(r * 0.002) + 2;
-      result = { found, unit: 'kingdoms' };
-      message = `Rangers scouted ${found} new target kingdoms.`;
+      searchResult = { found, unit: 'kingdoms' };
+      searchMessage = `👁️ Rangers scouted ${found} new target kingdoms.`;
     } else {
       return res.status(400).json({ error: 'Invalid search type' });
     }
 
-    await applyUpdates(db, k.id, updates);
-    await db.run('INSERT INTO news (kingdom_id, type, message) VALUES (?, ?, ?)', [k.id, 'system', message]);
+    await applyUpdates(db, k.id, turnUpdates);
+    for (const ev of events)
+      await db.run('INSERT INTO news (kingdom_id, type, message) VALUES (?, ?, ?)', [k.id, ev.type || 'system', ev.message]);
+    await db.run('INSERT INTO news (kingdom_id, type, message) VALUES (?, ?, ?)', [k.id, 'system', searchMessage]);
 
-    res.json({ ok: true, type, result, message, turns_stored: updates.turns_stored });
+    const allEvents = [...events, { type: 'system', message: searchMessage }];
+    res.json({ ok: true, type, result: searchResult, message: searchMessage, updates: turnUpdates, events: allEvents, turns_stored: turnUpdates.turns_stored });
   });
 
   // ── Options ───────────────────────────────────────────────────────────────────
