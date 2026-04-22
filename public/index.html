@@ -1470,7 +1470,6 @@ function foundAlliance() {
 /* ── Init ── */
 renderTargets(targets, 'target-list', 'selectTarget');
 renderTargets(targets, 'covert-target-list', 'selectCovertTarget');
-renderSpells();
 renderAllies();
 renderAllyChat();
 updateSpellCalc();
@@ -1832,14 +1831,26 @@ function showLoginModal() {
     if (result.error) { errEl.textContent = result.error; return; }
     if (result.token) localStorage.setItem('narmir_token', result.token);
     state.username = username;
-    overlay.remove();
-    loadKingdom();
+    // Show loading state while kingdom loads
+    overlay.innerHTML = '<div style="color:#e8b84b;font-size:16px;font-weight:600;text-align:center">Loading your kingdom...</div>';
+    try {
+      await loadKingdom();
+      overlay.remove();
+    } catch(e) {
+      console.error('loadKingdom error:', e);
+      overlay.remove();
+    }
   }
 }
 
 async function loadKingdom() {
   var kingdom = await apiCall('GET', '/api/kingdom/me');
-  if (kingdom.error) { showLoginModal(); return; }
+  if (kingdom.error) {
+    // If called from boot (not after login), show modal
+    // If called after login, let the caller handle it
+    if (!state.username) { showLoginModal(); }
+    return;
+  }
   Object.assign(state, {
     gold: kingdom.gold, pop: kingdom.population, land: kingdom.land,
     morale: kingdom.morale, tax: kingdom.tax, turn: kingdom.turn, mana: kingdom.mana,
@@ -1913,10 +1924,14 @@ async function loadNews() {
   if (titleTurn) titleTurn.textContent = state.turn || 0;
   if (!list) return;
   if (!Array.isArray(items) || items.length === 0) {
-    list.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:8px 0">No news yet — take some turns!</div>';
+    // Only show empty state if there are no live items already displayed
+    if (!list.querySelector('.news-item')) {
+      list.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:8px 0">No news yet — take some turns!</div>';
+    }
     return;
   }
   var typeClass = { attack:'news-attack', spell:'news-magic', alliance:'news-hl', covert:'news-hl' };
+  // Replace all content with server items (server is source of truth)
   list.innerHTML = items.map(function(item) {
     var cls = typeClass[item.type] || 'news-hl';
     var ago = timeAgo(item.created_at);
@@ -1925,7 +1940,7 @@ async function loadNews() {
       + '<span class="' + cls + '">' + item.message + '</span>'
       + '</div>';
   }).join('');
-  // Clear badge
+  // Clear badges
   ['news-badge','bnav-news-badge'].forEach(function(id) {
     var b = document.getElementById(id);
     if (b) b.remove();
@@ -1963,6 +1978,25 @@ function appendNewsItems(events) {
     return '<div class="news-item"><span class="time">Just now</span><span class="' + cls + '">' + msg + '</span></div>';
   }).join('');
   list.insertAdjacentHTML('afterbegin', html);
+
+  // Update badge to show new news available
+  var count = events.length;
+  ['news-badge','bnav-news-badge'].forEach(function(id) {
+    var b = document.getElementById(id);
+    if (b) {
+      b.textContent = (parseInt(b.textContent) || 0) + count;
+    } else {
+      // Create badge if it doesn't exist
+      var navBtn = document.querySelector('.nav-item[onclick*="news"]');
+      if (navBtn && id === 'news-badge') {
+        var badge = document.createElement('span');
+        badge.id = id;
+        badge.className = 'nav-badge';
+        badge.textContent = count;
+        navBtn.appendChild(badge);
+      }
+    }
+  });
 }
 
 async function loadRankings() {
