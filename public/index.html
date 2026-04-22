@@ -290,11 +290,15 @@
     <button class="nav-item" onclick="switchTab('attack',this)"><span class="icon">&#9876;</span>Attack</button>
     <button class="nav-item" onclick="switchTab('spells',this)"><span class="icon">&#10024;</span>Spells</button>
     <button class="nav-item" onclick="switchTab('covert',this)"><span class="icon">&#128373;</span>Covert</button>
+    <button class="nav-item" onclick="switchTab('exploration',this)"><span class="icon">&#9685;</span>Exploration</button>
 
     <div class="nav-section">Social</div>
     <button class="nav-item" onclick="switchTab('alliances',this)"><span class="icon">&#9876;</span>Alliances</button>
     <button class="nav-item" onclick="switchTab('news',this)"><span class="icon">&#9741;</span>News <span id="news-badge" class="nav-badge">3</span></button>
     <button class="nav-item" onclick="toast('Chat will connect via Socket.io in the next build','warn');this.classList.remove('active')"><span class="icon">&#9650;</span>Chat</button>
+
+    <div style="flex:1"></div>
+    <button class="nav-item" onclick="doLogout()" style="color:var(--red);margin-top:8px"><span class="icon">&#10005;</span>Logout</button>
   </nav>
 
   <!-- Main content -->
@@ -741,20 +745,6 @@
         </div>
         <button class="btn btn-red" style="width:100%;font-size:14px;padding:10px" onclick="launchAttack()">Launch military attack</button>
       </div>
-
-      <div class="card">
-        <div class="card-title">Search for targets</div>
-        <div style="font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.6">Send rangers to scout the realm for new targets to attack or ally with.</div>
-        <div class="trow" style="margin-bottom:12px">
-          <span class="name" style="font-size:13px">Rangers to send</span>
-          <input type="number" id="search-rangers" min="0" max="3200" value="500" style="width:90px">
-        </div>
-        <div style="display:flex;gap:8px">
-          <button class="btn" style="flex:1" onclick="searchAction('land')">Search for land</button>
-          <button class="btn" style="flex:1" onclick="searchAction('gold')">Search for gold</button>
-          <button class="btn" style="flex:1" onclick="searchAction('targets')">Scout targets</button>
-        </div>
-      </div>
     </div>
   </div>
 </div>
@@ -887,6 +877,55 @@
           <button class="btn btn-red" onclick="covertOp('sabotage')">Sabotage</button>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ EXPLORATION PANEL ══ -->
+<div id="exploration" class="panel" style="display:none">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
+
+    <div class="card">
+      <div class="card-title">Scout &amp; search</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.7">
+        Send rangers into the realm to find unclaimed land, forage for gold, or locate enemy kingdoms to attack or ally with. The more rangers you send, the better the results.
+      </div>
+      <div class="trow" style="margin-bottom:14px">
+        <span class="name">Rangers to send</span>
+        <span style="font-size:12px;color:var(--text3);margin-right:8px">Available: <span id="exp-rangers-avail">3,200</span></span>
+        <input type="number" id="search-rangers" min="0" value="500" style="width:90px">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <button class="btn" style="padding:10px;font-size:13px" onclick="searchAction('land')">
+          <div style="font-size:16px;margin-bottom:4px">&#127758;</div>
+          Search for land
+        </button>
+        <button class="btn" style="padding:10px;font-size:13px" onclick="searchAction('gold')">
+          <div style="font-size:16px;margin-bottom:4px">&#9775;</div>
+          Forage for gold
+        </button>
+        <button class="btn" style="padding:10px;font-size:13px" onclick="searchAction('targets')">
+          <div style="font-size:16px;margin-bottom:4px">&#128269;</div>
+          Scout targets
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Exploration log</div>
+      <div id="exploration-log" style="display:flex;flex-direction:column;gap:8px;min-height:120px">
+        <div style="font-size:13px;color:var(--text3);padding:12px 0">No expeditions sent yet this session.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="card" style="margin-top:0">
+    <div class="card-title">Ranger tips</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;font-size:13px;color:var(--text2);line-height:1.7">
+      <div><strong style="color:var(--text)">Land search</strong><br>Rangers find unclaimed acres and bring them back to your kingdom. Results scale with ranger count and Military Tactics research.</div>
+      <div><strong style="color:var(--text)">Gold foraging</strong><br>Rangers pillage and forage through the wilderness, returning with raw gold. Useful when your economy is still developing.</div>
+      <div><strong style="color:var(--text)">Target scouting</strong><br>Rangers locate other kingdoms and add them to your attack target list. You won't find the same kingdom twice until all are discovered.</div>
     </div>
   </div>
 </div>
@@ -1117,14 +1156,28 @@ function searchAction(type) {
   if (r > state.rangers) return toast('Not enough rangers', 'error');
   var results = { land: Math.floor(r * 0.04), gold: Math.floor(r * 12), targets: Math.floor(r * 0.002) + 2 };
   var msgs = {
-    land: 'Rangers found +' + fmt(results.land) + ' acres of unclaimed land',
-    gold: 'Rangers returned with ' + fmt(results.gold) + ' GC from foraging',
+    land:    'Rangers found +' + fmt(results.land) + ' acres of unclaimed land',
+    gold:    'Rangers returned with ' + fmt(results.gold) + ' GC from foraging',
     targets: 'Rangers scouted ' + results.targets + ' new target kingdoms'
   };
-  if (type === 'land') state.land += results.land;
-  if (type === 'gold') state.gold += results.gold;
+  var icons = { land: '&#127758;', gold: '&#9775;', targets: '&#128269;' };
+  if (type === 'land') { state.land += results.land; }
+  if (type === 'gold') { state.gold += results.gold; }
   syncUI();
   toast(msgs[type], 'success');
+
+  // Log to exploration panel
+  var log = document.getElementById('exploration-log');
+  if (log) {
+    var empty = log.querySelector('[style*="No expeditions"]');
+    if (empty) empty.remove();
+    var entry = document.createElement('div');
+    entry.style.cssText = 'display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px';
+    entry.innerHTML = '<span style="font-size:18px;flex-shrink:0">' + icons[type] + '</span>'
+      + '<div><div style="color:var(--text)">' + msgs[type] + '</div>'
+      + '<div style="font-size:11px;color:var(--text3);margin-top:2px">Sent ' + fmt(r) + ' rangers · Just now</div></div>';
+    log.insertBefore(entry, log.firstChild);
+  }
 }
 
 /* ── Spells ── */
@@ -1421,6 +1474,8 @@ function syncUI() {
   document.getElementById('top-mana').textContent = fmt(state.mana);
   document.getElementById('hire-pop').textContent = fmt(state.pop);
   document.getElementById('build-eng').textContent = fmt(state.engineers);
+  var expRangers = document.getElementById('exp-rangers-avail');
+  if (expRangers) expRangers.textContent = fmt(state.rangers || 0);
   // sync status panel unit counts
   ['fighters','rangers','clerics','mages','thieves','ninjas','researchers','engineers'].forEach(function(u){
     var el = document.getElementById('s-' + u);
@@ -1462,10 +1517,13 @@ function updateTurnsDisplay() {
   <button class="bnav-item" onclick="switchTabMobile('attack',this)"><span class="bicon">&#9876;</span>Attack</button>
   <button class="bnav-item" onclick="switchTabMobile('spells',this)"><span class="bicon">&#10024;</span>Spells</button>
   <button class="bnav-item" onclick="switchTabMobile('covert',this)"><span class="bicon">&#128373;</span>Covert</button>
+  <button class="bnav-item" onclick="switchTabMobile('exploration',this)"><span class="bicon">&#9685;</span>Explore</button>
   <div class="bnav-sep"></div>
   <button class="bnav-item" onclick="switchTabMobile('alliances',this)"><span class="bicon">&#9876;</span>Allies</button>
   <button class="bnav-item" onclick="switchTabMobile('news',this)"><span class="bicon">&#9741;</span>News<span id="bnav-news-badge" class="bnav-badge">3</span></button>
   <button class="bnav-item" onclick="switchTabMobile('options',this)"><span class="bicon">&#9881;</span>Options</button>
+  <div class="bnav-sep"></div>
+  <button class="bnav-item" onclick="doLogout()" style="color:var(--red)"><span class="bicon">&#10005;</span>Logout</button>
 </nav>
 
 <script>
