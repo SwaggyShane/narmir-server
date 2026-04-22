@@ -1452,6 +1452,7 @@ function switchTab(id, btn) {
   if (id === 'news') {
     var nb = document.getElementById('news-badge');
     if (nb) nb.remove();
+    loadNews();
   }
 }
 
@@ -1834,11 +1835,14 @@ function appendNewsItems(events) {
   if (!events || !events.length) return;
   var list = document.getElementById('news-list');
   if (!list) return;
-  var empty = list.querySelector('[style*="No news"]');
-  if (empty) empty.remove();
+  // Remove any placeholder text divs
+  Array.from(list.children).forEach(function(child) {
+    if (!child.classList.contains('news-item')) child.remove();
+  });
   var html = events.map(function(ev) {
     var msg = ev.message || ev;
-    return '<div class="news-item"><span class="time">Just now</span><span class="news-hl">' + msg + '</span></div>';
+    var cls = { attack:'news-attack', spell:'news-magic', covert:'news-hl', alliance:'news-hl' }[ev.type] || 'news-hl';
+    return '<div class="news-item"><span class="time">Just now</span><span class="' + cls + '">' + msg + '</span></div>';
   }).join('');
   list.insertAdjacentHTML('afterbegin', html);
 }
