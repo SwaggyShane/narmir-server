@@ -61,13 +61,12 @@ function popGrowth(k) {
   if (k.morale < 30) return -Math.floor(k.population * 0.02);
   const base = Math.floor(k.population * 0.003);
   const entertainment = Math.floor(k.res_entertainment / 100) * 10;
-  const colosseumBonus = Math.floor(k.bld_colosseums / 25) * 50;
   // High elves grow slowly (long-lived), humans grow fastest
   const raceGrowthMult = {
     high_elf: 0.80, dwarf: 0.90, dire_wolf: 1.00,
     dark_elf: 0.85, human: 1.15, orc: 1.10,
   }[k.race] || 1.0;
-  return Math.floor((base + entertainment + colosseumBonus) * raceGrowthMult);
+  return Math.floor((base + entertainment) * raceGrowthMult);
 }
 
 function researchIncrement(k, discipline, researchersAssigned) {
@@ -152,11 +151,13 @@ function processTurn(k) {
     updates.morale = Math.max(0, (k.morale||100) - penalty);
     events.push({ type: 'system', message: `😡 Morale fell by ${penalty} to ${updates.morale} — citizens angry over ${k.tax}% taxation.` });
   } else {
-    const recovery = 1 + Math.floor((k.res_entertainment||0) / 200);
+    // Morale recovers based on entertainment research + taverns (formerly colosseums)
+    const tavernBonus = Math.floor((k.bld_colosseums||0) / 25);
+    const recovery = 1 + Math.floor((k.res_entertainment||0) / 200) + tavernBonus;
     const newMorale = Math.min(200, (k.morale||100) + recovery);
     if (newMorale !== k.morale) {
       updates.morale = newMorale;
-      events.push({ type: 'system', message: `😊 Morale recovered by ${recovery} to ${newMorale}.` });
+      events.push({ type: 'system', message: `😊 Morale recovered by ${recovery} to ${newMorale}${tavernBonus > 0 ? ' (tavern bonus applied)' : ''}.` });
     }
   }
 
