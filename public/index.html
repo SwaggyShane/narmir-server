@@ -1566,23 +1566,27 @@ function setTax(v) {
 var takingTurn = false;
 async function takeTurn() {
   if (takingTurn) return;
-  if (state.turns_stored < 1) return toast('No turns available — refills in ' + document.getElementById('regen-countdown').textContent, 'warn');
+  if ((state.turns_stored || 0) < 1) return toast('No turns available — refills in ' + document.getElementById('regen-countdown').textContent, 'warn');
   takingTurn = true;
   var btn = document.querySelector('.turn-btn');
   if (btn) btn.style.opacity = '0.6';
   var result = await apiCall('POST', '/api/kingdom/turn');
   takingTurn = false;
-  if (btn) btn.style.opacity = state.turns_stored > 0 ? '1' : '0.4';
-  if (result.error) return toast(result.error, 'error');
+  if (result.error) { if (btn) btn.style.opacity = '1'; return toast(result.error, 'error'); }
   applyServerUpdates(result.updates);
+  // turns_stored comes back both in updates and top-level — use whichever is present
   if (result.turns_stored !== undefined) state.turns_stored = result.turns_stored;
   syncUI();
   updateTurnsDisplay();
   document.getElementById('turn-num').textContent = state.turn;
   var newsTurn = document.getElementById('news-turn-num');
   if (newsTurn) newsTurn.textContent = state.turn;
-  if (result.events && result.events.length) appendNewsItems(result.events);
-  toast('Turn ' + state.turn + ' · ' + state.turns_stored + ' turns left', 'success');
+  // Append news events immediately
+  if (result.events && result.events.length) {
+    appendNewsItems(result.events);
+  }
+  if (btn) btn.style.opacity = (state.turns_stored || 0) > 0 ? '1' : '0.4';
+  toast('Turn ' + state.turn + ' · ' + (state.turns_stored || 0) + ' turns left', 'success');
 }
 
 function syncUI() {
@@ -1899,9 +1903,7 @@ async function loadKingdom() {
   });
   syncUI();
   updateTurnsDisplay();
-  document.getElementById('kingdom-name').textContent = kingdom.name;
   document.getElementById('turn-num').textContent = kingdom.turn;
-  // Set morale display (not in syncUI since it's a percentage)
   var moraleEl = document.getElementById('m-morale');
   if (moraleEl) moraleEl.textContent = (kingdom.morale || 0) + '%';
 
@@ -1919,10 +1921,14 @@ async function loadKingdom() {
   // Owner line: "Username of Kingdom"
   var ownerLine = document.getElementById('kingdom-owner-line');
   if (ownerLine) {
-    var displayName = kingdom.username || state.username || '';
+    var displayName = kingdom.username || state.username || '—';
     ownerLine.innerHTML = '<strong style="color:var(--text)">' + displayName + '</strong>'
-      + ' of <strong style="color:var(--gold)">' + kingdom.name + '</strong>';
+      + ' of <strong style="color:var(--gold)">' + (kingdom.name || '—') + '</strong>';
   }
+
+  // Kingdom name in header
+  var knEl = document.getElementById('kingdom-name');
+  if (knEl) knEl.textContent = kingdom.name || '—';
 
   // Race tag (top right of header)
   var raceTagEl = document.getElementById('race-tag-display');
@@ -2041,26 +2047,26 @@ async function loadRankings() {
 // Central helper — remaps server update keys to frontend state keys
 function applyServerUpdates(u) {
   if (!u) return;
-  if (u.population  !== undefined) state.pop        = u.population;
-  if (u.gold        !== undefined) state.gold        = u.gold;
-  if (u.mana        !== undefined) state.mana        = u.mana;
-  if (u.land        !== undefined) state.land        = u.land;
-  if (u.morale      !== undefined) state.morale      = u.morale;
-  if (u.turn        !== undefined) state.turn        = u.turn;
-  if (u.fighters    !== undefined) state.fighters    = u.fighters;
-  if (u.rangers     !== undefined) state.rangers     = u.rangers;
-  if (u.clerics     !== undefined) state.clerics     = u.clerics;
-  if (u.mages       !== undefined) state.mages       = u.mages;
-  if (u.thieves     !== undefined) state.thieves     = u.thieves;
-  if (u.ninjas      !== undefined) state.ninjas      = u.ninjas;
-  if (u.researchers !== undefined) state.researchers = u.researchers;
-  if (u.engineers   !== undefined) state.engineers   = u.engineers;
+  if (u.population  !== undefined) state.pop          = u.population;
+  if (u.gold        !== undefined) state.gold          = u.gold;
+  if (u.mana        !== undefined) state.mana          = u.mana;
+  if (u.land        !== undefined) state.land          = u.land;
+  if (u.morale      !== undefined) state.morale        = u.morale;
+  if (u.turn        !== undefined) state.turn          = u.turn;
+  if (u.turns_stored!== undefined) state.turns_stored = u.turns_stored;
+  if (u.fighters    !== undefined) state.fighters      = u.fighters;
+  if (u.rangers     !== undefined) state.rangers       = u.rangers;
+  if (u.clerics     !== undefined) state.clerics       = u.clerics;
+  if (u.mages       !== undefined) state.mages         = u.mages;
+  if (u.thieves     !== undefined) state.thieves       = u.thieves;
+  if (u.ninjas      !== undefined) state.ninjas        = u.ninjas;
+  if (u.researchers !== undefined) state.researchers   = u.researchers;
+  if (u.engineers   !== undefined) state.engineers     = u.engineers;
   ['res_economy','res_weapons','res_armor','res_military','res_spellbook',
    'res_attack_magic','res_defense_magic','res_entertainment','res_construction','res_war_machines'
   ].forEach(function(k) { if (u[k] !== undefined) state[k] = u[k]; });
   ['bld_farms','bld_barracks','bld_outposts','bld_guard_towers','bld_schools','bld_armories',
-   'bld_vaults','bld_smithies','bld_markets','bld_cathedrals','bld_training','bld_colosseums','bld_castles',
-   'weapons_stockpile','armor_stockpile','war_machines'
+   'bld_vaults','bld_smithies','bld_markets','bld_cathedrals','bld_training','bld_colosseums','bld_castles'
   ].forEach(function(k) { if (u[k] !== undefined) state[k] = u[k]; });
 }
 
