@@ -171,9 +171,19 @@
   .badge-amber { background: rgba(240,168,50,.15); color: var(--amber); }
 
   /* ── News ── */
-  .news-item { padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text2); line-height: 1.6; }
-  .news-item:last-child { border-bottom: none; }
+  .news-item { padding: 7px 10px; font-size: 13px; color: var(--text2); line-height: 1.6; border-radius: var(--radius); }
+  .news-item:hover { background: var(--bg3); }
   .news-item .time { font-size: 11px; color: var(--text3); margin-right: 6px; }
+  .news-turn-group { margin-bottom: 14px; }
+  .news-turn-header {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 11px; font-weight: 700; color: var(--text3);
+    text-transform: uppercase; letter-spacing: .6px;
+    padding: 8px 0 6px; margin-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+  }
+  .news-turn-header .turn-label { color: var(--purple); }
+  .news-turn-header .turn-time { margin-left: auto; font-weight: 400; }
   .news-hl { color: var(--text); font-weight: 500; }
   .news-attack { color: var(--red); font-weight: 500; }
   .news-good { color: var(--green); font-weight: 500; }
@@ -1969,23 +1979,44 @@ async function loadNews() {
   if (titleTurn) titleTurn.textContent = state.turn || 0;
   if (!list) return;
   if (!Array.isArray(items) || items.length === 0) {
-    // Only show empty state if there are no live items already displayed
-    if (!list.querySelector('.news-item')) {
+    if (!list.querySelector('.news-turn-group')) {
       list.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:8px 0">No news yet — take some turns!</div>';
     }
     return;
   }
+
   var typeClass = { attack:'news-attack', spell:'news-magic', alliance:'news-hl', covert:'news-hl' };
-  // Replace all content with server items (server is source of truth)
-  list.innerHTML = items.map(function(item) {
-    var cls = typeClass[item.type] || 'news-hl';
-    var ago = timeAgo(item.created_at);
-    return '<div class="news-item">'
-      + '<span class="time">' + ago + '</span>'
-      + '<span class="' + cls + '">' + item.message + '</span>'
+
+  // Group items by turn number (infer from sequential bunching by created_at)
+  // Items arrive newest-first from server; group runs of items close in time together
+  var groups = [];
+  var currentGroup = null;
+  var GROUP_GAP_SECS = 10; // items within 10s of each other = same turn
+
+  items.forEach(function(item) {
+    if (!currentGroup || (currentGroup.ts - item.created_at) > GROUP_GAP_SECS) {
+      currentGroup = { ts: item.created_at, items: [] };
+      groups.push(currentGroup);
+    }
+    currentGroup.items.push(item);
+  });
+
+  list.innerHTML = groups.map(function(group, gi) {
+    var turnLabel = group.items[0].turn_num ? 'Turn ' + group.items[0].turn_num : (gi === 0 ? 'Latest' : 'Earlier');
+    var timeLabel = timeAgo(group.ts);
+    var rows = group.items.map(function(item) {
+      var cls = typeClass[item.type] || 'news-hl';
+      return '<div class="news-item"><span class="' + cls + '">' + item.message + '</span></div>';
+    }).join('');
+    return '<div class="news-turn-group">'
+      + '<div class="news-turn-header">'
+      + '<span class="turn-label">&#9670; ' + turnLabel + '</span>'
+      + '<span class="turn-time">' + timeLabel + '</span>'
+      + '</div>'
+      + rows
       + '</div>';
   }).join('');
-  // Clear badges
+
   ['news-badge','bnav-news-badge'].forEach(function(id) {
     var b = document.getElementById(id);
     if (b) b.remove();
@@ -1995,9 +2026,9 @@ async function loadNews() {
 function timeAgo(unixTs) {
   if (!unixTs) return 'Just now';
   var secs = Math.floor(Date.now() / 1000) - unixTs;
-  if (secs < 60)   return 'Just now';
-  if (secs < 3600) return Math.floor(secs / 60) + 'm ago';
-  if (secs < 86400)return Math.floor(secs / 3600) + 'h ago';
+  if (secs < 60)    return 'Just now';
+  if (secs < 3600)  return Math.floor(secs / 60) + 'm ago';
+  if (secs < 86400) return Math.floor(secs / 3600) + 'h ago';
   return Math.floor(secs / 86400) + 'd ago';
 }
 
@@ -2013,42 +2044,41 @@ function appendNewsItems(events) {
   if (!events || !events.length) return;
   var list = document.getElementById('news-list');
   if (!list) return;
-  // Remove any placeholder text divs
+  // Remove placeholder
   Array.from(list.children).forEach(function(child) {
-    if (!child.classList.contains('news-item')) child.remove();
+    if (!child.classList.contains('news-turn-group')) child.remove();
   });
-  var html = events.map(function(ev) {
-    var msg = ev.message || ev;
-    var cls = { attack:'news-attack', spell:'news-magic', covert:'news-hl', alliance:'news-hl' }[ev.type] || 'news-hl';
-    return '<div class="news-item"><span class="time">Just now</span><span class="' + cls + '">' + msg + '</span></div>';
-  }).join('');
-  list.insertAdjacentHTML('afterbegin', html);
 
-  // Update badge to show new news available
+  var typeClass = { attack:'news-attack', spell:'news-magic', covert:'news-hl', alliance:'news-hl' };
+  var rows = events.map(function(ev) {
+    var msg = ev.message || ev;
+    var cls = typeClass[ev.type] || 'news-hl';
+    return '<div class="news-item"><span class="' + cls + '">' + msg + '</span></div>';
+  }).join('');
+
+  var group = '<div class="news-turn-group">'
+    + '<div class="news-turn-header">'
+    + '<span class="turn-label">&#9670; Turn ' + (state.turn || '—') + '</span>'
+    + '<span class="turn-time">Just now</span>'
+    + '</div>'
+    + rows
+    + '</div>';
+
+  list.insertAdjacentHTML('afterbegin', group);
+
+  // Badge
   var count = events.length;
-  // Update or create news badge on sidebar nav
   var sideBtn = document.querySelector('.nav-item[onclick*="\'news\'"]');
   var sideB = document.getElementById('news-badge');
-  if (sideB) {
-    sideB.textContent = (parseInt(sideB.textContent) || 0) + count;
-  } else if (sideBtn) {
-    var badge = document.createElement('span');
-    badge.id = 'news-badge';
-    badge.className = 'nav-badge';
-    badge.textContent = count;
-    sideBtn.appendChild(badge);
+  if (sideB) { sideB.textContent = (parseInt(sideB.textContent) || 0) + count; }
+  else if (sideBtn) {
+    var b = document.createElement('span'); b.id = 'news-badge'; b.className = 'nav-badge'; b.textContent = count; sideBtn.appendChild(b);
   }
-  // Update or create news badge on bottom nav
   var bnavBtn = document.querySelector('.bnav-item[onclick*="\'news\'"]');
   var bnavB = document.getElementById('bnav-news-badge');
-  if (bnavB) {
-    bnavB.textContent = (parseInt(bnavB.textContent) || 0) + count;
-  } else if (bnavBtn) {
-    var bbadge = document.createElement('span');
-    bbadge.id = 'bnav-news-badge';
-    bbadge.className = 'bnav-badge';
-    bbadge.textContent = count;
-    bnavBtn.appendChild(bbadge);
+  if (bnavB) { bnavB.textContent = (parseInt(bnavB.textContent) || 0) + count; }
+  else if (bnavBtn) {
+    var bb = document.createElement('span'); bb.id = 'bnav-news-badge'; bb.className = 'bnav-badge'; bb.textContent = count; bnavBtn.appendChild(bb);
   }
 }
 
