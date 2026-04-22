@@ -1115,6 +1115,7 @@ function selectCovertTarget(id, containerId) {
 /* ── Attack ── */
 function launchAttack() {
   if (!selectedTarget) return toast('Select a target kingdom first', 'error');
+  if (state.turns_stored < 1) return toast('No turns available', 'warn');
   var f = parseInt(document.getElementById('atk-fighters').value) || 0;
   var m = parseInt(document.getElementById('atk-mages').value) || 0;
   if (f <= 0) return toast('Send at least some fighters', 'error');
@@ -1133,7 +1134,9 @@ function launchAttack() {
   state.fighters -= fLost;
   state.mages -= mLost;
   if (win) { state.land += landGained; t.land -= landGained; }
+  state.turns_stored = Math.max(0, state.turns_stored - 1);
   syncUI();
+  updateTurnsDisplay();
 
   showBattleReport({
     type: 'Military attack',
@@ -1146,6 +1149,7 @@ function launchAttack() {
       ['Your fighters lost', fmt(fLost)],
       ['Your mages lost', fmt(mLost)],
       ['Land ' + (win ? 'captured' : 'lost'), win ? '+' + fmt(landGained) + ' acres' : '0 acres'],
+      ['Turns remaining', String(state.turns_stored)],
     ]
   });
 }
@@ -1154,30 +1158,33 @@ function searchAction(type) {
   var r = parseInt(document.getElementById('search-rangers').value) || 0;
   if (r <= 0) return toast('Assign some rangers first', 'error');
   if (r > state.rangers) return toast('Not enough rangers', 'error');
-  var results = { land: Math.floor(r * 0.04), gold: Math.floor(r * 12), targets: Math.floor(r * 0.002) + 2 };
-  var msgs = {
-    land:    'Rangers found +' + fmt(results.land) + ' acres of unclaimed land',
-    gold:    'Rangers returned with ' + fmt(results.gold) + ' GC from foraging',
-    targets: 'Rangers scouted ' + results.targets + ' new target kingdoms'
-  };
-  var icons = { land: '&#127758;', gold: '&#9775;', targets: '&#128269;' };
-  if (type === 'land') { state.land += results.land; }
-  if (type === 'gold') { state.gold += results.gold; }
-  syncUI();
-  toast(msgs[type], 'success');
+  if (state.turns_stored < 1) return toast('No turns available', 'warn');
 
-  // Log to exploration panel
-  var log = document.getElementById('exploration-log');
-  if (log) {
-    var empty = log.querySelector('[style*="No expeditions"]');
-    if (empty) empty.remove();
-    var entry = document.createElement('div');
-    entry.style.cssText = 'display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px';
-    entry.innerHTML = '<span style="font-size:18px;flex-shrink:0">' + icons[type] + '</span>'
-      + '<div><div style="color:var(--text)">' + msgs[type] + '</div>'
-      + '<div style="font-size:11px;color:var(--text3);margin-top:2px">Sent ' + fmt(r) + ' rangers · Just now</div></div>';
-    log.insertBefore(entry, log.firstChild);
-  }
+  apiCall('POST', '/api/kingdom/search', { type: type, rangers: r }).then(function(result) {
+    if (result.error) return toast(result.error, 'error');
+
+    if (result.turns_stored !== undefined) {
+      state.turns_stored = result.turns_stored;
+      updateTurnsDisplay();
+    }
+    if (result.type === 'land' && result.result) state.land += result.result.found;
+    if (result.type === 'gold' && result.result) state.gold += result.result.found;
+    syncUI();
+    toast(result.message, 'success');
+
+    var icons = { land: '&#127758;', gold: '&#9775;', targets: '&#128269;' };
+    var log = document.getElementById('exploration-log');
+    if (log) {
+      var empty = log.querySelector('[style*="No expeditions"]');
+      if (empty) empty.remove();
+      var entry = document.createElement('div');
+      entry.style.cssText = 'display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px';
+      entry.innerHTML = '<span style="font-size:18px;flex-shrink:0">' + (icons[type] || '&#9685;') + '</span>'
+        + '<div><div style="color:var(--text)">' + result.message + '</div>'
+        + '<div style="font-size:11px;color:var(--text3);margin-top:2px">Sent ' + fmt(r) + ' rangers · 1 turn used · ' + (result.turns_stored || 0) + ' turns left</div></div>';
+      log.insertBefore(entry, log.firstChild);
+    }
+  });
 }
 
 /* ── Spells ── */
@@ -1220,16 +1227,18 @@ function updateSpellCalc() {
 function castSpell() {
   if (!selectedSpell) return toast('Select a spell first', 'error');
   if (!selectedTarget && document.getElementById('cast-target-name').textContent === '— none selected —') return toast('Select a target kingdom first', 'error');
+  if (state.turns_stored < 1) return toast('No turns available', 'warn');
   var total = parseInt(document.getElementById('calc-total').textContent.replace(/,/g, ''));
   if (total > state.mana) return toast('Not enough mana — need ' + fmt(total), 'error');
   state.mana -= total;
+  state.turns_stored = Math.max(0, state.turns_stored - 1);
   syncUI();
+  updateTurnsDisplay();
   document.getElementById('top-mana').textContent = fmt(state.mana);
   document.getElementById('spell-mana-disp').textContent = fmt(state.mana);
   var targetName = document.getElementById('cast-target-name').textContent;
-  var dur = parseInt(document.getElementById('sl-duration-val').textContent);
   var obscure = parseInt(document.getElementById('sl-obscure').value);
-  toast((obscure ? 'Obscured ' : '') + selectedSpell.name + ' cast on ' + targetName + ' — ' + fmt(total) + ' mana consumed', 'success');
+  toast((obscure ? 'Obscured ' : '') + selectedSpell.name + ' cast on ' + targetName + ' — ' + fmt(total) + ' mana · ' + state.turns_stored + ' turns left', 'success');
 }
 
 /* ── Covert ── */
@@ -1758,14 +1767,29 @@ takeTurn = async function() {
 hire = async function(unit) {
   var n = parseInt(document.getElementById('hire-' + unit).value) || 0;
   if (n <= 0) return toast('Enter an amount', 'error');
+  if (state.turns_stored < 1) return toast('No turns available', 'warn');
   var result = await apiCall('POST', '/api/kingdom/hire', { unit: unit, amount: n });
   if (result.error) return toast(result.error, 'error');
   Object.assign(state, result.updates);
+  if (result.turns_stored !== undefined) { state.turns_stored = result.turns_stored; updateTurnsDisplay(); }
   syncUI();
   document.getElementById('hire-' + unit).value = 0;
   var hEl = document.getElementById('h-' + unit);
   if (hEl) hEl.textContent = fmt(state[unit]);
-  toast('Hired ' + fmt(n) + ' ' + unit, 'success');
+  toast('Hired ' + fmt(n) + ' ' + unit + ' · 1 turn used · ' + state.turns_stored + ' left', 'success');
+};
+
+// Override study to hit real server and deduct turn
+study = async function(name) {
+  var idMap = { Economy:'r-eco', Weapons:'r-wep', Armor:'r-arm', 'Military tactics':'r-mil', Spellbook:'r-spell', 'Attack magic':'r-atk', 'Defense magic':'r-def', Entertainment:'r-ent', 'Construction skills':'r-con', 'War machines':'r-wm' };
+  var disciplineMap = { Economy:'economy', Weapons:'weapons', Armor:'armor', 'Military tactics':'military', Spellbook:'spellbook', 'Attack magic':'attack_magic', 'Defense magic':'defense_magic', Entertainment:'entertainment', 'Construction skills':'construction', 'War machines':'war_machines' };
+  var n = parseInt(document.getElementById(idMap[name])?.value) || 0;
+  if (n <= 0) return toast('Enter a number of researchers', 'error');
+  if (state.turns_stored < 1) return toast('No turns available', 'warn');
+  var result = await apiCall('POST', '/api/kingdom/research', { discipline: disciplineMap[name], researchers: n });
+  if (result.error) return toast(result.error, 'error');
+  if (result.turns_stored !== undefined) { state.turns_stored = result.turns_stored; updateTurnsDisplay(); }
+  toast('+' + result.increment + ' to ' + name + ' · 1 turn used · ' + state.turns_stored + ' left', 'success');
 };
 
 // Boot — check auth then show modal or load kingdom
