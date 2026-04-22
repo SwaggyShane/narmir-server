@@ -516,79 +516,79 @@
         <div class="card-title">Construction · Engineers: <span id="build-eng">2,200</span> available</div>
         <div class="trow">
           <span class="name">Farms</span><span class="desc">Food supply · 10 pieces = 1 farm</span>
-          <span class="count">4,200</span>
+          <span class="count" id="bld-farms">0</span>
           <input type="number" id="b-farm" min="0" value="0">
           <button class="btn" onclick="build('farm',10,'Farms')">Build</button>
         </div>
         <div class="trow">
           <span class="name">Barracks</span><span class="desc">Reduces troop upkeep · 2 pieces</span>
-          <span class="count">640</span>
+          <span class="count" id="bld-barracks">0</span>
           <input type="number" id="b-barracks" min="0" value="0">
           <button class="btn" onclick="build('barracks',2,'Barracks')">Build</button>
         </div>
         <div class="trow">
           <span class="name">Outposts</span><span class="desc">Early attack warning · 2 pieces</span>
-          <span class="count">94</span>
+          <span class="count" id="bld-outposts">0</span>
           <input type="number" id="b-outpost" min="0" value="0">
           <button class="btn" onclick="build('outpost',2,'Outposts')">Build</button>
         </div>
         <div class="trow">
           <span class="name">Guard towers</span><span class="desc">Blocks enemy covert ops · 2 pieces</span>
-          <span class="count">72</span>
+          <span class="count" id="bld-guard_towers">0</span>
           <input type="number" id="b-tower" min="0" value="0">
           <button class="btn" onclick="build('tower',2,'Guard towers')">Build</button>
         </div>
         <div class="trow">
           <span class="name">Schools</span><span class="desc">Accelerates research · 5 pieces</span>
-          <span class="count">18</span>
+          <span class="count" id="bld-schools">0</span>
           <input type="number" id="b-school" min="0" value="0">
           <button class="btn" onclick="build('school',5,'Schools')">Build</button>
         </div>
         <div class="trow">
           <span class="name">Armories</span><span class="desc">Protects weapons from thieves · 5 pieces</span>
-          <span class="count">9</span>
+          <span class="count" id="bld-armories">0</span>
           <input type="number" id="b-armory" min="0" value="0">
           <button class="btn" onclick="build('armory',5,'Armories')">Build</button>
         </div>
         <div class="trow">
           <span class="name">Vaults</span><span class="desc">Protects gold from thieves · 5 pieces</span>
-          <span class="count">12</span>
+          <span class="count" id="bld-vaults">0</span>
           <input type="number" id="b-vault" min="0" value="0">
           <button class="btn" onclick="build('vault',5,'Vaults')">Build</button>
         </div>
         <div class="trow">
           <span class="name">Smithies</span><span class="desc">Engineers build faster · 15 pieces</span>
-          <span class="count">180</span>
+          <span class="count" id="bld-smithies">0</span>
           <input type="number" id="b-smithy" min="0" value="0">
           <button class="btn" onclick="build('smithy',15,'Smithies')">Build</button>
         </div>
         <div class="trow">
           <span class="name">Market places</span><span class="desc">Trade revenue · 30 pieces</span>
-          <span class="count">8</span>
+          <span class="count" id="bld-markets">0</span>
           <input type="number" id="b-market" min="0" value="0">
           <button class="btn" onclick="build('market',30,'Market places')">Build</button>
         </div>
         <div class="trow">
           <span class="name">Cathedrals</span><span class="desc">Mana per turn, attracts pop · 25 pieces</span>
-          <span class="count">32</span>
+          <span class="count" id="bld-cathedrals">0</span>
           <input type="number" id="b-cathedral" min="0" value="0">
           <button class="btn" onclick="build('cathedral',25,'Cathedrals')">Build</button>
         </div>
         <div class="trow">
           <span class="name">Training fields</span><span class="desc">Auto military tactics training · 50 pieces</span>
-          <span class="count">0</span>
+          <span class="count" id="bld-training">0</span>
           <input type="number" id="b-training" min="0" value="0">
           <button class="btn" onclick="build('training',50,'Training fields')">Build</button>
         </div>
         <div class="trow">
           <span class="name">Colosseums</span><span class="desc">Entertainment &amp; population · 25 pieces</span>
-          <span class="count">3</span>
+          <span class="count" id="bld-colosseums">0</span>
           <input type="number" id="b-colosseum" min="0" value="0">
           <button class="btn" onclick="build('colosseum',25,'Colosseums')">Build</button>
         </div>
         <div class="trow">
           <span class="name">Castles</span><span class="desc">Food, economy, defences boost · 500 pieces</span>
-          <span class="count">4</span>
+          <span class="count" id="bld-castles">0</span>
           <input type="number" id="b-castle" min="0" value="0">
           <button class="btn" onclick="build('castle',500,'Castles')">Build</button>
         </div>
@@ -1214,9 +1214,11 @@ function searchAction(type) {
       state.turns_stored = result.turns_stored;
       updateTurnsDisplay();
     }
-    if (result.type === 'land' && result.result) state.land += result.result.found;
-    if (result.type === 'gold' && result.result) state.gold += result.result.found;
+    applyServerUpdates(result.updates || {});
+    if (result.type === 'land' && result.result) state.land = (state.land || 0) + result.result.found;
+    if (result.type === 'gold' && result.result) state.gold = (state.gold || 0) + result.result.found;
     syncUI();
+    if (result.events && result.events.length) appendNewsItems(result.events);
     toast(result.message, 'success');
 
     var icons = { land: '&#127758;', gold: '&#9775;', targets: '&#128269;' };
@@ -1560,6 +1562,17 @@ function syncUI() {
       }
     }
   });
+  // Sync building counts
+  var bldMap = {
+    farms:'bld_farms', barracks:'bld_barracks', outposts:'bld_outposts',
+    guard_towers:'bld_guard_towers', schools:'bld_schools', armories:'bld_armories',
+    vaults:'bld_vaults', smithies:'bld_smithies', markets:'bld_markets',
+    cathedrals:'bld_cathedrals', training:'bld_training', colosseums:'bld_colosseums', castles:'bld_castles'
+  };
+  Object.keys(bldMap).forEach(function(bld) {
+    var el = document.getElementById('bld-' + bld);
+    if (el) el.textContent = fmt(state[bldMap[bld]] || 0);
+  });
   populateInputs();
 }
 
@@ -1766,6 +1779,20 @@ async function loadKingdom() {
     researchers: kingdom.researchers, engineers: kingdom.engineers,
     kingdomId: kingdom.id, kingdomName: kingdom.name,
     turns_stored: kingdom.turns_stored !== undefined ? kingdom.turns_stored : 200,
+    // Research
+    res_economy: kingdom.res_economy, res_weapons: kingdom.res_weapons,
+    res_armor: kingdom.res_armor, res_military: kingdom.res_military,
+    res_spellbook: kingdom.res_spellbook, res_attack_magic: kingdom.res_attack_magic,
+    res_defense_magic: kingdom.res_defense_magic, res_entertainment: kingdom.res_entertainment,
+    res_construction: kingdom.res_construction, res_war_machines: kingdom.res_war_machines,
+    // Buildings
+    bld_farms: kingdom.bld_farms, bld_barracks: kingdom.bld_barracks,
+    bld_outposts: kingdom.bld_outposts, bld_guard_towers: kingdom.bld_guard_towers,
+    bld_schools: kingdom.bld_schools, bld_armories: kingdom.bld_armories,
+    bld_vaults: kingdom.bld_vaults, bld_smithies: kingdom.bld_smithies,
+    bld_markets: kingdom.bld_markets, bld_cathedrals: kingdom.bld_cathedrals,
+    bld_training: kingdom.bld_training, bld_colosseums: kingdom.bld_colosseums,
+    bld_castles: kingdom.bld_castles,
   });
   syncUI();
   updateTurnsDisplay();
@@ -1877,6 +1904,31 @@ async function loadRankings() {
   renderTargets(targets, 'covert-target-list', 'selectCovertTarget');
 }
 
+// Central helper — remaps server update keys to frontend state keys
+function applyServerUpdates(u) {
+  if (!u) return;
+  if (u.population  !== undefined) state.pop        = u.population;
+  if (u.gold        !== undefined) state.gold        = u.gold;
+  if (u.mana        !== undefined) state.mana        = u.mana;
+  if (u.land        !== undefined) state.land        = u.land;
+  if (u.morale      !== undefined) state.morale      = u.morale;
+  if (u.turn        !== undefined) state.turn        = u.turn;
+  if (u.fighters    !== undefined) state.fighters    = u.fighters;
+  if (u.rangers     !== undefined) state.rangers     = u.rangers;
+  if (u.clerics     !== undefined) state.clerics     = u.clerics;
+  if (u.mages       !== undefined) state.mages       = u.mages;
+  if (u.thieves     !== undefined) state.thieves     = u.thieves;
+  if (u.ninjas      !== undefined) state.ninjas      = u.ninjas;
+  if (u.researchers !== undefined) state.researchers = u.researchers;
+  if (u.engineers   !== undefined) state.engineers   = u.engineers;
+  ['res_economy','res_weapons','res_armor','res_military','res_spellbook',
+   'res_attack_magic','res_defense_magic','res_entertainment','res_construction','res_war_machines'
+  ].forEach(function(k) { if (u[k] !== undefined) state[k] = u[k]; });
+  ['bld_farms','bld_barracks','bld_outposts','bld_guard_towers','bld_schools','bld_armories',
+   'bld_vaults','bld_smithies','bld_markets','bld_cathedrals','bld_training','bld_colosseums','bld_castles'
+  ].forEach(function(k) { if (u[k] !== undefined) state[k] = u[k]; });
+}
+
 // Override takeTurn to hit real server
 var takingTurn = false;
 takeTurn = async function() {
@@ -1889,26 +1941,7 @@ takeTurn = async function() {
   takingTurn = false;
   if (btn) btn.style.opacity = state.turns_stored > 0 ? '1' : '0.4';
   if (result.error) return toast(result.error, 'error');
-  var u = result.updates || {};
-  // Remap server keys to frontend state keys
-  if (u.population !== undefined) state.pop      = u.population;
-  if (u.gold       !== undefined) state.gold      = u.gold;
-  if (u.mana       !== undefined) state.mana      = u.mana;
-  if (u.land       !== undefined) state.land      = u.land;
-  if (u.morale     !== undefined) state.morale    = u.morale;
-  if (u.turn       !== undefined) state.turn      = u.turn;
-  if (u.fighters   !== undefined) state.fighters  = u.fighters;
-  if (u.rangers    !== undefined) state.rangers   = u.rangers;
-  if (u.clerics    !== undefined) state.clerics   = u.clerics;
-  if (u.mages      !== undefined) state.mages     = u.mages;
-  if (u.thieves    !== undefined) state.thieves   = u.thieves;
-  if (u.ninjas     !== undefined) state.ninjas    = u.ninjas;
-  if (u.researchers!== undefined) state.researchers = u.researchers;
-  if (u.engineers  !== undefined) state.engineers = u.engineers;
-  // Research values
-  ['res_economy','res_weapons','res_armor','res_military','res_spellbook',
-   'res_attack_magic','res_defense_magic','res_entertainment','res_construction','res_war_machines'
-  ].forEach(function(k) { if (u[k] !== undefined) state[k] = u[k]; });
+  applyServerUpdates(result.updates);
   if (result.turns_stored !== undefined) state.turns_stored = result.turns_stored;
   syncUI();
   updateTurnsDisplay();
@@ -1926,13 +1959,14 @@ hire = async function(unit) {
   if (state.turns_stored < 1) return toast('No turns available', 'warn');
   var result = await apiCall('POST', '/api/kingdom/hire', { unit: unit, amount: n });
   if (result.error) return toast(result.error, 'error');
-  Object.assign(state, result.updates);
+  applyServerUpdates(result.updates);
   if (result.turns_stored !== undefined) { state.turns_stored = result.turns_stored; updateTurnsDisplay(); }
   syncUI();
   document.getElementById('hire-' + unit).value = 0;
   var hEl = document.getElementById('h-' + unit);
   if (hEl) hEl.textContent = fmt(state[unit]);
-  toast('Hired ' + fmt(n) + ' ' + unit + ' · 1 turn used · ' + state.turns_stored + ' left', 'success');
+  if (result.events && result.events.length) appendNewsItems(result.events);
+  toast('Hired ' + fmt(n) + ' ' + unit + ' · ' + state.turns_stored + ' turns left', 'success');
 };
 
 // Override study to hit real server and deduct turn
@@ -1944,8 +1978,11 @@ study = async function(name) {
   if (state.turns_stored < 1) return toast('No turns available', 'warn');
   var result = await apiCall('POST', '/api/kingdom/research', { discipline: disciplineMap[name], researchers: n });
   if (result.error) return toast(result.error, 'error');
+  applyServerUpdates(result.updates);
   if (result.turns_stored !== undefined) { state.turns_stored = result.turns_stored; updateTurnsDisplay(); }
-  toast('+' + result.increment + ' to ' + name + ' · 1 turn used · ' + state.turns_stored + ' left', 'success');
+  syncUI();
+  if (result.events && result.events.length) appendNewsItems(result.events);
+  toast('+' + result.increment + ' to ' + name + ' · ' + state.turns_stored + ' turns left', 'success');
 };
 
 // Boot — check auth then show modal or load kingdom
