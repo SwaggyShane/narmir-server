@@ -1755,12 +1755,12 @@ function showLoginModal() {
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(13,14,20,.97);z-index:9999;display:flex;align-items:center;justify-content:center;';
 
   var races = [
-    { value:'high_elf',  label:'High Elf',  bonus:'+15% research · +20% magic power · -10% military' },
-    { value:'dwarf',     label:'Dwarf',      bonus:'+20% construction · +25% war machines · +10% economy · -25% magic · -10% research' },
-    { value:'dire_wolf', label:'Dire Wolf',  bonus:'+30% military · +10% covert · -30% research · -40% magic · -15% economy' },
-    { value:'dark_elf',  label:'Dark Elf',   bonus:'+25% covert · +30% stealth · +10% magic · -15% military · -10% economy' },
-    { value:'human',     label:'Human',      bonus:'No bonuses or penalties — master of none, threat to all' },
-    { value:'orc',       label:'Orc',        bonus:'+20% military · +10% economy · -20% research · -35% magic · -10% construction' },
+    { value:'high_elf',  label:'High Elf',  bonus:'Excellent research · Powerful magic · Poor military' },
+    { value:'dwarf',     label:'Dwarf',      bonus:'Excellent construction · Exceptional war machines · Good economy · Poor magic · Weak research' },
+    { value:'dire_wolf', label:'Dire Wolf',  bonus:'Exceptional military · Good covert · Terrible research · Terrible magic · Poor economy' },
+    { value:'dark_elf',  label:'Dark Elf',   bonus:'Exceptional covert · Exceptional stealth · Good magic · Poor military · Weak economy' },
+    { value:'human',     label:'Human',      bonus:'No strengths or weaknesses — master of none, threat to all' },
+    { value:'orc',       label:'Orc',        bonus:'Excellent military · Good economy · Poor research · Terrible magic · Weak construction' },
   ];
 
   var raceOptions = races.map(function(r) {
@@ -1926,12 +1926,12 @@ async function loadKingdom() {
 
   // Race data
   var raceData = {
-    high_elf:  { label: 'High Elf',   plural: 'High Elves',  bonus: '+15% research · +20% magic · -10% military' },
-    dwarf:     { label: 'Dwarf',      plural: 'Dwarves',     bonus: '+20% construction · +25% war machines · +10% economy · -25% magic · -10% research' },
-    dire_wolf: { label: 'Dire Wolf',  plural: 'Dire Wolves', bonus: '+30% military · +10% covert · -30% research · -40% magic · -15% economy' },
-    dark_elf:  { label: 'Dark Elf',   plural: 'Dark Elves',  bonus: '+25% covert · +30% stealth · +10% magic · -15% military · -10% economy' },
-    human:     { label: 'Human',      plural: 'Humans',      bonus: 'No bonuses or penalties' },
-    orc:       { label: 'Orc',        plural: 'Orcs',        bonus: '+20% military · +10% economy · -20% research · -35% magic · -10% construction' },
+    high_elf:  { label: 'High Elf',   plural: 'High Elves',  bonus: 'Excellent research · Powerful magic · Poor military' },
+    dwarf:     { label: 'Dwarf',      plural: 'Dwarves',     bonus: 'Excellent construction · Exceptional war machines · Good economy · Poor magic · Weak research' },
+    dire_wolf: { label: 'Dire Wolf',  plural: 'Dire Wolves', bonus: 'Exceptional military · Good covert · Terrible research · Terrible magic · Poor economy' },
+    dark_elf:  { label: 'Dark Elf',   plural: 'Dark Elves',  bonus: 'Exceptional covert · Exceptional stealth · Good magic · Poor military · Weak economy' },
+    human:     { label: 'Human',      plural: 'Humans',      bonus: 'No strengths or weaknesses' },
+    orc:       { label: 'Orc',        plural: 'Orcs',        bonus: 'Excellent military · Good economy · Poor research · Terrible magic · Weak construction' },
   };
   var race = raceData[kingdom.race] || { label: kingdom.race, plural: kingdom.race, bonus: '' };
 
