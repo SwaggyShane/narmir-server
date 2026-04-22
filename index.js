@@ -144,6 +144,23 @@ async function start() {
 
   app.get('/api/health', (_req, res) => res.json({ ok: true, uptime: Math.floor(process.uptime()) }));
 
+  // ── One-time admin promotion ───────────────────────────────────────────────
+  // POST /api/setup-admin  body: { secret, username }
+  // Set ADMIN_SECRET in Render environment variables before using.
+  // Once you have an admin account this route still works but is harmless
+  // since it requires the secret to do anything.
+  app.post('/api/setup-admin', async (req, res) => {
+    const { secret, username } = req.body;
+    const adminSecret = process.env.ADMIN_SECRET;
+    if (!adminSecret) return res.status(500).json({ error: 'ADMIN_SECRET not set on server' });
+    if (!secret || secret !== adminSecret) return res.status(403).json({ error: 'Invalid secret' });
+    if (!username) return res.status(400).json({ error: 'username required' });
+    const player = await db.get('SELECT id, username FROM players WHERE username = ?', [username]);
+    if (!player) return res.status(404).json({ error: 'Player not found' });
+    await db.run('UPDATE players SET is_admin = 1 WHERE id = ?', [player.id]);
+    res.json({ ok: true, message: username + ' is now an admin. Log out and back in to get the admin token.' });
+  });
+
   // Admin panel HTML served at /admin
   app.get('/admin', (_req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admin.html'));
