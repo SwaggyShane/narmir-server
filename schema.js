@@ -1,4 +1,3 @@
-// src/db/schema.js
 const sqlite3 = require('sqlite3');
 const { open } = require('sqlite');
 const path = require('path');
@@ -20,6 +19,9 @@ async function initDb() {
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
       username    TEXT    NOT NULL UNIQUE,
       password    TEXT    NOT NULL,
+      is_admin    INTEGER NOT NULL DEFAULT 0,
+      is_banned   INTEGER NOT NULL DEFAULT 0,
+      ban_reason  TEXT,
       created_at  INTEGER NOT NULL DEFAULT (unixepoch())
     );
     CREATE TABLE IF NOT EXISTS kingdoms (
@@ -110,10 +112,44 @@ async function initDb() {
       message     TEXT    NOT NULL,
       created_at  INTEGER NOT NULL DEFAULT (unixepoch())
     );
+    CREATE TABLE IF NOT EXISTS server_state (
+      key   TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
     CREATE INDEX IF NOT EXISTS idx_news_kingdom    ON news(kingdom_id, is_read);
     CREATE INDEX IF NOT EXISTS idx_combat_attacker ON combat_log(attacker_id);
     CREATE INDEX IF NOT EXISTS idx_combat_defender ON combat_log(defender_id);
     CREATE INDEX IF NOT EXISTS idx_chat_room       ON chat_messages(room, created_at);
+  `);
+
+  // ── Migrations — add columns that may not exist in older databases ───────────
+  const cols = await _db.all("PRAGMA table_info(kingdoms)");
+  const colNames = cols.map(c => c.name);
+  if (!colNames.includes('turns_stored')) {
+    await _db.exec('ALTER TABLE kingdoms ADD COLUMN turns_stored INTEGER NOT NULL DEFAULT 200');
+    console.log('[db] Migration: added turns_stored column');
+  }
+
+  // Ensure player admin/ban columns exist
+  const playerCols = await _db.all("PRAGMA table_info(players)");
+  const playerColNames = playerCols.map(c => c.name);
+  if (!playerColNames.includes('is_admin')) {
+    await _db.exec('ALTER TABLE players ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0');
+    console.log('[db] Migration: added is_admin column');
+  }
+  if (!playerColNames.includes('is_banned')) {
+    await _db.exec('ALTER TABLE players ADD COLUMN is_banned INTEGER NOT NULL DEFAULT 0');
+    console.log('[db] Migration: added is_banned column');
+  }
+  if (!playerColNames.includes('ban_reason')) {
+    await _db.exec('ALTER TABLE players ADD COLUMN ban_reason TEXT');
+    console.log('[db] Migration: added ban_reason column');
+  }
+
+  // Seed default server_state row for regen tracking
+  await _db.run(`
+    INSERT OR IGNORE INTO server_state (key, value)
+    VALUES ('last_regen_at', CAST(unixepoch() AS TEXT))
   `);
 
   return _db;

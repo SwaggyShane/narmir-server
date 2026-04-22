@@ -1677,16 +1677,23 @@ async function loadRankings() {
 }
 
 // Override takeTurn to hit real server
+var takingTurn = false;
 takeTurn = async function() {
+  if (takingTurn) return;
   if (state.turns_stored < 1) return toast('No turns available — refills in ' + document.getElementById('regen-countdown').textContent, 'warn');
+  takingTurn = true;
+  var btn = document.querySelector('.turn-btn');
+  if (btn) btn.style.opacity = '0.6';
   var result = await apiCall('POST', '/api/kingdom/turn');
+  takingTurn = false;
+  if (btn) btn.style.opacity = state.turns_stored > 0 ? '1' : '0.4';
   if (result.error) return toast(result.error, 'error');
   Object.assign(state, result.updates);
   if (result.turns_stored !== undefined) state.turns_stored = result.turns_stored;
   syncUI();
   updateTurnsDisplay();
   document.getElementById('turn-num').textContent = state.turn;
-  toast('Turn ' + state.turn + ' complete · ' + state.turns_stored + ' turns remaining', 'success');
+  toast('Turn ' + state.turn + ' · ' + state.turns_stored + ' turns left', 'success');
 };
 
 // Override hire to hit real server

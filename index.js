@@ -30,8 +30,8 @@ function makeRateLimiter(maxRequests, windowMs) {
 }
 
 const authLimiter   = makeRateLimiter(10, 60 * 1000);      // 10 auth attempts/min
-const turnLimiter   = makeRateLimiter(60, 60 * 1000);      // 60 turn/action requests/min
-const generalLimiter= makeRateLimiter(200, 60 * 1000);     // 200 general requests/min
+const turnLimiter   = makeRateLimiter(300, 60 * 1000);     // 300 turn/action requests/min (5/sec)
+const generalLimiter= makeRateLimiter(500, 60 * 1000);     // 500 general requests/min
 
 app.use(express.json());
 app.use(cookieParser());
