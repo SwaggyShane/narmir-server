@@ -73,6 +73,8 @@ async function initDb() {
       war_machines     INTEGER NOT NULL DEFAULT 0,
       weapons_stockpile INTEGER NOT NULL DEFAULT 0,
       armor_stockpile   INTEGER NOT NULL DEFAULT 0,
+      turns_stored      INTEGER NOT NULL DEFAULT 200,
+      research_allocation TEXT NOT NULL DEFAULT '{}',
       created_at  INTEGER NOT NULL DEFAULT (unixepoch()),
       updated_at  INTEGER NOT NULL DEFAULT (unixepoch())
     );
@@ -131,6 +133,10 @@ async function initDb() {
     await _db.exec('ALTER TABLE kingdoms ADD COLUMN turns_stored INTEGER NOT NULL DEFAULT 200');
     console.log('[db] Migration: added turns_stored column');
   }
+  if (!colNames.includes('research_allocation')) {
+    await _db.exec("ALTER TABLE kingdoms ADD COLUMN research_allocation TEXT NOT NULL DEFAULT '{}'");
+    console.log('[db] Migration: added research_allocation column');
+  }
   if (!colNames.includes('weapons_stockpile')) {
     await _db.exec('ALTER TABLE kingdoms ADD COLUMN weapons_stockpile INTEGER NOT NULL DEFAULT 0');
     console.log('[db] Migration: added weapons_stockpile column');
@@ -138,6 +144,14 @@ async function initDb() {
   if (!colNames.includes('armor_stockpile')) {
     await _db.exec('ALTER TABLE kingdoms ADD COLUMN armor_stockpile INTEGER NOT NULL DEFAULT 0');
     console.log('[db] Migration: added armor_stockpile column');
+  }
+  if (!colNames.includes('turns_stored')) {
+    await _db.exec('ALTER TABLE kingdoms ADD COLUMN turns_stored INTEGER NOT NULL DEFAULT 200');
+    console.log('[db] Migration: added turns_stored column');
+  }
+  if (!colNames.includes('research_allocation')) {
+    await _db.exec("ALTER TABLE kingdoms ADD COLUMN research_allocation TEXT NOT NULL DEFAULT '{}'");
+    console.log('[db] Migration: added research_allocation column');
   }
 
   // Ensure player admin/ban columns exist
