@@ -197,7 +197,8 @@ function processTurn(k) {
       else if (effective >= 200)  inc = 1;
       if (inc > 0) {
         const current = updates[d.col] !== undefined ? updates[d.col] : (k[d.col] || 0);
-        const newVal = Math.min(MAX_RESEARCH, current + inc);
+        const cap = getCap(d.col, k.level || 1);
+        const newVal = Math.min(cap, current + inc);
         if (newVal !== current) {
           updates[d.col] = newVal;
           advances.push(`${d.label} → ${newVal}%`);
@@ -215,7 +216,8 @@ function processTurn(k) {
     else if (spellEffective >= 200)  spellInc = 1;
     if (spellInc > 0) {
       const current = updates.res_spellbook !== undefined ? updates.res_spellbook : (k.res_spellbook||0);
-      updates.res_spellbook = current + spellInc;
+      const cap = getCap('res_spellbook', k.level || 1);
+      updates.res_spellbook = Math.min(cap, current + spellInc);
       advances.push(`Spellbook → ${updates.res_spellbook}`);
     }
 
@@ -285,14 +287,73 @@ function processTurn(k) {
   return { updates, events };
 }
 
+// ── Level-based caps ──────────────────────────────────────────────────────────
+// All caps scale linearly from base (level 1) to max (level 1000)
+// Formula: Math.floor(base + (max - base) * (level - 1) / 999)
+
+function levelCap(base, max, level) {
+  const lv = Math.max(1, Math.min(1000, level || 1));
+  return Math.floor(base + (max - base) * (lv - 1) / 999);
+}
+
+const CAPS = {
+  // Combat troops: level 1 → level 1000
+  fighters:  { base: 500,    max: 5000000  },
+  rangers:   { base: 250,    max: 2000000  },
+  clerics:   { base: 100,    max: 1000000  },
+  mages:     { base: 100,    max: 1000000  },
+  thieves:   { base: 100,    max: 500000   },
+  ninjas:    { base: 50,     max: 250000   },
+  // No cap on researchers or engineers
+
+  // Buildings: small kingdoms start with low limits
+  bld_farms:        { base: 50,    max: 100000  },
+  bld_barracks:     { base: 10,    max: 50000   },
+  bld_outposts:     { base: 10,    max: 25000   },
+  bld_guard_towers: { base: 10,    max: 25000   },
+  bld_schools:      { base: 5,     max: 10000   },
+  bld_armories:     { base: 5,     max: 10000   },
+  bld_vaults:       { base: 5,     max: 10000   },
+  bld_smithies:     { base: 5,     max: 5000    },
+  bld_markets:      { base: 3,     max: 5000    },
+  bld_cathedrals:   { base: 3,     max: 5000    },
+  bld_training:     { base: 2,     max: 2000    },
+  bld_colosseums:   { base: 2,     max: 2000    },
+  bld_castles:      { base: 1,     max: 500     },
+  war_machines:     { base: 5,     max: 10000   },
+
+  // Research: starts at 100% base, scales to 1000% max
+  res_economy:       { base: 100,  max: 10000 },
+  res_weapons:       { base: 100,  max: 10000 },
+  res_armor:         { base: 100,  max: 10000 },
+  res_military:      { base: 100,  max: 10000 },
+  res_spellbook:     { base: 500,  max: 500000 },
+  res_attack_magic:  { base: 100,  max: 10000 },
+  res_defense_magic: { base: 100,  max: 10000 },
+  res_entertainment: { base: 100,  max: 10000 },
+  res_construction:  { base: 100,  max: 10000 },
+  res_war_machines:  { base: 100,  max: 10000 },
+};
+
+function getCap(field, level) {
+  const c = CAPS[field];
+  if (!c) return Infinity;
+  return levelCap(c.base, c.max, level);
+}
+
 // ── Hire units ────────────────────────────────────────────────────────────────
 
 function hireUnits(k, unit, amount) {
   const validUnits = ['fighters','rangers','clerics','mages','thieves','ninjas','researchers','engineers'];
   if (!validUnits.includes(unit)) return { error: 'Invalid unit type' };
   if (amount <= 0) return { error: 'Amount must be positive' };
-  if (unit === 'researchers' && (k.researchers + amount) > MAX_RESEARCHERS) {
-    return { error: `Max researchers is ${MAX_RESEARCHERS.toLocaleString()}` };
+
+  // Level cap check (researchers and engineers have no cap)
+  if (!['researchers','engineers'].includes(unit)) {
+    const cap = getCap(unit, k.level || 1);
+    const current = k[unit] || 0;
+    if (current >= cap) return { error: `Level ${k.level||1} cap reached for ${unit} (max ${cap.toLocaleString()}) — gain levels to increase` };
+    if (current + amount > cap) return { error: `Level ${k.level||1} cap: can only hire ${(cap - current).toLocaleString()} more ${unit} (max ${cap.toLocaleString()})` };
   }
 
   const cost = amount * UNIT_COST;
@@ -303,7 +364,7 @@ function hireUnits(k, unit, amount) {
     updates: {
       gold: k.gold - cost,
       population: k.population - amount,
-      [unit]: k[unit] + amount,
+      [unit]: (k[unit]||0) + amount,
       updated_at: Math.floor(Date.now() / 1000),
     }
   };
@@ -521,7 +582,13 @@ function processBuildQueue(k, events) {
     if (actualCompleted > 0) {
       const col = BUILDING_COL[building];
       if (col) {
-        updates[col] = (updates[col] !== undefined ? updates[col] : (k[col] || 0)) + actualCompleted;
+        const current = updates[col] !== undefined ? updates[col] : (k[col] || 0);
+        const cap = getCap(col, k.level || 1);
+        const canAdd = Math.max(0, Math.min(actualCompleted, cap - current));
+        updates[col] = current + canAdd;
+        if (canAdd < actualCompleted) {
+          events.push({ type: 'system', message: `⚠️ ${building} cap reached at level ${k.level||1} (max ${cap.toLocaleString()}) — level up to build more.` });
+        }
       }
       queue[building] = qty - actualCompleted;
       if (queue[building] <= 0) delete queue[building];
