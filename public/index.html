@@ -679,6 +679,56 @@
           <button class="btn" onclick="setBuildMax('b-armor','armor')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
       </div>
+
+      <!-- Build queue -->
+      <div class="card" style="margin-top:0">
+        <div class="card-title">Build queue — engineers work each turn automatically</div>
+        <div id="build-queue-display">
+          <div style="color:var(--text3);font-size:13px;padding:8px 0">No buildings queued.</div>
+        </div>
+      </div>
+
+      <!-- Tools -->
+      <div class="card" style="margin-top:0">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+          <div>
+            <div class="card-title" style="margin-bottom:2px">Construction tools</div>
+            <div style="font-size:12px;color:var(--text3)">Tools are forged by engineers and multiply build speed. Each tool costs 1 turn to forge.</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center">
+            <div style="font-size:18px;margin-bottom:4px">🔨</div>
+            <div style="font-size:13px;font-weight:600;color:var(--text)">Hammers</div>
+            <div style="font-size:12px;color:var(--text3);margin-bottom:8px">+5% build speed each · 10 eng-turns</div>
+            <div style="font-size:18px;font-weight:700;color:var(--gold)" id="tools-hammers">0</div>
+            <div style="font-size:11px;color:var(--text3)">owned</div>
+          </div>
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center">
+            <div style="font-size:18px;margin-bottom:4px">🏗️</div>
+            <div style="font-size:13px;font-weight:600;color:var(--text)">Scaffolding</div>
+            <div style="font-size:12px;color:var(--text3);margin-bottom:8px">+15% build speed each · 50 eng-turns</div>
+            <div style="font-size:18px;font-weight:700;color:var(--gold)" id="tools-scaffolding">0</div>
+            <div style="font-size:11px;color:var(--text3)">owned</div>
+          </div>
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center">
+            <div style="font-size:18px;margin-bottom:4px">📐</div>
+            <div style="font-size:13px;font-weight:600;color:var(--text)">Blueprints</div>
+            <div style="font-size:12px;color:var(--text3);margin-bottom:8px">+25% build speed each · 100 eng-turns</div>
+            <div style="font-size:18px;font-weight:700;color:var(--gold)" id="tools-blueprints">0</div>
+            <div style="font-size:11px;color:var(--text3)">owned</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <select id="forge-tool-type" style="padding:8px 10px;font-size:14px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text)">
+            <option value="hammers">Hammers (+5% each)</option>
+            <option value="scaffolding">Scaffolding (+15% each)</option>
+            <option value="blueprints">Blueprints (+25% each)</option>
+          </select>
+          <input type="number" id="forge-tool-qty" min="1" value="1" style="width:80px">
+          <button class="btn btn-amber" onclick="forgeTools()">Forge (1 turn)</button>
+        </div>
+      </div>
     </div>
 
     <!-- OPTIONS (hidden panel) -->
@@ -1665,6 +1715,14 @@ function syncUI() {
     var el = document.getElementById('bld-' + bld);
     if (el) el.textContent = fmt(state[bldMap[bld]] || 0);
   });
+  // Tools display
+  var th = document.getElementById('tools-hammers');
+  var ts = document.getElementById('tools-scaffolding');
+  var tb = document.getElementById('tools-blueprints');
+  if (th) th.textContent = fmt(state.tools_hammers || 0);
+  if (ts) ts.textContent = fmt(state.tools_scaffolding || 0);
+  if (tb) tb.textContent = fmt(state.tools_blueprints || 0);
+  renderBuildQueue();
   populateInputs();
 }
 
@@ -1915,6 +1973,11 @@ async function loadKingdom() {
     armor_stockpile:   kingdom.armor_stockpile   || 0,
     war_machines:      kingdom.war_machines       || 0,
     research_allocation: kingdom.research_allocation || {},
+    tools_hammers:     kingdom.tools_hammers     || 0,
+    tools_scaffolding: kingdom.tools_scaffolding || 0,
+    tools_blueprints:  kingdom.tools_blueprints  || 0,
+    build_queue:    (() => { try { return typeof kingdom.build_queue === 'string' ? JSON.parse(kingdom.build_queue||'{}') : (kingdom.build_queue||{}); } catch { return {}; } })(),
+    build_progress: (() => { try { return typeof kingdom.build_progress === 'string' ? JSON.parse(kingdom.build_progress||'{}') : (kingdom.build_progress||{}); } catch { return {}; } })(),
   });
   syncUI();
   updateTurnsDisplay();
@@ -1958,6 +2021,7 @@ async function loadKingdom() {
   loadRankings();
   loadNews();
   loadAllocationFromState();
+  renderBuildQueue();
 }
 
 async function loadNews() {
@@ -2104,6 +2168,11 @@ function applyServerUpdates(u) {
   ['bld_farms','bld_barracks','bld_outposts','bld_guard_towers','bld_schools','bld_armories',
    'bld_vaults','bld_smithies','bld_markets','bld_cathedrals','bld_training','bld_colosseums','bld_castles'
   ].forEach(function(k) { if (u[k] !== undefined) state[k] = u[k]; });
+  if (u.tools_hammers     !== undefined) state.tools_hammers     = u.tools_hammers;
+  if (u.tools_scaffolding !== undefined) state.tools_scaffolding = u.tools_scaffolding;
+  if (u.tools_blueprints  !== undefined) state.tools_blueprints  = u.tools_blueprints;
+  if (u.build_queue    !== undefined) { try { state.build_queue    = typeof u.build_queue    === 'string' ? JSON.parse(u.build_queue)    : u.build_queue;    } catch { state.build_queue    = {}; } }
+  if (u.build_progress !== undefined) { try { state.build_progress = typeof u.build_progress === 'string' ? JSON.parse(u.build_progress) : u.build_progress; } catch { state.build_progress = {}; } }
 }
 
 // Override hire to hit real server
@@ -2172,12 +2241,14 @@ function distributeBuildEvenly() {
 }
 
 async function buildAll() {
-  if (state.turns_stored < 1) return toast('No turns available', 'warn');
   var hasAny = BUILD_FIELDS.some(function(f) {
     return (parseInt(document.getElementById(f.id)?.value) || 0) > 0;
   });
-  if (!hasAny) return toast('Enter quantities to build first', 'error');
+  if (!hasAny) return toast('Enter quantities to queue first', 'error');
 
+  // Build orders object
+  var orders = {};
+  var allocation = {};
   var buildingKeyMap = {
     farm:'farms', barracks:'barracks', outpost:'outposts', tower:'guard_towers',
     school:'schools', armory:'armories', vault:'vaults', smithy:'smithies',
@@ -2186,22 +2257,66 @@ async function buildAll() {
     weapons:'weapons', armor:'armor'
   };
 
-  // Build each non-zero entry sequentially
-  for (var i = 0; i < BUILD_FIELDS.length; i++) {
-    var f = BUILD_FIELDS[i];
+  BUILD_FIELDS.forEach(function(f) {
     var qty = parseInt(document.getElementById(f.id)?.value) || 0;
-    if (qty <= 0) continue;
-    var building = buildingKeyMap[f.key] || f.key;
-    var result = await apiCall('POST', '/api/kingdom/build', { building: building, quantity: qty });
-    if (result.error) { toast(result.error, 'error'); break; }
-    applyServerUpdates(result.updates);
-    if (result.turns_stored !== undefined) { state.turns_stored = result.turns_stored; updateTurnsDisplay(); }
-    if (result.events && result.events.length) appendNewsItems(result.events);
-    document.getElementById(f.id).value = 0;
-  }
-  syncUI();
+    if (qty > 0) {
+      var key = buildingKeyMap[f.key] || f.key;
+      orders[key] = qty;
+      allocation[key] = parseInt(document.getElementById('ba-' + f.key)?.value) || 0;
+    }
+  });
+
+  // Queue the buildings
+  var qResult = await apiCall('POST', '/api/kingdom/build-queue', { orders: orders });
+  if (qResult.error) return toast(qResult.error, 'error');
+
+  // Save allocation
+  await apiCall('POST', '/api/kingdom/build-allocation', { allocation: allocation });
+
+  // Update state queue
+  state.build_queue = qResult.queue || {};
+  BUILD_FIELDS.forEach(function(f) { document.getElementById(f.id).value = 0; });
   updateBuildDisplay();
-  toast('Construction complete · ' + state.turns_stored + ' turns left', 'success');
+  renderBuildQueue();
+  toast('Buildings queued — engineers will work each turn', 'success');
+}
+
+function renderBuildQueue() {
+  var el = document.getElementById('build-queue-display');
+  if (!el) return;
+  var queue = state.build_queue || {};
+  var progress = state.build_progress || {};
+  var keys = Object.keys(queue);
+  if (keys.length === 0) {
+    el.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:8px 0">No buildings queued — add some above.</div>';
+    return;
+  }
+  var BUILDING_COST_JS = {
+    farms:10, barracks:20, outposts:20, guard_towers:20, schools:50, armories:50,
+    vaults:50, smithies:150, markets:300, cathedrals:250, training:500, colosseums:250,
+    castles:5000, war_machines:200, weapons:10, armor:10
+  };
+  var labels = {
+    farms:'Farms', barracks:'Barracks', outposts:'Outposts', guard_towers:'Guard Towers',
+    schools:'Schools', armories:'Armories', vaults:'Vaults', smithies:'Smithies',
+    markets:'Market Places', cathedrals:'Cathedrals', training:'Training Fields',
+    colosseums:'Taverns', castles:'Castles', war_machines:'War Machines',
+    weapons:'Weapons', armor:'Armor'
+  };
+  el.innerHTML = keys.map(function(bld) {
+    var qty  = queue[bld] || 0;
+    var prog = progress[bld] || 0;
+    var cost = BUILDING_COST_JS[bld] || 10;
+    var pct  = Math.min(100, Math.floor((prog / cost) * 100));
+    return '<div style="margin-bottom:10px">'
+      + '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">'
+      + '<span style="color:var(--text)">' + (labels[bld] || bld) + '</span>'
+      + '<span style="color:var(--text3)">×' + qty + ' · ' + pct + '% complete</span>'
+      + '</div>'
+      + '<div style="height:6px;background:var(--bg4);border-radius:3px">'
+      + '<div style="height:6px;width:' + pct + '%;background:var(--purple);border-radius:3px;transition:width .3s"></div>'
+      + '</div></div>';
+  }).join('');
 }
 
 // ── Research allocation ───────────────────────────────────────────────────────
@@ -2282,6 +2397,20 @@ async function saveResearchAllocation() {
   state.research_allocation = allocation;
   updateAllocationDisplay();
   toast('Research allocation saved — advances every turn', 'success');
+}
+
+async function forgeTools() {
+  var toolType = document.getElementById('forge-tool-type').value;
+  var qty = parseInt(document.getElementById('forge-tool-qty').value) || 0;
+  if (qty <= 0) return toast('Enter a quantity', 'error');
+  if (state.turns_stored < 1) return toast('No turns available', 'warn');
+  var result = await apiCall('POST', '/api/kingdom/forge-tools', { toolType: toolType, quantity: qty });
+  if (result.error) return toast(result.error, 'error');
+  applyServerUpdates(result.updates);
+  if (result.turns_stored !== undefined) { state.turns_stored = result.turns_stored; updateTurnsDisplay(); }
+  if (result.events && result.events.length) appendNewsItems(result.events);
+  syncUI();
+  toast('Forged ' + qty + ' ' + toolType, 'success');
 }
 
 // Boot — check auth then show modal or load kingdom
