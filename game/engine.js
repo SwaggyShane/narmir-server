@@ -335,9 +335,6 @@ const BUILDING_COL = {
   castles: 'bld_castles',
   weapons: 'weapons_stockpile', armor: 'armor_stockpile',
 };
-  cathedrals: 'bld_cathedrals', training: 'bld_training', colosseums: 'bld_colosseums',
-  castles: 'bld_castles',
-};
 
 function buildStructure(k, building, quantity) {
   const piecesPerUnit = BUILDING_PIECES[building];
