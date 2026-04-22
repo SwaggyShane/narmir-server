@@ -463,88 +463,96 @@
     <!-- RESEARCH -->
     <div id="research" class="panel">
       <div class="card">
-        <div class="card-title">Research</div>
-
-        <!-- Single control row -->
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
-          <div style="display:flex;flex-direction:column;gap:4px">
-            <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Researchers to assign</label>
-            <input type="number" id="r-amount" min="0" max="1000000" value="0"
-              style="width:130px;font-size:15px;padding:8px 10px;text-align:left">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+          <div>
+            <div class="card-title" style="margin-bottom:2px">Research Allocation</div>
+            <div style="font-size:12px;color:var(--text3)">Researchers: <span id="r-total-avail" style="color:var(--text)">0</span> available · <span id="r-total-assigned" style="color:var(--gold)">0</span> assigned · <span id="r-total-unassigned" style="color:var(--green)">0</span> unassigned</div>
           </div>
-          <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:200px">
-            <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Discipline</label>
-            <select id="r-discipline" style="width:100%;padding:8px 10px;font-size:14px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text)">
-              <option value="Economy">Economy — gold earned per turn</option>
-              <option value="Weapons">Weapons — attack damage bonus</option>
-              <option value="Armor">Armor — defense rating bonus</option>
-              <option value="Military tactics">Military tactics — all troop effectiveness</option>
-              <option value="Spellbook">Spellbook — more &amp; stronger spells</option>
-              <option value="Attack magic">Attack magic — destructive spell damage</option>
-              <option value="Defense magic">Defense magic — protective spell power</option>
-              <option value="Entertainment">Entertainment — morale &amp; population growth</option>
-              <option value="Construction skills">Construction skills — build more per turn</option>
-              <option value="War machines">War machines — WM power &amp; durability</option>
-            </select>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:4px">
-            <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">&nbsp;</label>
-            <button class="btn btn-purple" onclick="study(document.getElementById('r-discipline').value)"
-              style="padding:8px 20px;font-size:14px;white-space:nowrap">Study</button>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-purple" onclick="distributeEvenly()" style="white-space:nowrap">Distribute evenly</button>
+            <button class="btn btn-gold" onclick="saveResearchAllocation()" style="white-space:nowrap">Save allocation</button>
           </div>
         </div>
 
-        <!-- Current levels table -->
-        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Current levels</div>
         <div class="trow">
-          <span class="name">Economy</span><span class="desc">Gold per turn</span>
-          <div class="prog-wrap"><div class="prog-bar eco" id="pb-eco" style="width:10%"></div></div>
-          <span class="count" id="rv-eco">100%</span>
+          <span class="name" style="min-width:140px">Economy</span>
+          <span class="desc">Gold per turn</span>
+          <div class="prog-wrap"><div class="prog-bar eco" id="pb-eco" style="width:0%"></div></div>
+          <span class="count" id="rv-eco" style="min-width:50px">0%</span>
+          <input type="number" id="ra-economy" min="0" value="0" oninput="updateAllocationDisplay()" style="width:90px">
+          <button class="btn" onclick="setMax('ra-economy')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
         <div class="trow">
-          <span class="name">Weapons</span><span class="desc">Attack damage</span>
-          <div class="prog-wrap"><div class="prog-bar wep" id="pb-wep" style="width:10%"></div></div>
-          <span class="count" id="rv-wep">100%</span>
+          <span class="name" style="min-width:140px">Weapons</span>
+          <span class="desc">Attack damage</span>
+          <div class="prog-wrap"><div class="prog-bar wep" id="pb-wep" style="width:0%"></div></div>
+          <span class="count" id="rv-wep" style="min-width:50px">0%</span>
+          <input type="number" id="ra-weapons" min="0" value="0" oninput="updateAllocationDisplay()" style="width:90px">
+          <button class="btn" onclick="setMax('ra-weapons')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
         <div class="trow">
-          <span class="name">Armor</span><span class="desc">Defense rating</span>
-          <div class="prog-wrap"><div class="prog-bar arm" id="pb-arm" style="width:10%"></div></div>
-          <span class="count" id="rv-arm">100%</span>
+          <span class="name" style="min-width:140px">Armor</span>
+          <span class="desc">Defense rating</span>
+          <div class="prog-wrap"><div class="prog-bar arm" id="pb-arm" style="width:0%"></div></div>
+          <span class="count" id="rv-arm" style="min-width:50px">0%</span>
+          <input type="number" id="ra-armor" min="0" value="0" oninput="updateAllocationDisplay()" style="width:90px">
+          <button class="btn" onclick="setMax('ra-armor')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
         <div class="trow">
-          <span class="name">Military tactics</span><span class="desc">Troop effectiveness</span>
-          <div class="prog-wrap"><div class="prog-bar mil" id="pb-mil" style="width:10%"></div></div>
-          <span class="count" id="rv-mil">100%</span>
+          <span class="name" style="min-width:140px">Military tactics</span>
+          <span class="desc">Troop effectiveness</span>
+          <div class="prog-wrap"><div class="prog-bar mil" id="pb-mil" style="width:0%"></div></div>
+          <span class="count" id="rv-mil" style="min-width:50px">0%</span>
+          <input type="number" id="ra-military" min="0" value="0" oninput="updateAllocationDisplay()" style="width:90px">
+          <button class="btn" onclick="setMax('ra-military')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
         <div class="trow">
-          <span class="name">Spellbook</span><span class="desc">Spell power</span>
-          <div class="prog-wrap"><div class="prog-bar spell" id="pb-spell" style="width:5%"></div></div>
-          <span class="count" id="rv-spell">500</span>
+          <span class="name" style="min-width:140px">Spellbook</span>
+          <span class="desc">Spell power</span>
+          <div class="prog-wrap"><div class="prog-bar spell" id="pb-spell" style="width:0%"></div></div>
+          <span class="count" id="rv-spell" style="min-width:50px">0</span>
+          <input type="number" id="ra-spellbook" min="0" value="0" oninput="updateAllocationDisplay()" style="width:90px">
+          <button class="btn" onclick="setMax('ra-spellbook')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
         <div class="trow">
-          <span class="name">Attack magic</span><span class="desc">Spell damage</span>
-          <div class="prog-wrap"><div class="prog-bar" style="width:10%;background:var(--red)" id="pb-atk"></div></div>
-          <span class="count" id="rv-atk">100%</span>
+          <span class="name" style="min-width:140px">Attack magic</span>
+          <span class="desc">Spell damage</span>
+          <div class="prog-wrap"><div class="prog-bar" style="width:0%;background:var(--red)" id="pb-atk"></div></div>
+          <span class="count" id="rv-atk" style="min-width:50px">0%</span>
+          <input type="number" id="ra-attack_magic" min="0" value="0" oninput="updateAllocationDisplay()" style="width:90px">
+          <button class="btn" onclick="setMax('ra-attack_magic')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
         <div class="trow">
-          <span class="name">Defense magic</span><span class="desc">Spell protection</span>
-          <div class="prog-wrap"><div class="prog-bar arm" id="pb-def" style="width:10%"></div></div>
-          <span class="count" id="rv-def">100%</span>
+          <span class="name" style="min-width:140px">Defense magic</span>
+          <span class="desc">Spell protection</span>
+          <div class="prog-wrap"><div class="prog-bar arm" id="pb-def" style="width:0%"></div></div>
+          <span class="count" id="rv-def" style="min-width:50px">0%</span>
+          <input type="number" id="ra-defense_magic" min="0" value="0" oninput="updateAllocationDisplay()" style="width:90px">
+          <button class="btn" onclick="setMax('ra-defense_magic')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
         <div class="trow">
-          <span class="name">Entertainment</span><span class="desc">Morale &amp; pop</span>
-          <div class="prog-wrap"><div class="prog-bar" style="width:10%;background:var(--green)" id="pb-ent"></div></div>
-          <span class="count" id="rv-ent">100%</span>
+          <span class="name" style="min-width:140px">Entertainment</span>
+          <span class="desc">Morale &amp; pop</span>
+          <div class="prog-wrap"><div class="prog-bar" style="width:0%;background:var(--green)" id="pb-ent"></div></div>
+          <span class="count" id="rv-ent" style="min-width:50px">0%</span>
+          <input type="number" id="ra-entertainment" min="0" value="0" oninput="updateAllocationDisplay()" style="width:90px">
+          <button class="btn" onclick="setMax('ra-entertainment')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
         <div class="trow">
-          <span class="name">Construction</span><span class="desc">Build speed</span>
-          <div class="prog-wrap"><div class="prog-bar" style="width:10%;background:var(--amber)" id="pb-con"></div></div>
-          <span class="count" id="rv-con">100%</span>
+          <span class="name" style="min-width:140px">Construction</span>
+          <span class="desc">Build speed</span>
+          <div class="prog-wrap"><div class="prog-bar" style="width:0%;background:var(--amber)" id="pb-con"></div></div>
+          <span class="count" id="rv-con" style="min-width:50px">0%</span>
+          <input type="number" id="ra-construction" min="0" value="0" oninput="updateAllocationDisplay()" style="width:90px">
+          <button class="btn" onclick="setMax('ra-construction')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
-        <div class="trow">
-          <span class="name">War machines</span><span class="desc">WM power</span>
-          <div class="prog-wrap"><div class="prog-bar" style="width:10%;background:var(--text3)" id="pb-wm"></div></div>
-          <span class="count" id="rv-wm">100%</span>
+        <div class="trow" style="border-bottom:none">
+          <span class="name" style="min-width:140px">War machines</span>
+          <span class="desc">WM power</span>
+          <div class="prog-wrap"><div class="prog-bar" style="width:0%;background:var(--text3)" id="pb-wm"></div></div>
+          <span class="count" id="rv-wm" style="min-width:50px">0%</span>
+          <input type="number" id="ra-war_machines" min="0" value="0" oninput="updateAllocationDisplay()" style="width:90px">
+          <button class="btn" onclick="setMax('ra-war_machines')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
       </div>
     </div>
@@ -1485,8 +1493,8 @@ function switchTab(id, btn) {
     loadNews();
   }
   if (id === 'research') {
-    var ra = document.getElementById('r-amount');
-    if (ra) ra.value = state.researchers || 0;
+    updateAllocationDisplay();
+    loadAllocationFromState();
   }
 }
 
@@ -1902,6 +1910,7 @@ async function loadKingdom() {
     weapons_stockpile: kingdom.weapons_stockpile || 0,
     armor_stockpile:   kingdom.armor_stockpile   || 0,
     war_machines:      kingdom.war_machines       || 0,
+    research_allocation: kingdom.research_allocation || {},
   });
   syncUI();
   updateTurnsDisplay();
@@ -1944,6 +1953,7 @@ async function loadKingdom() {
 
   loadRankings();
   loadNews();
+  loadAllocationFromState();
 }
 
 async function loadNews() {
@@ -2073,6 +2083,86 @@ function applyServerUpdates(u) {
 }
 
 // Override hire to hit real server
+// ── Research allocation ───────────────────────────────────────────────────────
+
+var RA_FIELDS = [
+  'ra-economy','ra-weapons','ra-armor','ra-military','ra-spellbook',
+  'ra-attack_magic','ra-defense_magic','ra-entertainment','ra-construction','ra-war_machines'
+];
+
+function getAllocated() {
+  return RA_FIELDS.reduce(function(sum, id) {
+    return sum + (parseInt(document.getElementById(id)?.value) || 0);
+  }, 0);
+}
+
+function updateAllocationDisplay() {
+  var total = state.researchers || 0;
+  var assigned = getAllocated();
+  var unassigned = Math.max(0, total - assigned);
+  var tAvail = document.getElementById('r-total-avail');
+  var tAssigned = document.getElementById('r-total-assigned');
+  var tUnassigned = document.getElementById('r-total-unassigned');
+  if (tAvail) tAvail.textContent = fmt(total);
+  if (tAssigned) tAssigned.textContent = fmt(assigned);
+  if (tUnassigned) {
+    tUnassigned.textContent = fmt(unassigned);
+    tUnassigned.style.color = unassigned < 0 ? 'var(--red)' : 'var(--green)';
+  }
+}
+
+function setMax(fieldId) {
+  var total = state.researchers || 0;
+  var assigned = getAllocated();
+  var current = parseInt(document.getElementById(fieldId)?.value) || 0;
+  var available = total - assigned + current;
+  var el = document.getElementById(fieldId);
+  if (el) el.value = Math.max(0, available);
+  updateAllocationDisplay();
+}
+
+function distributeEvenly() {
+  var total = state.researchers || 0;
+  var count = RA_FIELDS.length;
+  var each = Math.floor(total / count);
+  var remainder = total - (each * count);
+  RA_FIELDS.forEach(function(id, i) {
+    var el = document.getElementById(id);
+    if (el) el.value = each + (i < remainder ? 1 : 0);
+  });
+  updateAllocationDisplay();
+}
+
+function loadAllocationFromState() {
+  // Populate inputs from saved state allocation
+  var alloc = state.research_allocation || {};
+  var disciplines = ['economy','weapons','armor','military','spellbook','attack_magic','defense_magic','entertainment','construction','war_machines'];
+  disciplines.forEach(function(d) {
+    var el = document.getElementById('ra-' + d);
+    if (el) el.value = alloc[d] || 0;
+  });
+  updateAllocationDisplay();
+}
+
+async function saveResearchAllocation() {
+  var allocation = {};
+  var disciplines = ['economy','weapons','armor','military','spellbook','attack_magic','defense_magic','entertainment','construction','war_machines'];
+  var total = 0;
+  disciplines.forEach(function(d) {
+    var val = parseInt(document.getElementById('ra-' + d)?.value) || 0;
+    allocation[d] = val;
+    total += val;
+  });
+  if (total > (state.researchers || 0)) {
+    return toast('Allocated ' + fmt(total) + ' but only have ' + fmt(state.researchers) + ' researchers', 'error');
+  }
+  var result = await apiCall('POST', '/api/kingdom/research-allocation', { allocation: allocation });
+  if (result.error) return toast(result.error, 'error');
+  state.research_allocation = allocation;
+  updateAllocationDisplay();
+  toast('Research allocation saved — advances every turn', 'success');
+}
+
 // Boot — check auth then show modal or load kingdom
 async function doLogout() {
   await apiCall('POST', '/api/auth/logout');
