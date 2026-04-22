@@ -272,6 +272,7 @@
           <div class="countdown">+5 in <span id="regen-countdown">15:00</span></div>
         </div>
         <button class="turn-btn" onclick="takeTurn()">Take Turn</button>
+        <button onclick="doLogout()" style="background:transparent;border:1px solid var(--border2);border-radius:var(--radius);color:var(--text2);padding:6px 10px;font-size:12px;cursor:pointer;white-space:nowrap">Logout</button>
       </div>
     </div>
   </header>
@@ -1482,9 +1483,12 @@ function switchTabMobile(id, btn) {
 
 async function apiCall(method, path, body) {
   try {
+    var headers = { 'Content-Type': 'application/json' };
+    var storedToken = localStorage.getItem('narmir_token');
+    if (storedToken) headers['x-auth-token'] = storedToken;
     var res = await fetch(path, {
       method: method,
-      headers: { 'Content-Type': 'application/json' },
+      headers: headers,
       credentials: 'include',
       body: body ? JSON.stringify(body) : undefined,
     });
@@ -1606,6 +1610,7 @@ function showLoginModal() {
     document.getElementById('btn-register').disabled = false;
 
     if (result.error) { errEl.textContent = result.error; return; }
+    if (result.token) localStorage.setItem('narmir_token', result.token);
     state.username = username;
     overlay.remove();
     loadKingdom();
@@ -1672,16 +1677,23 @@ async function loadRankings() {
 }
 
 // Override takeTurn to hit real server
+var takingTurn = false;
 takeTurn = async function() {
+  if (takingTurn) return;
   if (state.turns_stored < 1) return toast('No turns available — refills in ' + document.getElementById('regen-countdown').textContent, 'warn');
+  takingTurn = true;
+  var btn = document.querySelector('.turn-btn');
+  if (btn) btn.style.opacity = '0.6';
   var result = await apiCall('POST', '/api/kingdom/turn');
+  takingTurn = false;
+  if (btn) btn.style.opacity = state.turns_stored > 0 ? '1' : '0.4';
   if (result.error) return toast(result.error, 'error');
   Object.assign(state, result.updates);
   if (result.turns_stored !== undefined) state.turns_stored = result.turns_stored;
   syncUI();
   updateTurnsDisplay();
   document.getElementById('turn-num').textContent = state.turn;
-  toast('Turn ' + state.turn + ' complete · ' + state.turns_stored + ' turns remaining', 'success');
+  toast('Turn ' + state.turn + ' · ' + state.turns_stored + ' turns left', 'success');
 };
 
 // Override hire to hit real server
@@ -1699,6 +1711,12 @@ hire = async function(unit) {
 };
 
 // Boot — check auth then show modal or load kingdom
+async function doLogout() {
+  await apiCall('POST', '/api/auth/logout');
+  localStorage.removeItem('narmir_token');
+  location.reload();
+}
+
 apiCall('GET', '/api/auth/me').then(function(me) {
   if (me.error) {
     showLoginModal();
