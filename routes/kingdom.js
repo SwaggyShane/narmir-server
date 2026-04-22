@@ -204,7 +204,20 @@ module.exports = function(db) {
       await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)', [k.id, ev.type || 'system', ev.message, turnUpdates.turn || k.turn || 0]);
     await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)', [k.id, 'system', searchMessage, turnUpdates.turn || k.turn || 0]);
 
+    // Award exploration XP
+    const kForXp = { ...k, ...turnUpdates };
+    const xpAmount = type === 'land' ? searchResult.found : (type === 'gold' ? Math.floor(searchResult.found / 1000) : 5);
+    const xpResult = engine.awardXp(kForXp, 'exploration', xpAmount);
+    turnUpdates.xp    = xpResult.xp;
+    turnUpdates.level = xpResult.level;
+    if (xpResult.levelled) {
+      for (const ev of xpResult.events)
+        await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)', [k.id, 'system', ev.message, turnUpdates.turn||k.turn||0]);
+    }
+    await applyUpdates(db, k.id, { xp: turnUpdates.xp, level: turnUpdates.level });
+
     const allEvents = [...events, { type: 'system', message: searchMessage }];
+    if (xpResult.levelled) allEvents.push(...xpResult.events);
     res.json({ ok: true, type, result: searchResult, message: searchMessage, updates: turnUpdates, events: allEvents, turns_stored: turnUpdates.turns_stored });
   });
 
