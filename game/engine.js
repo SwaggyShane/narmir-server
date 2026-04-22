@@ -160,29 +160,35 @@ function processTurn(k) {
     }
   }
 
-  // ── 7. Auto-research ──────────────────────────────────────────────────────────
+  // ── 7. Auto-research — use per-discipline allocation ──────────────────────────
   const schoolBonus = 1 + (Math.floor((k.bld_schools||0) / 5) * 0.02);
   const raceResearch = raceBonus(k, 'research');
   const raceMagic    = raceBonus(k, 'magic');
   const researchers  = k.researchers || 0;
+  let allocation = {};
+  try { allocation = typeof k.research_allocation === 'string' ? JSON.parse(k.research_allocation || '{}') : (k.research_allocation || {}); } catch { allocation = {}; }
 
   if (researchers > 0) {
     const DISCIPLINES = [
-      { col: 'res_economy',       label: 'Economy',          multi: raceResearch },
-      { col: 'res_weapons',       label: 'Weapons',          multi: raceResearch },
-      { col: 'res_armor',         label: 'Armor',            multi: raceResearch },
-      { col: 'res_military',      label: 'Military tactics', multi: raceResearch },
-      { col: 'res_attack_magic',  label: 'Attack magic',     multi: raceMagic    },
-      { col: 'res_defense_magic', label: 'Defense magic',    multi: raceMagic    },
-      { col: 'res_entertainment', label: 'Entertainment',    multi: raceResearch },
-      { col: 'res_construction',  label: 'Construction',     multi: raceResearch },
-      { col: 'res_war_machines',  label: 'War machines',     multi: raceResearch },
+      { col: 'res_economy',       key: 'economy',        label: 'Economy',          multi: raceResearch },
+      { col: 'res_weapons',       key: 'weapons',        label: 'Weapons',          multi: raceResearch },
+      { col: 'res_armor',         key: 'armor',          label: 'Armor',            multi: raceResearch },
+      { col: 'res_military',      key: 'military',       label: 'Military tactics', multi: raceResearch },
+      { col: 'res_attack_magic',  key: 'attack_magic',   label: 'Attack magic',     multi: raceMagic    },
+      { col: 'res_defense_magic', key: 'defense_magic',  label: 'Defense magic',    multi: raceMagic    },
+      { col: 'res_entertainment', key: 'entertainment',  label: 'Entertainment',    multi: raceResearch },
+      { col: 'res_construction',  key: 'construction',   label: 'Construction',     multi: raceResearch },
+      { col: 'res_war_machines',  key: 'war_machines',   label: 'War machines',     multi: raceResearch },
     ];
-    const perDiscipline = Math.floor(researchers / DISCIPLINES.length);
-    const advances = [];
 
+    // Fallback: if no allocation set, split evenly
+    const totalAllocated = Object.values(allocation).reduce((s, v) => s + (Number(v) || 0), 0);
+    const perDisciplineDefault = Math.floor(researchers / (DISCIPLINES.length + 1));
+
+    const advances = [];
     DISCIPLINES.forEach(function(d) {
-      const effective = Math.floor(perDiscipline * schoolBonus * d.multi);
+      const assigned = totalAllocated > 0 ? (Number(allocation[d.key]) || 0) : perDisciplineDefault;
+      const effective = Math.floor(assigned * schoolBonus * d.multi);
       let inc = 0;
       if (effective >= 2000) inc = 5;
       else if (effective >= 1200) inc = 3;
@@ -199,7 +205,8 @@ function processTurn(k) {
     });
 
     // Spellbook
-    const spellEffective = Math.floor(perDiscipline * schoolBonus * raceMagic);
+    const spellAssigned = totalAllocated > 0 ? (Number(allocation['spellbook']) || 0) : perDisciplineDefault;
+    const spellEffective = Math.floor(spellAssigned * schoolBonus * raceMagic);
     let spellInc = 0;
     if (spellEffective >= 2000) spellInc = 5;
     else if (spellEffective >= 1200) spellInc = 3;
@@ -212,12 +219,12 @@ function processTurn(k) {
     }
 
     if (advances.length > 0) {
-      events.push({ type: 'system', message: `📚 Research advanced this turn: ${advances.join(', ')}.` });
-    } else {
-      events.push({ type: 'system', message: `📚 ${researchers.toLocaleString()} researchers studying — more researchers needed for advancement.` });
+      events.push({ type: 'system', message: `📚 Research advanced: ${advances.join(', ')}.` });
+    } else if (researchers > 0) {
+      events.push({ type: 'system', message: `📚 ${researchers.toLocaleString()} researchers studying — allocate more per discipline for advancement.` });
     }
   } else {
-    events.push({ type: 'system', message: `📚 No researchers assigned — hire researchers to advance your kingdom's knowledge.` });
+    events.push({ type: 'system', message: `📚 No researchers — hire researchers and allocate them to advance your kingdom's knowledge.` });
   }
 
   // ── 8. Auto-construction ──────────────────────────────────────────────────────
