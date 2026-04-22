@@ -8,7 +8,10 @@ const router = express.Router();
 module.exports = function(db) {
 
   router.get('/me', requireAuth, async (req, res) => {
-    const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
+    const k = await db.get(
+      'SELECT k.*, p.username FROM kingdoms k JOIN players p ON k.player_id = p.id WHERE k.player_id = ?',
+      [req.player.playerId]
+    );
     if (!k) return res.status(404).json({ error: 'Kingdom not found' });
     res.json(k);
   });
@@ -35,18 +38,15 @@ module.exports = function(db) {
   router.post('/turn', requireAuth, async (req, res) => {
     const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
     if (!k) return res.status(404).json({ error: 'Kingdom not found' });
-
-    const cooldown = process.env.NODE_ENV === 'production' ? 60 : 0;
-    const elapsed  = Math.floor(Date.now() / 1000) - k.last_turn_at;
-    if (elapsed < cooldown)
-      return res.status(429).json({ error: `Turn cooldown: ${cooldown - elapsed}s remaining` });
+    if (k.turns_stored < 1) return res.status(429).json({ error: 'No turns available — next 5 turns in 15 minutes' });
 
     const { updates, events } = engine.processTurn(k);
+    updates.turns_stored = k.turns_stored - 1;
     await applyUpdates(db, k.id, updates);
     for (const ev of events)
       await db.run('INSERT INTO news (kingdom_id, type, message) VALUES (?, ?, ?)', [k.id, ev.type || 'system', ev.message]);
 
-    res.json({ ok: true, updates, events });
+    res.json({ ok: true, updates, events, turns_stored: updates.turns_stored });
   });
 
   router.post('/hire', requireAuth, async (req, res) => {

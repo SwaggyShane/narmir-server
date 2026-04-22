@@ -34,8 +34,14 @@ module.exports = function(db) {
         { playerId: playerResult.lastID, username, isAdmin: false },
         JWT_SECRET, { expiresIn: '30d' }
       );
-      res.cookie('token', token, { httpOnly: true, maxAge: 30*24*60*60*1000 });
-      res.json({ ok: true, username, kingdomName });
+      const cookieOpts = {
+        httpOnly: true,
+        maxAge: 30*24*60*60*1000,
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        secure:   process.env.NODE_ENV === 'production',
+      };
+      res.cookie('token', token, cookieOpts);
+      res.json({ ok: true, username, kingdomName, token });
     } catch (err) {
       if (err.message.includes('UNIQUE'))
         return res.status(409).json({ error: 'Username already taken' });
@@ -60,12 +66,21 @@ module.exports = function(db) {
       { playerId: player.id, username, isAdmin: player.is_admin === 1 },
       JWT_SECRET, { expiresIn: '30d' }
     );
-    res.cookie('token', token, { httpOnly: true, maxAge: 30*24*60*60*1000 });
-    res.json({ ok: true, username, isAdmin: player.is_admin === 1 });
+    const cookieOpts = {
+      httpOnly: true,
+      maxAge: 30*24*60*60*1000,
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      secure:   process.env.NODE_ENV === 'production',
+    };
+    res.cookie('token', token, cookieOpts);
+    res.json({ ok: true, username, isAdmin: player.is_admin === 1, token });
   });
 
   router.post('/logout', (_req, res) => {
-    res.clearCookie('token');
+    res.clearCookie('token', {
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      secure:   process.env.NODE_ENV === 'production',
+    });
     res.json({ ok: true });
   });
 
