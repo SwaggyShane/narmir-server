@@ -1,0 +1,1723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Narmir — Land of Magic and Conquest</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0e14;
+    --bg2: #13141d;
+    --bg3: #1a1c27;
+    --bg4: #212432;
+    --border: #2a2d3e;
+    --border2: #363a52;
+    --text: #e8e9f0;
+    --text2: #9a9bb5;
+    --text3: #5e6080;
+    --gold: #e8b84b;
+    --gold2: #c49535;
+    --purple: #7c6af5;
+    --purple2: #5d4fd4;
+    --green: #4caf7d;
+    --red: #e05c5c;
+    --blue: #5b9cf5;
+    --amber: #f0a832;
+    --radius: 8px;
+    --radius-lg: 12px;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* ── Mobile-first layout: single column with bottom nav ── */
+  .app { display: flex; flex-direction: column; min-height: 100vh; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; padding: 0 14px; height: 52px; background: var(--bg2); border-bottom: 1px solid var(--border); gap: 10px; flex-shrink: 0; position: sticky; top: 0; z-index: 50; }
+  .sidebar { display: none; }
+  .main { padding: 14px 14px 80px; flex: 1; overflow-y: auto; }
+
+  /* ── Bottom nav (mobile) ── */
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+    background: var(--bg2); border-top: 1px solid var(--border);
+    display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; padding: 0 2px;
+  }
+  .bottom-nav::-webkit-scrollbar { display: none; }
+  .bnav-item {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 3px; padding: 8px 12px; flex-shrink: 0; cursor: pointer;
+    font-size: 10px; color: var(--text3); border: none; background: none;
+    transition: color .12s; position: relative; min-width: 56px;
+  }
+  .bnav-item .bicon { font-size: 18px; line-height: 1; }
+  .bnav-item.active { color: var(--purple); }
+  .bnav-item .bnav-badge {
+    position: absolute; top: 6px; right: 10px;
+    background: var(--red); color: #fff; border-radius: 8px;
+    font-size: 9px; font-weight: 700; padding: 1px 4px; line-height: 1.4;
+  }
+  .bnav-sep { width: 1px; background: var(--border); margin: 10px 0; flex-shrink: 0; align-self: stretch; }
+
+  /* ── Topbar ── */
+  .logo { font-size: 15px; font-weight: 700; letter-spacing: .4px; color: var(--gold); white-space: nowrap; }
+  .logo span { display: none; }
+  .topbar-stats { display: flex; gap: 12px; align-items: center; }
+  .tstat { text-align: right; }
+  .tstat .val { font-size: 13px; font-weight: 600; color: var(--gold); }
+  .tstat .lbl { font-size: 10px; color: var(--text3); }
+  .tstat.hide-sm { display: none; }
+  .turn-btn { background: var(--purple); color: #fff; border: none; border-radius: var(--radius); padding: 7px 14px; font-size: 12px; font-weight: 600; cursor: pointer; transition: background .15s; white-space: nowrap; -webkit-tap-highlight-color: transparent; }
+  .turn-btn:active { transform: scale(.97); background: var(--purple2); }
+  .countdown { font-size: 11px; color: var(--text3); margin-top: 1px; }
+
+  /* ── Sidebar nav (desktop only, hidden on mobile) ── */
+  .nav-section { font-size: 10px; font-weight: 700; color: var(--text3); letter-spacing: .8px; text-transform: uppercase; padding: 12px 8px 4px; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--radius); cursor: pointer; color: var(--text2); font-size: 13px; transition: all .12s; border: none; background: none; width: 100%; text-align: left; }
+  .nav-item:hover { background: var(--bg3); color: var(--text); }
+  .nav-item.active { background: var(--bg4); color: var(--text); font-weight: 500; }
+  .nav-item .icon { width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+  .nav-badge { margin-left: auto; background: var(--red); color: #fff; border-radius: 10px; font-size: 10px; font-weight: 700; padding: 1px 6px; }
+
+  /* ── Panel ── */
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .panel-title { font-size: 18px; font-weight: 600; color: var(--text); margin-bottom: 16px; }
+
+  /* ── Kingdom header ── */
+  .kingdom-header { margin-bottom: 14px; }
+  .kingdom-header h1 { font-size: 20px; }
+
+  /* ── Metric strip — 2 cols on mobile, 5 on desktop ── */
+  .metrics { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; margin-bottom: 16px; }
+  .metric { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 11px 13px; }
+  .metric .lbl { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 3px; }
+  .metric .val { font-size: 18px; font-weight: 700; color: var(--text); }
+  .metric .sub { font-size: 11px; color: var(--text2); margin-top: 2px; }
+  .metric.gold .val { color: var(--gold); }
+  .metric.alert .val { color: var(--red); }
+
+  /* ── Cards ── */
+  .card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 13px 14px; margin-bottom: 12px; }
+  .card-title { font-size: 11px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 12px; }
+  .two-col { display: grid; grid-template-columns: 1fr; gap: 0; }
+
+  /* ── Table rows — stack desc below name on mobile ── */
+  .trow { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .trow:last-child { border-bottom: none; }
+  .trow .name { flex: 1; min-width: 80px; color: var(--text); font-size: 13px; }
+  .trow .desc { display: none; }
+  .trow .count { min-width: 60px; text-align: right; font-weight: 600; font-size: 13px; color: var(--text); }
+  .trow .cost-lbl { font-size: 12px; color: var(--gold); min-width: 50px; text-align: right; }
+
+  /* ── Progress bars ── */
+  .prog-wrap { flex: 1; min-width: 60px; height: 5px; background: var(--bg4); border-radius: 3px; overflow: hidden; }
+  .prog-bar { height: 100%; border-radius: 3px; background: var(--purple); transition: width .4s; }
+  .prog-bar.eco { background: var(--gold); }
+  .prog-bar.wep { background: var(--red); }
+  .prog-bar.arm { background: var(--blue); }
+  .prog-bar.mil { background: var(--amber); }
+  .prog-bar.spell { background: var(--purple); }
+  .prog-bar.mana { background: var(--green); }
+
+  /* ── Inputs & buttons ── */
+  input[type=number], input[type=text] {
+    background: var(--bg3); border: 1px solid var(--border2); border-radius: var(--radius);
+    color: var(--text); padding: 7px 10px; font-size: 16px; width: 80px; text-align: right;
+    outline: none; transition: border-color .15s;
+  }
+  input[type=number]:focus, input[type=text]:focus { border-color: var(--purple); }
+  input[type=text] { width: auto; text-align: left; font-size: 16px; }
+  input[type=range] {
+    -webkit-appearance: none; width: 100%; height: 6px;
+    background: var(--bg4); border-radius: 3px; outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 22px; height: 22px;
+    background: var(--purple); border-radius: 50%; cursor: pointer;
+  }
+  select {
+    font-size: 16px;
+  }
+
+  .btn { background: var(--bg3); border: 1px solid var(--border2); border-radius: var(--radius); color: var(--text); padding: 8px 14px; font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap; transition: all .12s; -webkit-tap-highlight-color: transparent; }
+  .btn:active { transform: scale(.97); background: var(--bg4); }
+  .btn-gold { background: var(--gold2); border-color: var(--gold); color: #0d0e14; font-weight: 700; }
+  .btn-gold:active { background: var(--gold); }
+  .btn-purple { background: var(--purple); border-color: var(--purple); color: #fff; }
+  .btn-purple:active { background: var(--purple2); }
+  .btn-red { background: transparent; border-color: var(--red); color: var(--red); }
+  .btn-red:active { background: rgba(224,92,92,.15); }
+  .btn-amber { background: transparent; border-color: var(--amber); color: var(--amber); }
+  .btn-amber:active { background: rgba(240,168,50,.15); }
+
+  /* ── Badges ── */
+  .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; }
+  .badge-green { background: rgba(76,175,125,.15); color: var(--green); }
+  .badge-gold { background: rgba(232,184,75,.15); color: var(--gold); }
+  .badge-blue { background: rgba(91,156,245,.15); color: var(--blue); }
+  .badge-red { background: rgba(224,92,92,.15); color: var(--red); }
+  .badge-amber { background: rgba(240,168,50,.15); color: var(--amber); }
+
+  /* ── News ── */
+  .news-item { padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text2); line-height: 1.6; }
+  .news-item:last-child { border-bottom: none; }
+  .news-item .time { font-size: 11px; color: var(--text3); margin-right: 6px; }
+  .news-hl { color: var(--text); font-weight: 500; }
+  .news-attack { color: var(--red); font-weight: 500; }
+  .news-good { color: var(--green); font-weight: 500; }
+  .news-magic { color: var(--purple); font-weight: 500; }
+
+  /* ── Toast — bottom-center on mobile ── */
+  #toast {
+    position: fixed; bottom: 72px; left: 50%; transform: translateX(-50%) translateY(8px);
+    z-index: 999; background: var(--bg3); border: 1px solid var(--border2);
+    border-radius: var(--radius-lg); color: var(--text); font-size: 13px;
+    padding: 10px 18px; opacity: 0; transition: opacity .25s, transform .25s;
+    pointer-events: none; white-space: nowrap; max-width: calc(100vw - 32px);
+    white-space: normal; text-align: center;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  #toast.success { border-color: var(--green); color: var(--green); }
+  #toast.error { border-color: var(--red); color: var(--red); }
+  #toast.warn { border-color: var(--amber); color: var(--amber); }
+
+  /* ── Race tag ── */
+  .race-tag { display: inline-flex; gap: 6px; align-items: center; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); padding: 4px 10px; font-size: 12px; color: var(--text2); }
+  .race-tag strong { color: var(--purple); font-weight: 600; }
+
+  /* ── Options ── */
+  .option-row { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+  .option-label { width: 80px; font-size: 13px; color: var(--text2); flex-shrink: 0; }
+  .option-val { font-size: 18px; font-weight: 700; color: var(--gold); min-width: 48px; }
+
+  /* ── Warfare panels — single col on mobile ── */
+  #attack > div, #spells > div, #covert > div, #alliances > div {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ════════════════════════════════════
+     DESKTOP (≥ 700px)
+  ════════════════════════════════════ */
+  @media (min-width: 700px) {
+    .app { display: grid; grid-template-columns: 220px 1fr; grid-template-rows: 56px 1fr; }
+    .topbar { grid-column: 1 / -1; padding: 0 20px; height: 56px; position: static; }
+    .sidebar { display: flex; flex-direction: column; gap: 4px; background: var(--bg2); border-right: 1px solid var(--border); padding: 16px 12px; overflow-y: auto; }
+    .main { padding: 24px; }
+    .bottom-nav { display: none; }
+    .logo span { display: inline; }
+    .tstat.hide-sm { display: block; }
+    .topbar-stats { gap: 20px; }
+    .tstat .val { font-size: 15px; }
+    .tstat .lbl { font-size: 11px; }
+    .turn-btn { padding: 8px 18px; font-size: 13px; }
+    .metrics { grid-template-columns: repeat(5, minmax(0,1fr)); gap: 12px; margin-bottom: 24px; }
+    .metric { padding: 14px 16px; }
+    .metric .val { font-size: 22px; }
+    .metric .lbl { font-size: 11px; }
+    .metric .sub { font-size: 12px; }
+    .card { padding: 16px 18px; margin-bottom: 16px; }
+    .card-title { font-size: 13px; }
+    .two-col { grid-template-columns: 1fr 1fr; gap: 16px; }
+    .trow .desc { display: block; }
+    .kingdom-header h1 { font-size: 26px; }
+    #toast { bottom: 24px; left: auto; right: 24px; transform: translateY(8px); white-space: nowrap; text-align: left; max-width: 320px; }
+    #toast.show { transform: translateY(0); }
+    #attack > div, #spells > div, #covert > div { grid-template-columns: 1fr 320px !important; }
+    #spells > div { grid-template-columns: 1fr 340px !important; }
+    #alliances > div { grid-template-columns: 1fr 300px !important; }
+    /* Right action panel stays at top while target list scrolls */
+    #attack > div > div:last-child,
+    #spells > div > div:last-child,
+    #covert > div > div:last-child { position: sticky; top: 0; align-self: start; }
+    /* Cap target list height so it scrolls internally */
+    #target-list, #covert-target-list, #spell-list { max-height: 420px; overflow-y: auto; }
+    input[type=number], input[type=text] { font-size: 13px; padding: 6px 10px; }
+    input[type=text] { font-size: 13px; }
+    select { font-size: 13px; }
+    input[type=range] { height: 4px; }
+    input[type=range]::-webkit-slider-thumb { width: 16px; height: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- Topbar -->
+  <header class="topbar">
+    <div style="display:flex;align-items:center;gap:16px">
+      <div class="logo">NARMIR <span>Land of Magic and Conquest</span></div>
+    </div>
+    <div class="topbar-stats">
+      <div class="tstat"><div class="val" id="top-gold">48,200 GC</div><div class="lbl">Gold</div></div>
+      <div class="tstat"><div class="val" id="top-mana">22,400</div><div class="lbl">Mana</div></div>
+      <div class="tstat hide-sm"><div class="val" id="top-rank">#47</div><div class="lbl">Rank</div></div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="text-align:right">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:13px;color:var(--text2)">Turns:</span>
+            <span id="turns-stored-disp" style="font-size:15px;font-weight:700;color:var(--gold)">200</span>
+            <span style="font-size:12px;color:var(--text3)">/200</span>
+          </div>
+          <div class="countdown">+5 in <span id="regen-countdown">15:00</span></div>
+        </div>
+        <button class="turn-btn" onclick="takeTurn()">Take Turn</button>
+        <button onclick="doLogout()" style="background:transparent;border:1px solid var(--border2);border-radius:var(--radius);color:var(--text2);padding:6px 10px;font-size:12px;cursor:pointer;white-space:nowrap">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="nav-section">Kingdom</div>
+    <button class="nav-item active" onclick="switchTab('status',this)"><span class="icon">&#9632;</span>Status</button>
+    <button class="nav-item" onclick="switchTab('hire',this)"><span class="icon">&#9651;</span>Hire</button>
+    <button class="nav-item" onclick="switchTab('research',this)"><span class="icon">&#9670;</span>Research</button>
+    <button class="nav-item" onclick="switchTab('build',this)"><span class="icon">&#9650;</span>Build</button>
+    <button class="nav-item" onclick="switchTab('options',this)"><span class="icon">&#9881;</span>Options</button>
+
+    <div class="nav-section">Warfare</div>
+    <button class="nav-item" onclick="switchTab('attack',this)"><span class="icon">&#9876;</span>Attack</button>
+    <button class="nav-item" onclick="switchTab('spells',this)"><span class="icon">&#10024;</span>Spells</button>
+    <button class="nav-item" onclick="switchTab('covert',this)"><span class="icon">&#128373;</span>Covert</button>
+
+    <div class="nav-section">Social</div>
+    <button class="nav-item" onclick="switchTab('alliances',this)"><span class="icon">&#9876;</span>Alliances</button>
+    <button class="nav-item" onclick="switchTab('news',this)"><span class="icon">&#9741;</span>News <span id="news-badge" class="nav-badge">3</span></button>
+    <button class="nav-item" onclick="toast('Chat will connect via Socket.io in the next build','warn');this.classList.remove('active')"><span class="icon">&#9650;</span>Chat</button>
+  </nav>
+
+  <!-- Main content -->
+  <main class="main">
+
+    <!-- Kingdom header -->
+    <div class="kingdom-header" style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+      <div>
+        <h1 style="font-size:26px;font-weight:700;color:var(--text);line-height:1.2" id="kingdom-name">Ironveil</h1>
+        <div style="color:var(--text2);font-size:13px;margin-top:4px"><span id="kingdom-owner-line">Realm of the <strong style="color:var(--purple)">High Elves</strong></span> · Turn <span id="turn-num" style="color:var(--text);font-weight:600">143</span> · <span class="badge badge-green">Protected</span></div>
+        <div style="margin-top:6px"><span class="race-tag" id="race-tag-display"><strong>High Elf</strong> · +15% research efficiency · Powerful magic</span></div>
+      </div>
+    </div>
+
+    <!-- Metrics strip -->
+    <div class="metrics">
+      <div class="metric gold">
+        <div class="lbl">Gold</div>
+        <div class="val" id="m-gold">48,200</div>
+        <div class="sub" id="m-gold-sub">+4,820 GC/turn</div>
+      </div>
+      <div class="metric">
+        <div class="lbl">Population</div>
+        <div class="val" id="m-pop">124,500</div>
+        <div class="sub">+310/turn</div>
+      </div>
+      <div class="metric">
+        <div class="lbl">Land</div>
+        <div class="val" id="m-land">1,840</div>
+        <div class="sub">acres</div>
+      </div>
+      <div class="metric">
+        <div class="lbl">Morale</div>
+        <div class="val" id="m-morale">87%</div>
+        <div class="sub">Tax: <span id="m-tax">42%</span></div>
+      </div>
+      <div class="metric">
+        <div class="lbl">Food</div>
+        <div class="val" id="m-food">OK</div>
+        <div class="sub">4,200 farms</div>
+      </div>
+    </div>
+
+    <!-- Panels -->
+
+    <!-- STATUS -->
+    <div id="status" class="panel active">
+      <div class="two-col">
+        <div>
+          <div class="card">
+            <div class="card-title">Military &amp; support</div>
+            <div class="trow"><span class="name">Fighters</span><span class="count" id="s-fighters">12,400</span><span class="badge badge-red">Combat</span></div>
+            <div class="trow"><span class="name">Rangers</span><span class="count" id="s-rangers">3,200</span><span class="badge badge-blue">Scout</span></div>
+            <div class="trow"><span class="name">Clerics</span><span class="count" id="s-clerics">1,800</span><span class="badge badge-green">Heal</span></div>
+            <div class="trow"><span class="name">Mages</span><span class="count" id="s-mages">2,100</span><span class="badge badge-amber">Magic</span></div>
+            <div class="trow"><span class="name">Thieves</span><span class="count" id="s-thieves">900</span><span class="badge badge-amber">Covert</span></div>
+            <div class="trow"><span class="name">Ninjas</span><span class="count" id="s-ninjas">420</span><span class="badge badge-amber">Covert</span></div>
+            <div class="trow"><span class="name">Researchers</span><span class="count" id="s-researchers">8,000</span><span class="badge badge-blue">Study</span></div>
+            <div class="trow"><span class="name">Engineers</span><span class="count" id="s-engineers">2,200</span><span class="badge badge-blue">Build</span></div>
+          </div>
+        </div>
+        <div>
+          <div class="card">
+            <div class="card-title">Research levels</div>
+            <div class="trow"><span class="name">Economy</span><div class="prog-wrap"><div class="prog-bar eco" style="width:74%"></div></div><span class="count">740%</span></div>
+            <div class="trow"><span class="name">Weapons</span><div class="prog-wrap"><div class="prog-bar wep" style="width:52%"></div></div><span class="count">520%</span></div>
+            <div class="trow"><span class="name">Armor</span><div class="prog-wrap"><div class="prog-bar arm" style="width:48%"></div></div><span class="count">480%</span></div>
+            <div class="trow"><span class="name">Military tactics</span><div class="prog-wrap"><div class="prog-bar mil" style="width:36%"></div></div><span class="count">360%</span></div>
+            <div class="trow"><span class="name">Spellbook</span><div class="prog-wrap"><div class="prog-bar spell" style="width:61%"></div></div><span class="count">6,100</span></div>
+            <div class="trow"><span class="name">Mana</span><div class="prog-wrap"><div class="prog-bar mana" style="width:55%"></div></div><span class="count">22,400</span></div>
+            <div class="trow"><span class="name">Entertainment</span><div class="prog-wrap"><div class="prog-bar" style="width:28%;background:var(--green)"></div></div><span class="count">280%</span></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Key buildings</div>
+            <div class="trow"><span class="name">Farms</span><span class="count">4,200</span></div>
+            <div class="trow"><span class="name">Barracks</span><span class="count">640</span></div>
+            <div class="trow"><span class="name">Smithies</span><span class="count">180</span></div>
+            <div class="trow"><span class="name">Cathedrals</span><span class="count">32</span></div>
+            <div class="trow"><span class="name">Castles</span><span class="count">4</span></div>
+            <div class="trow"><span class="name">Guard towers</span><span class="count">72</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HIRE -->
+    <div id="hire" class="panel">
+      <div class="card">
+        <div class="card-title">Hire units — 250 GC each · Population available: <span id="hire-pop">124,500</span></div>
+        <div class="trow">
+          <span class="name">Fighters</span><span class="desc">Main attack &amp; defense force</span>
+          <span class="count" id="h-fighters">12,400</span>
+          <input type="number" id="hire-fighters" min="0" value="0" placeholder="0">
+          <button class="btn btn-gold" onclick="hire('fighters')">Hire</button>
+        </div>
+        <div class="trow">
+          <span class="name">Rangers</span><span class="desc">Search for land, gold &amp; targets</span>
+          <span class="count" id="h-rangers">3,200</span>
+          <input type="number" id="hire-rangers" min="0" value="0" placeholder="0">
+          <button class="btn btn-gold" onclick="hire('rangers')">Hire</button>
+        </div>
+        <div class="trow">
+          <span class="name">Clerics</span><span class="desc">Battlefield medics &amp; fighters</span>
+          <span class="count" id="h-clerics">1,800</span>
+          <input type="number" id="hire-clerics" min="0" value="0" placeholder="0">
+          <button class="btn btn-gold" onclick="hire('clerics')">Hire</button>
+        </div>
+        <div class="trow">
+          <span class="name">Mages</span><span class="desc">Attack magic, absorbs enemy spells</span>
+          <span class="count" id="h-mages">2,100</span>
+          <input type="number" id="hire-mages" min="0" value="0" placeholder="0">
+          <button class="btn btn-gold" onclick="hire('mages')">Hire</button>
+        </div>
+        <div class="trow">
+          <span class="name">Thieves</span><span class="desc">Loot research, gold &amp; machines</span>
+          <span class="count" id="h-thieves">900</span>
+          <input type="number" id="hire-thieves" min="0" value="0" placeholder="0">
+          <button class="btn btn-gold" onclick="hire('thieves')">Hire</button>
+        </div>
+        <div class="trow">
+          <span class="name">Ninjas</span><span class="desc">Assassinate units &amp; sabotage</span>
+          <span class="count" id="h-ninjas">420</span>
+          <input type="number" id="hire-ninjas" min="0" value="0" placeholder="0">
+          <button class="btn btn-gold" onclick="hire('ninjas')">Hire</button>
+        </div>
+        <div class="trow">
+          <span class="name">Researchers</span><span class="desc">Study all disciplines (max 1M)</span>
+          <span class="count" id="h-researchers">8,000</span>
+          <input type="number" id="hire-researchers" min="0" value="0" placeholder="0">
+          <button class="btn btn-gold" onclick="hire('researchers')">Hire</button>
+        </div>
+        <div class="trow">
+          <span class="name">Engineers</span><span class="desc">Construct buildings &amp; operate war machines</span>
+          <span class="count" id="h-engineers">2,200</span>
+          <input type="number" id="hire-engineers" min="0" value="0" placeholder="0">
+          <button class="btn btn-gold" onclick="hire('engineers')">Hire</button>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--text3);padding:0 4px">Hired units are subtracted from the population pool. Population returns over time based on morale and entertainment. Dismiss units here to return them.</div>
+    </div>
+
+    <!-- RESEARCH -->
+    <div id="research" class="panel">
+      <div class="card">
+        <div class="card-title">Research — assign researchers to disciplines · ~2,000 researchers = max increment</div>
+        <div class="trow">
+          <span class="name">Economy</span><span class="desc">Gold earned per turn</span>
+          <span class="count">740%</span><span class="badge badge-green">+5/turn</span>
+          <input type="number" id="r-eco" min="0" max="1000000" value="2000">
+          <button class="btn btn-purple" onclick="study('Economy')">Study</button>
+        </div>
+        <div class="trow">
+          <span class="name">Weapons</span><span class="desc">Attack damage bonus</span>
+          <span class="count">520%</span><span class="badge badge-blue">+3/turn</span>
+          <input type="number" id="r-wep" min="0" max="1000000" value="1200">
+          <button class="btn btn-purple" onclick="study('Weapons')">Study</button>
+        </div>
+        <div class="trow">
+          <span class="name">Armor</span><span class="desc">Defense rating bonus</span>
+          <span class="count">480%</span><span class="badge badge-blue">+3/turn</span>
+          <input type="number" id="r-arm" min="0" max="1000000" value="1200">
+          <button class="btn btn-purple" onclick="study('Armor')">Study</button>
+        </div>
+        <div class="trow">
+          <span class="name">Military tactics</span><span class="desc">All troop effectiveness</span>
+          <span class="count">360%</span><span class="badge badge-amber">+2/turn</span>
+          <input type="number" id="r-mil" min="0" max="1000000" value="800">
+          <button class="btn btn-purple" onclick="study('Military tactics')">Study</button>
+        </div>
+        <div class="trow">
+          <span class="name">Spellbook</span><span class="desc">More &amp; stronger spells</span>
+          <span class="count">6,100</span><span class="badge badge-green">+5/turn</span>
+          <input type="number" id="r-spell" min="0" max="1000000" value="2000">
+          <button class="btn btn-purple" onclick="study('Spellbook')">Study</button>
+        </div>
+        <div class="trow">
+          <span class="name">Attack magic</span><span class="desc">Destructive spell damage</span>
+          <span class="count">410%</span><span class="badge badge-blue">+3/turn</span>
+          <input type="number" id="r-atk" min="0" max="1000000" value="1200">
+          <button class="btn btn-purple" onclick="study('Attack magic')">Study</button>
+        </div>
+        <div class="trow">
+          <span class="name">Defense magic</span><span class="desc">Protective spell power</span>
+          <span class="count">290%</span><span class="badge badge-amber">+2/turn</span>
+          <input type="number" id="r-def" min="0" max="1000000" value="800">
+          <button class="btn btn-purple" onclick="study('Defense magic')">Study</button>
+        </div>
+        <div class="trow">
+          <span class="name">Entertainment</span><span class="desc">Morale &amp; population growth</span>
+          <span class="count">280%</span><span class="badge badge-amber">+2/turn</span>
+          <input type="number" id="r-ent" min="0" max="1000000" value="600">
+          <button class="btn btn-purple" onclick="study('Entertainment')">Study</button>
+        </div>
+        <div class="trow">
+          <span class="name">Construction skills</span><span class="desc">Build more per turn</span>
+          <span class="count">310%</span><span class="badge badge-amber">+2/turn</span>
+          <input type="number" id="r-con" min="0" max="1000000" value="600">
+          <button class="btn btn-purple" onclick="study('Construction skills')">Study</button>
+        </div>
+        <div class="trow">
+          <span class="name">War machines</span><span class="desc">WM power &amp; durability</span>
+          <span class="count">190%</span><span class="badge badge-amber">+1/turn</span>
+          <input type="number" id="r-wm" min="0" max="1000000" value="400">
+          <button class="btn btn-purple" onclick="study('War machines')">Study</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- BUILD -->
+    <div id="build" class="panel">
+      <div class="card">
+        <div class="card-title">Construction · Engineers: <span id="build-eng">2,200</span> available</div>
+        <div class="trow">
+          <span class="name">Farms</span><span class="desc">Food supply · 10 pieces = 1 farm</span>
+          <span class="count">4,200</span>
+          <input type="number" id="b-farm" min="0" value="0">
+          <button class="btn" onclick="build('farm',10,'Farms')">Build</button>
+        </div>
+        <div class="trow">
+          <span class="name">Barracks</span><span class="desc">Reduces troop upkeep · 2 pieces</span>
+          <span class="count">640</span>
+          <input type="number" id="b-barracks" min="0" value="0">
+          <button class="btn" onclick="build('barracks',2,'Barracks')">Build</button>
+        </div>
+        <div class="trow">
+          <span class="name">Outposts</span><span class="desc">Early attack warning · 2 pieces</span>
+          <span class="count">94</span>
+          <input type="number" id="b-outpost" min="0" value="0">
+          <button class="btn" onclick="build('outpost',2,'Outposts')">Build</button>
+        </div>
+        <div class="trow">
+          <span class="name">Guard towers</span><span class="desc">Blocks enemy covert ops · 2 pieces</span>
+          <span class="count">72</span>
+          <input type="number" id="b-tower" min="0" value="0">
+          <button class="btn" onclick="build('tower',2,'Guard towers')">Build</button>
+        </div>
+        <div class="trow">
+          <span class="name">Schools</span><span class="desc">Accelerates research · 5 pieces</span>
+          <span class="count">18</span>
+          <input type="number" id="b-school" min="0" value="0">
+          <button class="btn" onclick="build('school',5,'Schools')">Build</button>
+        </div>
+        <div class="trow">
+          <span class="name">Armories</span><span class="desc">Protects weapons from thieves · 5 pieces</span>
+          <span class="count">9</span>
+          <input type="number" id="b-armory" min="0" value="0">
+          <button class="btn" onclick="build('armory',5,'Armories')">Build</button>
+        </div>
+        <div class="trow">
+          <span class="name">Vaults</span><span class="desc">Protects gold from thieves · 5 pieces</span>
+          <span class="count">12</span>
+          <input type="number" id="b-vault" min="0" value="0">
+          <button class="btn" onclick="build('vault',5,'Vaults')">Build</button>
+        </div>
+        <div class="trow">
+          <span class="name">Smithies</span><span class="desc">Engineers build faster · 15 pieces</span>
+          <span class="count">180</span>
+          <input type="number" id="b-smithy" min="0" value="0">
+          <button class="btn" onclick="build('smithy',15,'Smithies')">Build</button>
+        </div>
+        <div class="trow">
+          <span class="name">Market places</span><span class="desc">Trade revenue · 30 pieces</span>
+          <span class="count">8</span>
+          <input type="number" id="b-market" min="0" value="0">
+          <button class="btn" onclick="build('market',30,'Market places')">Build</button>
+        </div>
+        <div class="trow">
+          <span class="name">Cathedrals</span><span class="desc">Mana per turn, attracts pop · 25 pieces</span>
+          <span class="count">32</span>
+          <input type="number" id="b-cathedral" min="0" value="0">
+          <button class="btn" onclick="build('cathedral',25,'Cathedrals')">Build</button>
+        </div>
+        <div class="trow">
+          <span class="name">Training fields</span><span class="desc">Auto military tactics training · 50 pieces</span>
+          <span class="count">0</span>
+          <input type="number" id="b-training" min="0" value="0">
+          <button class="btn" onclick="build('training',50,'Training fields')">Build</button>
+        </div>
+        <div class="trow">
+          <span class="name">Colosseums</span><span class="desc">Entertainment &amp; population · 25 pieces</span>
+          <span class="count">3</span>
+          <input type="number" id="b-colosseum" min="0" value="0">
+          <button class="btn" onclick="build('colosseum',25,'Colosseums')">Build</button>
+        </div>
+        <div class="trow">
+          <span class="name">Castles</span><span class="desc">Food, economy, defences boost · 500 pieces</span>
+          <span class="count">4</span>
+          <input type="number" id="b-castle" min="0" value="0">
+          <button class="btn" onclick="build('castle',500,'Castles')">Build</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- OPTIONS -->
+    <div id="options" class="panel">
+      <div class="two-col">
+        <div class="card">
+          <div class="card-title">Tax rate</div>
+          <div class="option-row">
+            <span class="option-label">Current tax</span>
+            <input type="range" id="tax-slider" min="0" max="100" step="1" value="42" oninput="updateTax(this.value)" style="flex:1">
+            <span class="option-val" id="tax-disp">42%</span>
+          </div>
+          <div style="font-size:12px;color:var(--text3);line-height:1.7;margin-bottom:14px">
+            42% is the sweet spot — maximum gold without morale penalty.<br>
+            Above 50%: citizens will leave, harming your population.<br>
+            Below 30%: you earn almost nothing from taxation.
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn" onclick="setTax(42)">Set 42%</button>
+            <button class="btn" onclick="setTax(50)">Set 50%</button>
+            <button class="btn btn-red" onclick="setTax(0)">0% (crisis)</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Kingdom identity</div>
+          <div style="margin-bottom:14px">
+            <div style="font-size:12px;color:var(--text3);margin-bottom:6px">Kingdom name</div>
+            <div style="display:flex;gap:8px">
+              <input type="text" id="kname-inp" value="Ironveil" style="width:160px;font-size:14px;padding:7px 10px">
+              <button class="btn btn-purple" onclick="saveName()">Save</button>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:12px;color:var(--text3);margin-bottom:6px">Race <span style="color:var(--text3);font-style:italic">(permanent — chosen at registration)</span></div>
+            <div id="options-race-display" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--purple);padding:8px 10px;font-size:13px;font-weight:600;">—</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Vacation mode</div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.7">
+          While on vacation your kingdom cannot be attacked or targeted by spells, but you cannot take turns or interact with others.
+          Intended for planned real-world absences. This feature is currently restricted by the game admin due to prior abuse.
+        </div>
+        <button class="btn btn-red" onclick="toast('Vacation mode is currently disabled by admin','warn')">Request vacation mode</button>
+      </div>
+    </div>
+
+    <!-- NEWS -->
+    <div id="news" class="panel">
+      <div class="card">
+        <div class="card-title">Kingdom news — Turn 143</div>
+        <div class="news-item"><span class="time">Just now</span><span class="news-hl">Grumthar</span> launched a military attack on your kingdom — <span class="news-attack">repelled at the walls</span>. You lost 240 fighters defending.</div>
+        <div class="news-item"><span class="time">2 turns ago</span>Your rangers discovered <span class="news-good">+120 acres</span> of unclaimed land to the north-east.</div>
+        <div class="news-item"><span class="time">3 turns ago</span>Economy research increased to <span class="news-hl">740%</span>. Gold per turn is now 4,820 GC.</div>
+        <div class="news-item"><span class="time">5 turns ago</span>A <span class="news-magic">Rain spell</span> of unknown origin struck your city — minor flooding. Lost 12 farms and 3 barracks.</div>
+        <div class="news-item"><span class="time">7 turns ago</span>Alliance signal flare from <span class="news-hl">Sylvara</span> — you dispatched 3% of fighters to defend.</div>
+        <div class="news-item"><span class="time">9 turns ago</span>Your ninjas successfully assassinated 1,200 enemy fighters in <span class="news-hl">The Iron Wastes</span>.</div>
+        <div class="news-item"><span class="time">10 turns ago</span>Population grew to 124,500. Entertainment at 280% is supporting steady growth.</div>
+        <div class="news-item"><span class="time">12 turns ago</span>Treasury: <span class="news-hl">48,200 GC</span> earned · 18,400 GC in expenses · Net +29,800 GC this cycle.</div>
+      </div>
+    </div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- Battle report modal -->
+<div id="battle-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:center;justify-content:center;">
+  <div id="battle-modal" style="background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:28px 32px;max-width:480px;width:90%;position:relative;">
+    <div id="battle-content"></div>
+    <button class="btn" onclick="closeBattle()" style="margin-top:18px;width:100%;">Dismiss report</button>
+  </div>
+</div>
+
+<style>
+  /* ── Spell sliders ── */
+  .spell-slider-wrap { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+  .spell-slider-label { width:80px; font-size:12px; color:var(--text2); flex-shrink:0; }
+  .spell-slider-val { min-width:64px; text-align:right; font-size:13px; font-weight:600; color:var(--gold); }
+  .spell-card { background:var(--bg3); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px; margin-bottom:10px; cursor:pointer; transition:border-color .15s; }
+  .spell-card:hover { border-color:var(--purple); }
+  .spell-card.selected { border-color:var(--purple); background:rgba(124,106,245,.08); }
+  .spell-card .spell-name { font-size:14px; font-weight:600; color:var(--text); }
+  .spell-card .spell-desc { font-size:12px; color:var(--text3); margin-top:3px; }
+  .spell-card .spell-cost { font-size:12px; color:var(--gold); margin-top:4px; }
+  /* ── Target list ── */
+  .target-row { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); cursor:pointer; transition:background .1s; border-radius:var(--radius); padding:8px; }
+  .target-row:hover { background:var(--bg3); }
+  .target-row.selected { background:rgba(124,106,245,.1); }
+  .target-row .t-name { flex:1; font-size:13px; color:var(--text); font-weight:500; }
+  .target-row .t-rank { font-size:12px; color:var(--text3); min-width:40px; }
+  .target-row .t-race { font-size:11px; color:var(--text2); min-width:70px; }
+  .target-row .t-land { font-size:12px; color:var(--gold); min-width:60px; text-align:right; }
+  .target-row .t-status { font-size:11px; min-width:60px; text-align:right; }
+  /* ── Covert ── */
+  .covert-op { background:var(--bg3); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px; margin-bottom:10px; }
+  .covert-op .op-title { font-size:14px; font-weight:600; color:var(--text); margin-bottom:4px; }
+  .covert-op .op-desc { font-size:12px; color:var(--text3); margin-bottom:12px; line-height:1.6; }
+  .covert-op .op-row { display:flex; align-items:center; gap:10px; }
+  /* ── Alliance ── */
+  .ally-row { display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--border); }
+  .ally-row:last-child { border-bottom:none; }
+  .ally-row .a-name { flex:1; font-size:13px; font-weight:500; color:var(--text); }
+  .ally-row .a-race { font-size:12px; color:var(--text3); width:80px; }
+  .ally-row .a-rank { font-size:12px; color:var(--text2); width:40px; text-align:right; }
+  /* ── Battle report ── */
+  .br-title { font-size:17px; font-weight:700; margin-bottom:14px; }
+  .br-row { display:flex; justify-content:space-between; font-size:13px; padding:5px 0; border-bottom:1px solid var(--border); }
+  .br-row:last-of-type { border-bottom:none; }
+  .br-win { color:var(--green); font-weight:700; font-size:15px; margin-top:12px; }
+  .br-lose { color:var(--red); font-weight:700; font-size:15px; margin-top:12px; }
+  /* ── Spy report ── */
+  .spy-row { display:flex; justify-content:space-between; font-size:13px; padding:4px 0; border-bottom:1px solid var(--border); }
+  .spy-row:last-of-type { border-bottom:none; }
+</style>
+
+<!-- ═══════════════════════════════════════════ ATTACK PANEL ══ -->
+<div id="attack" class="panel" style="display:none">
+  <div style="display:grid;grid-template-columns:1fr 320px;gap:16px;align-items:start">
+    <div>
+      <div class="card">
+        <div class="card-title">Select target kingdom</div>
+        <div style="display:flex;gap:8px;margin-bottom:12px">
+          <input type="text" id="atk-search" placeholder="Search by name..." style="flex:1;width:auto" oninput="filterTargets(this.value)">
+          <button class="btn" onclick="refreshTargets()">Refresh list</button>
+        </div>
+        <div id="target-list" style="max-height:460px;overflow-y:auto">
+          <!-- populated by JS -->
+        </div>
+      </div>
+    </div>
+    <div style="position:sticky;top:0">
+      <div class="card" id="atk-panel">
+        <div class="card-title">Military attack</div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.7">
+          A successful attack captures <strong style="color:var(--gold)">10% of target's land</strong>. Send fighters and rangers. Clerics keep troops alive. Mages add firepower but don't defend.
+        </div>
+        <div style="background:var(--bg3);border-radius:var(--radius);padding:12px;margin-bottom:14px">
+          <div style="font-size:12px;color:var(--text3);margin-bottom:6px">Selected target</div>
+          <div id="atk-target-name" style="font-size:15px;font-weight:600;color:var(--text)">— none selected —</div>
+          <div id="atk-target-info" style="font-size:12px;color:var(--text2);margin-top:3px"></div>
+        </div>
+        <div class="trow" style="margin-bottom:10px">
+          <span class="name" style="font-size:13px">Fighters to send</span>
+          <input type="number" id="atk-fighters" min="0" max="12400" value="5000" style="width:90px">
+        </div>
+        <div class="trow" style="margin-bottom:10px">
+          <span class="name" style="font-size:13px">Mages to send</span>
+          <input type="number" id="atk-mages" min="0" max="2100" value="500" style="width:90px">
+        </div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:14px">
+          You have <span style="color:var(--text)" id="atk-avail">12,400</span> fighters · <span id="atk-mages-avail" style="color:var(--text)">2,100</span> mages available
+        </div>
+        <button class="btn btn-red" style="width:100%;font-size:14px;padding:10px" onclick="launchAttack()">Launch military attack</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Search for targets</div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.6">Send rangers to scout the realm for new targets to attack or ally with.</div>
+        <div class="trow" style="margin-bottom:12px">
+          <span class="name" style="font-size:13px">Rangers to send</span>
+          <input type="number" id="search-rangers" min="0" max="3200" value="500" style="width:90px">
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn" style="flex:1" onclick="searchAction('land')">Search for land</button>
+          <button class="btn" style="flex:1" onclick="searchAction('gold')">Search for gold</button>
+          <button class="btn" style="flex:1" onclick="searchAction('targets')">Scout targets</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ SPELLS PANEL ══ -->
+<div id="spells" class="panel" style="display:none">
+  <div style="display:grid;grid-template-columns:1fr 340px;gap:16px;align-items:start">
+    <div>
+      <div class="card">
+        <div class="card-title">Spellbook — Mana: <span id="spell-mana-disp">22,400</span> · Spellbook: <span id="spell-sb-disp">6,100</span></div>
+        <div id="spell-list" style="max-height:460px;overflow-y:auto">
+          <!-- populated by JS -->
+        </div>
+      </div>
+    </div>
+    <div style="position:sticky;top:0">
+      <div class="card">
+        <div class="card-title">Cast spell</div>
+        <div style="background:var(--bg3);border-radius:var(--radius);padding:12px;margin-bottom:14px">
+          <div style="font-size:12px;color:var(--text3);margin-bottom:4px">Selected spell</div>
+          <div id="cast-spell-name" style="font-size:15px;font-weight:600;color:var(--purple)">— none selected —</div>
+          <div id="cast-spell-desc" style="font-size:12px;color:var(--text2);margin-top:3px"></div>
+        </div>
+        <div style="background:var(--bg3);border-radius:var(--radius);padding:12px;margin-bottom:14px">
+          <div style="font-size:12px;color:var(--text3);margin-bottom:4px">Target kingdom</div>
+          <div id="cast-target-name" style="font-size:14px;font-weight:600;color:var(--text)">— none selected —</div>
+        </div>
+
+        <div class="spell-slider-wrap">
+          <span class="spell-slider-label">Power</span>
+          <input type="range" id="sl-power" min="100" max="200000" step="100" value="10000" oninput="updateSpellCalc()">
+          <span class="spell-slider-val" id="sl-power-val">10,000</span>
+        </div>
+        <div class="spell-slider-wrap">
+          <span class="spell-slider-label">Duration</span>
+          <input type="range" id="sl-duration" min="1" max="10" step="1" value="1" oninput="updateSpellCalc()">
+          <span class="spell-slider-val" id="sl-duration-val">1 turn</span>
+        </div>
+        <div class="spell-slider-wrap">
+          <span class="spell-slider-label">Obscure</span>
+          <input type="range" id="sl-obscure" min="0" max="1" step="1" value="0" oninput="updateSpellCalc()">
+          <span class="spell-slider-val" id="sl-obscure-val">Off</span>
+        </div>
+
+        <div style="background:var(--bg4);border-radius:var(--radius);padding:10px 12px;margin:12px 0;font-size:13px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:var(--text3)">Spell power/turn</span><span id="calc-power-turn" style="color:var(--text)">10,000</span></div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:var(--text3)">Obscure mana</span><span id="calc-obscure" style="color:var(--text)">0</span></div>
+          <div style="display:flex;justify-content:space-between;font-weight:600"><span style="color:var(--text2)">Total mana cost</span><span id="calc-total" style="color:var(--gold)">10,000</span></div>
+        </div>
+
+        <div style="font-size:12px;color:var(--text3);margin-bottom:12px">Obscure cost = 50% of power. Obscured spells appear as random events to the target.</div>
+
+        <button class="btn btn-purple" style="width:100%;font-size:14px;padding:10px" onclick="castSpell()">Cast spell</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ COVERT PANEL ══ -->
+<div id="covert" class="panel" style="display:none">
+  <div style="display:grid;grid-template-columns:1fr 320px;gap:16px;align-items:start">
+    <div>
+      <div class="card">
+        <div class="card-title">Select covert target</div>
+        <div style="display:flex;gap:8px;margin-bottom:12px">
+          <input type="text" id="cov-search" placeholder="Search by name..." style="flex:1;width:auto" oninput="filterCovertTargets(this.value)">
+        </div>
+        <div id="covert-target-list" style="max-height:460px;overflow-y:auto"></div>
+      </div>
+    </div>
+    <div style="position:sticky;top:0">
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:12px">
+        <div style="font-size:12px;color:var(--text3);margin-bottom:4px">Target</div>
+        <div id="cov-target-name" style="font-size:15px;font-weight:600;color:var(--text)">— none selected —</div>
+        <div id="cov-target-info" style="font-size:12px;color:var(--text2);margin-top:3px"></div>
+      </div>
+
+      <div class="covert-op">
+        <div class="op-title">Spy</div>
+        <div class="op-desc">Sends thieves and ninjas to gather intelligence on the target kingdom. Report accuracy depends on unit experience. Requires: Thieves + Ninjas.</div>
+        <div class="op-row">
+          <span style="font-size:12px;color:var(--text2);flex:1">Thieves: <strong style="color:var(--text)" id="spy-thieves-avail">900</strong></span>
+          <input type="number" id="spy-units" min="0" value="200" style="width:80px">
+          <button class="btn" onclick="covertOp('spy')">Spy</button>
+        </div>
+      </div>
+
+      <div class="covert-op">
+        <div class="op-title">Loot</div>
+        <div class="op-desc">Steal research, gold, weapons or war machines. A successful first hit lets you loot up to 10 times. Requires: Thieves.</div>
+        <div class="op-row">
+          <select id="loot-target-type" style="flex:1;background:var(--bg4);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);padding:6px 8px;font-size:12px">
+            <option value="research">Research</option>
+            <option value="gold">Gold</option>
+            <option value="weapons">Weapons</option>
+            <option value="wm">War machines</option>
+          </select>
+          <input type="number" id="loot-thieves" min="0" value="300" style="width:80px">
+          <button class="btn btn-amber" onclick="covertOp('loot')">Loot</button>
+        </div>
+      </div>
+
+      <div class="covert-op">
+        <div class="op-title">Assassinate</div>
+        <div class="op-desc">Silently eliminate enemy unit types. Removing engineers disables their war machines. Removing fighters opens the city to attack. Requires: Ninjas.</div>
+        <div class="op-row">
+          <select id="assn-target-type" style="flex:1;background:var(--bg4);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);padding:6px 8px;font-size:12px">
+            <option value="fighters">Fighters</option>
+            <option value="engineers">Engineers</option>
+            <option value="researchers">Researchers</option>
+            <option value="thieves">Thieves</option>
+            <option value="mages">Mages</option>
+          </select>
+          <input type="number" id="assn-ninjas" min="0" value="150" style="width:80px">
+          <button class="btn btn-red" onclick="covertOp('assassinate')">Assassinate</button>
+        </div>
+      </div>
+
+      <div class="covert-op">
+        <div class="op-title">Sabotage</div>
+        <div class="op-desc">Destroy buildings — farms, smithies, cathedrals. Highly effective before a large military attack. Requires: Ninjas.</div>
+        <div class="op-row">
+          <select id="sab-target-type" style="flex:1;background:var(--bg4);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);padding:6px 8px;font-size:12px">
+            <option value="farms">Farms</option>
+            <option value="smithies">Smithies</option>
+            <option value="cathedrals">Cathedrals</option>
+            <option value="barracks">Barracks</option>
+          </select>
+          <input type="number" id="sab-ninjas" min="0" value="100" style="width:80px">
+          <button class="btn btn-red" onclick="covertOp('sabotage')">Sabotage</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ ALLIANCES PANEL ══ -->
+<div id="alliances" class="panel" style="display:none">
+  <div style="display:grid;grid-template-columns:1fr 300px;gap:16px;align-items:start">
+    <div>
+      <div class="card">
+        <div class="card-title">Your alliance — <span style="color:var(--purple)">The Silver Veil</span></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+          <div style="font-size:13px;color:var(--text2)">6 members · Combined land: <span style="color:var(--gold)">14,820 acres</span></div>
+          <div style="display:flex;gap:8px">
+            <span class="badge badge-green">Active</span>
+            <button class="btn btn-red" onclick="toast('Left alliance — you are now kingdomless','warn')">Leave</button>
+          </div>
+        </div>
+        <div id="ally-list">
+          <!-- populated by JS -->
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Alliance message board</div>
+        <div id="alliance-chat" style="height:160px;overflow-y:auto;margin-bottom:10px;font-size:13px;display:flex;flex-direction:column;gap:6px"></div>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="ally-msg" placeholder="Message allies..." style="flex:1;width:auto;padding:7px 10px">
+          <button class="btn btn-purple" onclick="sendAllyMsg()">Send</button>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <div class="card-title">Pledge level</div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.7">
+          When an ally is attacked, this % of your troops auto-deploy to their defence. If all 6 members are hit simultaneously, this multiplies.
+        </div>
+        <div class="spell-slider-wrap">
+          <span class="spell-slider-label">Pledge</span>
+          <input type="range" id="pledge-slider" min="1" max="10" step="1" value="3" oninput="updatePledge(this.value)">
+          <span class="spell-slider-val" id="pledge-val">3%</span>
+        </div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:12px">At 3%: up to 37,200 fighters could deploy if all allies are hit at once.</div>
+        <button class="btn btn-purple" onclick="toast('Pledge updated to ' + document.getElementById(\'pledge-slider\').value + \'%\', \'success\')">Save pledge</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Invite / dismiss members</div>
+        <div style="margin-bottom:12px">
+          <div style="font-size:12px;color:var(--text3);margin-bottom:6px">Invite by kingdom name</div>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="invite-name" placeholder="Kingdom name..." style="flex:1;width:auto">
+            <button class="btn btn-purple" onclick="inviteAlly()">Invite</button>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:12px;color:var(--text3);margin-bottom:6px">Dismiss member</div>
+          <div style="display:flex;gap:8px">
+            <select id="dismiss-sel" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);padding:6px 8px;font-size:12px">
+              <option>Sylvara</option>
+              <option>Thornwall</option>
+              <option>Grumthar</option>
+              <option>Miravel</option>
+              <option>Darkveil</option>
+            </select>
+            <button class="btn btn-red" onclick="dismissAlly()">Dismiss</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Found new alliance</div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:12px">Leave your current alliance and start a new one.</div>
+        <input type="text" id="new-ally-name" placeholder="Alliance name..." style="width:100%;margin-bottom:8px;text-align:left;padding:7px 10px">
+        <button class="btn" style="width:100%" onclick="foundAlliance()">Found alliance</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+  </main>
+</div>
+
+<script>
+/* ── Core state (defined first so all functions below can access it) ── */
+var state = {
+  gold: 48200, pop: 124500, land: 1840, morale: 87, tax: 42, turn: 143, mana: 22400,
+  fighters:12400, rangers:3200, clerics:1800, mages:2100,
+  thieves:900, ninjas:420, researchers:8000, engineers:2200
+};
+
+function fmt(n) { return Math.round(n).toLocaleString(); }
+
+/* ── Shared data ── */
+var targets = [
+  { id:1, name:'Grumthar',    race:'Orc',       rank:31,  land:2140, fighters:18200, mages:800,  status:'online' },
+  { id:2, name:'Miravel',     race:'High Elf',  rank:44,  land:1720, fighters:9800,  mages:3200, status:'offline' },
+  { id:3, name:'Thornwall',   race:'Dwarf',     rank:52,  land:1580, fighters:14000, mages:200,  status:'offline' },
+  { id:4, name:'Shadowmere',  race:'Dark Elf',  rank:63,  land:1490, fighters:7200,  mages:1800, status:'online' },
+  { id:5, name:'Bladeholm',   race:'Human',     rank:71,  land:1350, fighters:11000, mages:900,  status:'offline' },
+  { id:6, name:'Darkveil',    race:'Dark Elf',  rank:88,  land:1200, fighters:6500,  mages:2100, status:'online' },
+  { id:7, name:'Ironmantle',  race:'Dwarf',     rank:102, land:1100, fighters:12800, mages:300,  status:'offline' },
+  { id:8, name:'Wolfspire',   race:'Dire Wolf', rank:115, land:980,  fighters:22000, mages:0,    status:'online' },
+];
+
+var allies = [
+  { name:'Sylvara',   race:'High Elf',  rank:38,  pledge:5, land:2200 },
+  { name:'Thornwall', race:'Dwarf',     rank:52,  pledge:3, land:1580 },
+  { name:'Miravel',   race:'High Elf',  rank:44,  pledge:3, land:1720 },
+  { name:'Grumthar',  race:'Orc',       rank:31,  pledge:2, land:2140 },
+  { name:'Darkveil',  race:'Dark Elf',  rank:88,  pledge:1, land:1200 },
+];
+
+var spells = [
+  { id:'fire',     name:'Fire',      desc:'Sets the target city ablaze. Each turn the fire burns, buildings are destroyed.',       minSB:200,   manaPer:1 },
+  { id:'rain',     name:'Rain',      desc:'Douses fires on allies. Overcast floods enemy cities, destroying buildings.',           minSB:300,   manaPer:1 },
+  { id:'lightning',name:'Lightning', desc:'Strikes military units and buildings with bolts of electricity.',                       minSB:500,   manaPer:1 },
+  { id:'amnesia',  name:'Amnesia',   desc:'Wipes a portion of the target\'s research. Catastrophic when high-powered.',            minSB:800,   manaPer:1 },
+  { id:'plague',   name:'Plague',    desc:'Kills population and reduces troop morale over multiple turns.',                        minSB:1000,  manaPer:1 },
+  { id:'dispel',   name:'Dispel',    desc:'Removes active spells from a friendly kingdom. Precision-target with the power slider.',minSB:400,   manaPer:1 },
+  { id:'bless',    name:'Bless',     desc:'Boosts allied morale and increases population growth rate for duration turns.',         minSB:600,   manaPer:1 },
+  { id:'earthquake',name:'Earthquake',desc:'Levels buildings and crumbles castle walls. High power flattens entire districts.',    minSB:1200,  manaPer:1 },
+  { id:'shield',   name:'Magic shield',desc:'Erects a temporary spell barrier. Enemy spells are reflected back at the caster.',   minSB:1500,  manaPer:1 },
+];
+
+var selectedTarget = null;
+var selectedCovertTarget = null;
+var selectedSpell = null;
+var allyMessages = [
+  { from:'Sylvara', text:'Watch out — Wolfspire has been scouting our borders.' },
+  { from:'Thornwall', text:'I can provide 5% pledge backup if you need it.' },
+  { from:'Miravel', text:'Just repelled an attack from Shadowmere. Thank you for the flare response!' },
+];
+
+/* ── Target list renderer ── */
+function renderTargets(list, containerId, selectFn) {
+  var el = document.getElementById(containerId);
+  if (!list.length) { el.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:8px">No targets found.</div>'; return; }
+  el.innerHTML = list.map(function(t) {
+    var statusColor = t.status === 'online' ? 'var(--green)' : 'var(--text3)';
+    return '<div class="target-row" id="tr-' + containerId + '-' + t.id + '" onclick="' + selectFn + '(' + t.id + ',\'' + containerId + '\')">'
+      + '<span class="t-rank">#' + t.rank + '</span>'
+      + '<span class="t-name">' + t.name + '</span>'
+      + '<span class="t-race">' + t.race + '</span>'
+      + '<span class="t-land">' + fmt(t.land) + ' ac</span>'
+      + '<span class="t-status" style="color:' + statusColor + '">' + t.status + '</span>'
+      + '</div>';
+  }).join('');
+}
+
+function filterTargets(q) {
+  var filtered = targets.filter(function(t){ return t.name.toLowerCase().includes(q.toLowerCase()); });
+  renderTargets(filtered, 'target-list', 'selectTarget');
+}
+
+function filterCovertTargets(q) {
+  var filtered = targets.filter(function(t){ return t.name.toLowerCase().includes(q.toLowerCase()); });
+  renderTargets(filtered, 'covert-target-list', 'selectCovertTarget');
+}
+
+function refreshTargets() {
+  renderTargets(targets, 'target-list', 'selectTarget');
+  toast('Target list refreshed — ' + targets.length + ' kingdoms located', 'success');
+}
+
+function selectTarget(id, containerId) {
+  selectedTarget = targets.find(function(t){ return t.id === id; });
+  document.querySelectorAll('#target-list .target-row').forEach(function(r){ r.classList.remove('selected'); });
+  var el = document.getElementById('tr-' + containerId + '-' + id);
+  if (el) el.classList.add('selected');
+  document.getElementById('atk-target-name').textContent = selectedTarget.name;
+  document.getElementById('atk-target-info').textContent = selectedTarget.race + ' · Rank #' + selectedTarget.rank + ' · ' + fmt(selectedTarget.land) + ' acres · ' + fmt(selectedTarget.fighters) + ' fighters';
+  // also set as spell/covert target
+  document.getElementById('cast-target-name').textContent = selectedTarget.name;
+}
+
+function selectCovertTarget(id, containerId) {
+  selectedCovertTarget = targets.find(function(t){ return t.id === id; });
+  document.querySelectorAll('#covert-target-list .target-row').forEach(function(r){ r.classList.remove('selected'); });
+  var el = document.getElementById('tr-' + containerId + '-' + id);
+  if (el) el.classList.add('selected');
+  document.getElementById('cov-target-name').textContent = selectedCovertTarget.name;
+  document.getElementById('cov-target-info').textContent = selectedCovertTarget.race + ' · Rank #' + selectedCovertTarget.rank + ' · ' + fmt(selectedCovertTarget.fighters) + ' fighters · ' + fmt(selectedCovertTarget.land) + ' acres';
+}
+
+/* ── Attack ── */
+function launchAttack() {
+  if (!selectedTarget) return toast('Select a target kingdom first', 'error');
+  var f = parseInt(document.getElementById('atk-fighters').value) || 0;
+  var m = parseInt(document.getElementById('atk-mages').value) || 0;
+  if (f <= 0) return toast('Send at least some fighters', 'error');
+  if (f > state.fighters) return toast('Not enough fighters', 'error');
+  if (m > state.mages) return toast('Not enough mages', 'error');
+
+  var t = selectedTarget;
+  var myPower = (f * (1 + state.tax * 0.001)) + (m * 2.5);
+  var theirPower = t.fighters * 1.1;
+  var win = myPower > theirPower * (0.6 + Math.random() * 0.8);
+
+  var fLost = win ? Math.floor(f * (0.05 + Math.random() * 0.12)) : Math.floor(f * (0.25 + Math.random() * 0.3));
+  var mLost = win ? Math.floor(m * 0.04) : Math.floor(m * 0.1);
+  var landGained = win ? Math.floor(t.land * 0.1) : 0;
+
+  state.fighters -= fLost;
+  state.mages -= mLost;
+  if (win) { state.land += landGained; t.land -= landGained; }
+  syncUI();
+
+  showBattleReport({
+    type: 'Military attack',
+    target: t.name,
+    win: win,
+    rows: [
+      ['Your fighters sent', fmt(f)],
+      ['Your mages sent', fmt(m)],
+      ['Enemy fighters', fmt(t.fighters)],
+      ['Your fighters lost', fmt(fLost)],
+      ['Your mages lost', fmt(mLost)],
+      ['Land ' + (win ? 'captured' : 'lost'), win ? '+' + fmt(landGained) + ' acres' : '0 acres'],
+    ]
+  });
+}
+
+function searchAction(type) {
+  var r = parseInt(document.getElementById('search-rangers').value) || 0;
+  if (r <= 0) return toast('Assign some rangers first', 'error');
+  if (r > state.rangers) return toast('Not enough rangers', 'error');
+  var results = { land: Math.floor(r * 0.04), gold: Math.floor(r * 12), targets: Math.floor(r * 0.002) + 2 };
+  var msgs = {
+    land: 'Rangers found +' + fmt(results.land) + ' acres of unclaimed land',
+    gold: 'Rangers returned with ' + fmt(results.gold) + ' GC from foraging',
+    targets: 'Rangers scouted ' + results.targets + ' new target kingdoms'
+  };
+  if (type === 'land') state.land += results.land;
+  if (type === 'gold') state.gold += results.gold;
+  syncUI();
+  toast(msgs[type], 'success');
+}
+
+/* ── Spells ── */
+function renderSpells() {
+  var el = document.getElementById('spell-list');
+  el.innerHTML = spells.map(function(s) {
+    var canCast = 6100 >= s.minSB;
+    return '<div class="spell-card ' + (!canCast ? 'locked' : '') + '" id="sc-' + s.id + '" onclick="selectSpell(\'' + s.id + '\')" style="' + (!canCast ? 'opacity:.4;cursor:not-allowed' : '') + '">'
+      + '<div class="spell-name">' + s.name + (canCast ? '' : ' <span style="font-size:11px;color:var(--text3)">[SB ' + s.minSB + ' required]</span>') + '</div>'
+      + '<div class="spell-desc">' + s.desc + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+function selectSpell(id) {
+  selectedSpell = spells.find(function(s){ return s.id === id; });
+  document.querySelectorAll('.spell-card').forEach(function(c){ c.classList.remove('selected'); });
+  var el = document.getElementById('sc-' + id);
+  if (el) el.classList.add('selected');
+  document.getElementById('cast-spell-name').textContent = selectedSpell.name;
+  document.getElementById('cast-spell-desc').textContent = selectedSpell.desc;
+  updateSpellCalc();
+}
+
+function updateSpellCalc() {
+  var power = parseInt(document.getElementById('sl-power').value);
+  var duration = parseInt(document.getElementById('sl-duration').value);
+  var obscure = parseInt(document.getElementById('sl-obscure').value);
+  var obscureMana = obscure ? Math.floor(power * 0.5) : 0;
+  var total = power + obscureMana;
+
+  document.getElementById('sl-power-val').textContent = fmt(power);
+  document.getElementById('sl-duration-val').textContent = duration + (duration === 1 ? ' turn' : ' turns');
+  document.getElementById('sl-obscure-val').textContent = obscure ? 'On' : 'Off';
+  document.getElementById('calc-power-turn').textContent = fmt(Math.floor(power / duration));
+  document.getElementById('calc-obscure').textContent = fmt(obscureMana);
+  document.getElementById('calc-total').textContent = fmt(total);
+}
+
+function castSpell() {
+  if (!selectedSpell) return toast('Select a spell first', 'error');
+  if (!selectedTarget && document.getElementById('cast-target-name').textContent === '— none selected —') return toast('Select a target kingdom first', 'error');
+  var total = parseInt(document.getElementById('calc-total').textContent.replace(/,/g, ''));
+  if (total > state.mana) return toast('Not enough mana — need ' + fmt(total), 'error');
+  state.mana -= total;
+  syncUI();
+  document.getElementById('top-mana').textContent = fmt(state.mana);
+  document.getElementById('spell-mana-disp').textContent = fmt(state.mana);
+  var targetName = document.getElementById('cast-target-name').textContent;
+  var dur = parseInt(document.getElementById('sl-duration-val').textContent);
+  var obscure = parseInt(document.getElementById('sl-obscure').value);
+  toast((obscure ? 'Obscured ' : '') + selectedSpell.name + ' cast on ' + targetName + ' — ' + fmt(total) + ' mana consumed', 'success');
+}
+
+/* ── Covert ── */
+function covertOp(op) {
+  if (!selectedCovertTarget) return toast('Select a target kingdom first', 'error');
+  var t = selectedCovertTarget;
+
+  if (op === 'spy') {
+    var units = parseInt(document.getElementById('spy-units').value) || 0;
+    if (units <= 0) return toast('Send some thieves and ninjas', 'error');
+    var success = (state.thieves + state.ninjas) > (t.fighters * 0.03);
+    if (success) {
+      showSpyReport(t);
+    } else {
+      toast('Spy mission failed — ' + Math.floor(units * 0.3) + ' thieves captured and revealed your location', 'error');
+    }
+  } else if (op === 'loot') {
+    var thieves = parseInt(document.getElementById('loot-thieves').value) || 0;
+    var lootType = document.getElementById('loot-target-type').value;
+    if (thieves <= 0) return toast('Assign thieves to loot', 'error');
+    if (thieves > state.thieves) return toast('Not enough thieves', 'error');
+    var lootSuccess = state.thieves > t.fighters * 0.02;
+    if (lootSuccess) {
+      var amounts = { research: '340 research points', gold: fmt(Math.floor(thieves * 80)) + ' GC', weapons: fmt(Math.floor(thieves * 0.3)) + ' weapons', wm: Math.floor(thieves * 0.02) + ' war machines' };
+      toast('Looted ' + amounts[lootType] + ' from ' + t.name + '!', 'success');
+      if (lootType === 'gold') { state.gold += thieves * 80; syncUI(); }
+    } else {
+      toast('Loot failed — thieves caught. ' + t.name + ' now knows your location.', 'error');
+    }
+  } else if (op === 'assassinate') {
+    var ninjas = parseInt(document.getElementById('assn-ninjas').value) || 0;
+    var unitType = document.getElementById('assn-target-type').value;
+    if (ninjas <= 0) return toast('Assign ninjas to assassinate', 'error');
+    if (ninjas > state.ninjas) return toast('Not enough ninjas', 'error');
+    var assSuccess = state.ninjas > t.fighters * 0.01;
+    if (assSuccess) {
+      var killed = Math.floor(ninjas * (12 + Math.random() * 8));
+      toast('Assassinated ' + fmt(killed) + ' ' + unitType + ' in ' + t.name + ' — silently done.', 'success');
+    } else {
+      toast('Assassination failed — ninjas compromised.', 'error');
+    }
+  } else if (op === 'sabotage') {
+    var sninja = parseInt(document.getElementById('sab-ninjas').value) || 0;
+    var bldType = document.getElementById('sab-target-type').value;
+    if (sninja <= 0) return toast('Assign ninjas to sabotage', 'error');
+    if (sninja > state.ninjas) return toast('Not enough ninjas', 'error');
+    var destroyed = Math.floor(sninja * (4 + Math.random() * 4));
+    toast('Sabotaged ' + destroyed + ' ' + bldType + ' in ' + t.name, 'success');
+  }
+}
+
+/* ── Battle report modal ── */
+function showBattleReport(data) {
+  var html = '<div class="br-title" style="color:' + (data.win ? 'var(--green)' : 'var(--red)') + '">'
+    + data.type + ' vs ' + data.target + '</div>';
+  html += data.rows.map(function(r){ return '<div class="br-row"><span style="color:var(--text2)">' + r[0] + '</span><span style="color:var(--text);font-weight:600">' + r[1] + '</span></div>'; }).join('');
+  html += '<div class="' + (data.win ? 'br-win' : 'br-lose') + '">' + (data.win ? 'Victory — land captured!' : 'Repelled — no land taken.') + '</div>';
+  document.getElementById('battle-content').innerHTML = html;
+  document.getElementById('battle-overlay').style.display = 'flex';
+}
+
+function showSpyReport(t) {
+  var noise = function(n){ return Math.floor(n * (0.85 + Math.random() * 0.3)); };
+  var html = '<div class="br-title" style="color:var(--blue)">Spy report — ' + t.name + '</div>';
+  var rows = [
+    ['Race', t.race], ['Rank', '#' + t.rank], ['Land', fmt(noise(t.land)) + ' acres (approx)'],
+    ['Fighters', fmt(noise(t.fighters))], ['Mages', fmt(noise(t.mages || 0))],
+    ['Accuracy', 'Moderate — ±15%']
+  ];
+  html += rows.map(function(r){ return '<div class="spy-row"><span style="color:var(--text2)">' + r[0] + '</span><span style="color:var(--text)">' + r[1] + '</span></div>'; }).join('');
+  html += '<div style="font-size:12px;color:var(--text3);margin-top:10px">Report is never fully accurate. Check again for confirmation.</div>';
+  document.getElementById('battle-content').innerHTML = html;
+  document.getElementById('battle-overlay').style.display = 'flex';
+}
+
+function closeBattle() {
+  document.getElementById('battle-overlay').style.display = 'none';
+}
+
+/* ── Alliance ── */
+function renderAllies() {
+  var el = document.getElementById('ally-list');
+  el.innerHTML = allies.map(function(a){
+    return '<div class="ally-row">'
+      + '<span class="a-name">' + a.name + '</span>'
+      + '<span class="a-race">' + a.race + '</span>'
+      + '<span style="font-size:12px;color:var(--gold);width:60px;text-align:right">' + fmt(a.land) + ' ac</span>'
+      + '<span style="font-size:12px;color:var(--text3);width:60px;text-align:right">Pledge ' + a.pledge + '%</span>'
+      + '<span class="a-rank">#' + a.rank + '</span>'
+      + '</div>';
+  }).join('');
+}
+
+function renderAllyChat() {
+  var el = document.getElementById('alliance-chat');
+  el.innerHTML = allyMessages.map(function(m){
+    return '<div style="font-size:13px"><span style="color:var(--purple);font-weight:600">' + m.from + '</span>: <span style="color:var(--text2)">' + m.text + '</span></div>';
+  }).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+function sendAllyMsg() {
+  var inp = document.getElementById('ally-msg');
+  var msg = inp.value.trim();
+  if (!msg) return;
+  allyMessages.push({ from: document.getElementById('kingdom-name').textContent, text: msg });
+  inp.value = '';
+  renderAllyChat();
+}
+
+function updatePledge(v) {
+  document.getElementById('pledge-val').textContent = v + '%';
+  var total = Math.floor(state.fighters * (v / 100) * allies.length);
+  document.querySelector('#alliances .card:nth-child(1) .card-title + div + div + div').textContent = 'At ' + v + '%: up to ' + fmt(total) + ' fighters could deploy if all allies are hit at once.';
+}
+
+function inviteAlly() {
+  var name = document.getElementById('invite-name').value.trim();
+  if (!name) return toast('Enter a kingdom name', 'error');
+  toast('Invitation sent to ' + name, 'success');
+  document.getElementById('invite-name').value = '';
+}
+
+function dismissAlly() {
+  var sel = document.getElementById('dismiss-sel');
+  var name = sel.options[sel.selectedIndex].text;
+  toast('Dismissed ' + name + ' from the alliance', 'warn');
+}
+
+function foundAlliance() {
+  var name = document.getElementById('new-ally-name').value.trim();
+  if (!name) return toast('Enter an alliance name', 'error');
+  toast('Founded new alliance: ' + name, 'success');
+  document.querySelector('.card-title span[style*="purple"]').textContent = name;
+}
+
+/* ── Init ── */
+renderTargets(targets, 'target-list', 'selectTarget');
+renderTargets(targets, 'covert-target-list', 'selectCovertTarget');
+renderSpells();
+renderAllies();
+renderAllyChat();
+updateSpellCalc();
+
+var toastTimer;
+function toast(msg, type) {
+  var el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = type || '';
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ el.classList.remove('show'); }, 2400);
+}
+
+function switchTab(id, btn) {
+  document.querySelectorAll('.panel').forEach(function(p){
+    p.classList.remove('active');
+    p.style.display = 'none';
+  });
+  document.querySelectorAll('.nav-item').forEach(function(b){ b.classList.remove('active'); });
+  var panel = document.getElementById(id);
+  panel.classList.add('active');
+  panel.style.display = 'block';
+  btn.classList.add('active');
+  if (id === 'news') {
+    var nb = document.getElementById('news-badge');
+    if (nb) nb.remove();
+  }
+}
+
+function hire(unit) {
+  var n = parseInt(document.getElementById('hire-' + unit).value) || 0;
+  if (n <= 0) return toast('Enter an amount to hire', 'error');
+  var total = n * 250;
+  if (total > state.gold) return toast('Not enough gold — need ' + fmt(total) + ' GC', 'error');
+  if (n > state.pop) return toast('Not enough population available', 'error');
+  state.gold -= total;
+  state.pop -= n;
+  state[unit] = (state[unit] || 0) + n;
+  syncUI();
+  document.getElementById('hire-' + unit).value = 0;
+  document.getElementById('h-' + unit).textContent = fmt(state[unit]);
+  toast('Hired ' + fmt(n) + ' ' + unit + ' for ' + fmt(total) + ' GC', 'success');
+}
+
+function study(name) {
+  var keys = {Economy:'r-eco',Weapons:'r-wep',Armor:'r-arm','Military tactics':'r-mil',Spellbook:'r-spell','Attack magic':'r-atk','Defense magic':'r-def',Entertainment:'r-ent','Construction skills':'r-con','War machines':'r-wm'};
+  var id = keys[name];
+  var n = parseInt(document.getElementById(id).value) || 0;
+  if (n <= 0) return toast('Enter a number of researchers to assign', 'error');
+  if (n > state.researchers) return toast('Only ' + fmt(state.researchers) + ' researchers available', 'error');
+  toast('Assigned ' + fmt(n) + ' researchers to ' + name, 'success');
+}
+
+function build(key, piecesPerUnit, label) {
+  var n = parseInt(document.getElementById('b-' + key).value) || 0;
+  if (n <= 0) return toast('Enter a quantity to build', 'error');
+  var pieces = n * piecesPerUnit;
+  toast('Building ' + fmt(n) + ' ' + label + ' (' + fmt(pieces) + ' engineer-turns)...', 'success');
+  document.getElementById('b-' + key).value = 0;
+}
+
+function updateTax(v) {
+  v = parseInt(v);
+  state.tax = v;
+  document.getElementById('tax-disp').textContent = v + '%';
+  document.getElementById('m-tax').textContent = v + '%';
+  var rate = Math.round(state.land * v * 0.12);
+  document.getElementById('m-gold-sub').textContent = '+' + fmt(rate) + ' GC/turn';
+}
+
+function setTax(v) {
+  document.getElementById('tax-slider').value = v;
+  updateTax(v);
+  toast('Tax rate set to ' + v + '%', v > 50 ? 'warn' : 'success');
+}
+
+function saveName() {
+  var n = document.getElementById('kname-inp').value.trim();
+  if (!n) return;
+  document.getElementById('kingdom-name').textContent = n;
+  toast('Kingdom renamed to ' + n, 'success');
+}
+
+function takeTurn() {
+  state.turn++;
+  var income = Math.round(state.land * state.tax * 0.12);
+  state.gold += income;
+  state.pop += 310;
+  state.land += Math.floor(Math.random() * 6);
+  state.mana += 400;
+  syncUI();
+  document.getElementById('turn-num').textContent = state.turn;
+  toast('Turn ' + state.turn + ' complete — +' + fmt(income) + ' GC earned', 'success');
+}
+
+function syncUI() {
+  document.getElementById('m-gold').textContent = fmt(state.gold);
+  document.getElementById('m-pop').textContent = fmt(state.pop);
+  document.getElementById('m-land').textContent = fmt(state.land);
+  document.getElementById('top-gold').textContent = fmt(state.gold) + ' GC';
+  document.getElementById('top-mana').textContent = fmt(state.mana);
+  document.getElementById('hire-pop').textContent = fmt(state.pop);
+  document.getElementById('build-eng').textContent = fmt(state.engineers);
+  // sync status panel unit counts
+  ['fighters','rangers','clerics','mages','thieves','ninjas','researchers','engineers'].forEach(function(u){
+    var el = document.getElementById('s-' + u);
+    if (el) el.textContent = fmt(state[u]||0);
+  });
+}
+
+// Regen countdown — syncs to server's 15-min cycle
+var regenSecs = 15 * 60;
+setInterval(function() {
+  regenSecs--;
+  if (regenSecs < 0) {
+    regenSecs = 15 * 60;
+    // Optimistically add 5 turns client-side (server does the real update)
+    if (typeof state.turns_stored !== 'undefined') {
+      state.turns_stored = Math.min(200, (state.turns_stored || 0) + 5);
+      updateTurnsDisplay();
+    }
+  }
+  var m = Math.floor(regenSecs / 60), s = regenSecs % 60;
+  var el = document.getElementById('regen-countdown');
+  if (el) el.textContent = m + ':' + (s < 10 ? '0' : '') + s;
+}, 1000);
+
+function updateTurnsDisplay() {
+  var el = document.getElementById('turns-stored-disp');
+  if (el) el.textContent = state.turns_stored || 0;
+  var btn = document.querySelector('.turn-btn');
+  if (btn) btn.style.opacity = (state.turns_stored > 0) ? '1' : '0.4';
+}
+</script>
+
+<nav class="bottom-nav" id="bottom-nav">
+  <button class="bnav-item active" onclick="switchTabMobile('status',this)"><span class="bicon">&#9632;</span>Status</button>
+  <button class="bnav-item" onclick="switchTabMobile('hire',this)"><span class="bicon">&#9651;</span>Hire</button>
+  <button class="bnav-item" onclick="switchTabMobile('research',this)"><span class="bicon">&#9670;</span>Study</button>
+  <button class="bnav-item" onclick="switchTabMobile('build',this)"><span class="bicon">&#9650;</span>Build</button>
+  <div class="bnav-sep"></div>
+  <button class="bnav-item" onclick="switchTabMobile('attack',this)"><span class="bicon">&#9876;</span>Attack</button>
+  <button class="bnav-item" onclick="switchTabMobile('spells',this)"><span class="bicon">&#10024;</span>Spells</button>
+  <button class="bnav-item" onclick="switchTabMobile('covert',this)"><span class="bicon">&#128373;</span>Covert</button>
+  <div class="bnav-sep"></div>
+  <button class="bnav-item" onclick="switchTabMobile('alliances',this)"><span class="bicon">&#9876;</span>Allies</button>
+  <button class="bnav-item" onclick="switchTabMobile('news',this)"><span class="bicon">&#9741;</span>News<span id="bnav-news-badge" class="bnav-badge">3</span></button>
+  <button class="bnav-item" onclick="switchTabMobile('options',this)"><span class="bicon">&#9881;</span>Options</button>
+</nav>
+
+<script>
+function switchTabMobile(id, btn) {
+  switchTab(id, btn);
+  document.querySelectorAll('.bnav-item').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+  if (id === 'news') {
+    var bb = document.getElementById('bnav-news-badge');
+    if (bb) bb.remove();
+  }
+}
+
+// ── Server connector ──────────────────────────────────────────────────────────
+
+async function apiCall(method, path, body) {
+  try {
+    var headers = { 'Content-Type': 'application/json' };
+    var storedToken = localStorage.getItem('narmir_token');
+    if (storedToken) headers['x-auth-token'] = storedToken;
+    var res = await fetch(path, {
+      method: method,
+      headers: headers,
+      credentials: 'include',
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    return res.json();
+  } catch (err) {
+    console.error('[api] error:', method, path, err);
+    return { error: err.message };
+  }
+}
+
+function showLoginModal() {
+  var overlay = document.createElement('div');
+  overlay.id = 'login-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(13,14,20,.97);z-index:9999;display:flex;align-items:center;justify-content:center;';
+
+  var races = [
+    { value:'high_elf',  label:'High Elf',  bonus:'+15% research · powerful magic' },
+    { value:'dwarf',     label:'Dwarf',      bonus:'+20% construction · strong war machines' },
+    { value:'dire_wolf', label:'Dire Wolf',  bonus:'+25% military attack · poor research' },
+    { value:'dark_elf',  label:'Dark Elf',   bonus:'+20% covert · stealth bonus' },
+    { value:'human',     label:'Human',      bonus:'Balanced · no bonuses or penalties' },
+    { value:'orc',       label:'Orc',        bonus:'+20% fighter strength · -10% economy' },
+  ];
+
+  var raceOptions = races.map(function(r) {
+    return '<option value="' + r.value + '">' + r.label + ' — ' + r.bonus + '</option>';
+  }).join('');
+
+  var inputStyle = 'width:100%;margin-bottom:10px;padding:10px 12px;font-size:16px;background:#1a1c27;border:1px solid #363a52;border-radius:8px;color:#e8e9f0;box-sizing:border-box;';
+  var selectStyle = 'width:100%;margin-bottom:10px;padding:10px 12px;font-size:15px;background:#1a1c27;border:1px solid #363a52;border-radius:8px;color:#e8e9f0;box-sizing:border-box;';
+
+  overlay.innerHTML = '<div style="background:#13141d;border:1px solid #363a52;border-radius:12px;padding:28px 32px;width:90%;max-width:400px;">'
+    + '<div style="font-size:22px;font-weight:700;color:#e8b84b;margin-bottom:4px">NARMIR</div>'
+    + '<div style="font-size:13px;color:#9a9bb5;margin-bottom:20px">Land of Magic and Conquest</div>'
+    + '<div id="auth-error" style="font-size:13px;color:#e05c5c;margin-bottom:12px;min-height:18px"></div>'
+
+    // Login fields (always visible)
+    + '<input id="auth-user" type="text" placeholder="Username" style="' + inputStyle + '">'
+    + '<input id="auth-pass" type="password" placeholder="Password" style="' + inputStyle + 'margin-bottom:0;">'
+
+    // Register-only fields (hidden until Register clicked)
+    + '<div id="register-fields" style="display:none;margin-top:10px;">'
+    + '<div style="font-size:11px;color:#5e6080;text-transform:uppercase;letter-spacing:.5px;margin:14px 0 8px;">New kingdom</div>'
+    + '<input id="auth-kingdom" type="text" placeholder="Kingdom name" style="' + inputStyle + '">'
+    + '<div style="font-size:11px;color:#5e6080;text-transform:uppercase;letter-spacing:.5px;margin:4px 0 8px;">Choose your race <span style="color:#e05c5c">· permanent</span></div>'
+    + '<select id="auth-race" style="' + selectStyle + '">' + raceOptions + '</select>'
+    + '<div id="race-bonus-display" style="font-size:12px;color:#7c6af5;padding:6px 10px;background:rgba(124,106,245,.08);border-radius:6px;margin-bottom:10px;min-height:20px;"></div>'
+    + '</div>'
+
+    + '<div style="display:flex;gap:10px;margin-top:16px">'
+    + '<button id="btn-login" style="flex:1;padding:10px;font-size:14px;font-weight:600;background:#7c6af5;border:none;border-radius:8px;color:#fff;cursor:pointer;">Login</button>'
+    + '<button id="btn-register" style="flex:1;padding:10px;font-size:14px;font-weight:600;background:#c49535;border:none;border-radius:8px;color:#0d0e14;cursor:pointer;">Register</button>'
+    + '</div>'
+    + '<div style="font-size:12px;color:#5e6080;text-align:center;margin-top:12px;" id="auth-mode-hint">New to Narmir? Click Register to create your kingdom.</div>'
+    + '</div>';
+
+  document.body.appendChild(overlay);
+
+  var registerMode = false;
+
+  document.getElementById('btn-register').onclick = function() {
+    if (!registerMode) {
+      // Switch to register mode — show extra fields
+      registerMode = true;
+      document.getElementById('register-fields').style.display = 'block';
+      document.getElementById('btn-register').textContent = 'Create Kingdom';
+      document.getElementById('btn-register').style.background = '#4caf7d';
+      document.getElementById('btn-register').style.color = '#fff';
+      document.getElementById('auth-mode-hint').textContent = 'Choose your race carefully — it cannot be changed later.';
+      updateRaceBonus();
+    } else {
+      attempt('/api/auth/register');
+    }
+  };
+
+  document.getElementById('btn-login').onclick = function() { attempt('/api/auth/login'); };
+
+  document.getElementById('auth-pass').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      if (registerMode) attempt('/api/auth/register');
+      else attempt('/api/auth/login');
+    }
+  });
+
+  function updateRaceBonus() {
+    var sel = document.getElementById('auth-race');
+    if (!sel) return;
+    var race = races.find(function(r) { return r.value === sel.value; });
+    var display = document.getElementById('race-bonus-display');
+    if (race && display) display.textContent = race.bonus;
+  }
+
+  document.getElementById('auth-race') && document.getElementById('auth-race').addEventListener('change', updateRaceBonus);
+  updateRaceBonus();
+
+  async function attempt(endpoint) {
+    var username    = document.getElementById('auth-user').value.trim();
+    var password    = document.getElementById('auth-pass').value;
+    var errEl       = document.getElementById('auth-error');
+    if (!username || !password) { errEl.textContent = 'Username and password required'; return; }
+
+    var body;
+    if (endpoint === '/api/auth/register') {
+      var kingdomName = document.getElementById('auth-kingdom').value.trim();
+      var race        = document.getElementById('auth-race').value;
+      if (!kingdomName) { errEl.textContent = 'Kingdom name required'; return; }
+      body = { username: username, password: password, kingdomName: kingdomName, race: race };
+    } else {
+      body = { username: username, password: password };
+    }
+
+    document.getElementById('btn-login').disabled = true;
+    document.getElementById('btn-register').disabled = true;
+    errEl.textContent = '';
+
+    var result = await apiCall('POST', endpoint, body);
+
+    document.getElementById('btn-login').disabled = false;
+    document.getElementById('btn-register').disabled = false;
+
+    if (result.error) { errEl.textContent = result.error; return; }
+    if (result.token) localStorage.setItem('narmir_token', result.token);
+    state.username = username;
+    overlay.remove();
+    loadKingdom();
+  }
+}
+
+async function loadKingdom() {
+  var kingdom = await apiCall('GET', '/api/kingdom/me');
+  if (kingdom.error) { showLoginModal(); return; }
+  Object.assign(state, {
+    gold: kingdom.gold, pop: kingdom.population, land: kingdom.land,
+    morale: kingdom.morale, tax: kingdom.tax, turn: kingdom.turn, mana: kingdom.mana,
+    fighters: kingdom.fighters, rangers: kingdom.rangers, clerics: kingdom.clerics,
+    mages: kingdom.mages, thieves: kingdom.thieves, ninjas: kingdom.ninjas,
+    researchers: kingdom.researchers, engineers: kingdom.engineers,
+    kingdomId: kingdom.id, kingdomName: kingdom.name,
+    turns_stored: kingdom.turns_stored !== undefined ? kingdom.turns_stored : 200,
+  });
+  syncUI();
+  updateTurnsDisplay();
+  document.getElementById('kingdom-name').textContent = kingdom.name;
+  document.getElementById('turn-num').textContent = kingdom.turn;
+
+  // Race data
+  var raceData = {
+    high_elf:  { label: 'High Elf',   plural: 'High Elves',  bonus: '+15% research · powerful magic' },
+    dwarf:     { label: 'Dwarf',      plural: 'Dwarves',     bonus: '+20% construction · strong war machines' },
+    dire_wolf: { label: 'Dire Wolf',  plural: 'Dire Wolves', bonus: '+25% military attack · poor research' },
+    dark_elf:  { label: 'Dark Elf',   plural: 'Dark Elves',  bonus: '+20% covert · stealth bonus' },
+    human:     { label: 'Human',      plural: 'Humans',      bonus: 'Balanced · no bonuses or penalties' },
+    orc:       { label: 'Orc',        plural: 'Orcs',        bonus: '+20% fighter strength · -10% economy' },
+  };
+  var race = raceData[kingdom.race] || { label: kingdom.race, plural: kingdom.race, bonus: '' };
+
+  // Owner line: "Username of Kingdom"
+  var ownerLine = document.getElementById('kingdom-owner-line');
+  if (ownerLine) {
+    var displayName = kingdom.username || state.username || '';
+    ownerLine.innerHTML = '<strong style="color:var(--text)">' + displayName + '</strong>'
+      + ' of <strong style="color:var(--gold)">' + kingdom.name + '</strong>';
+  }
+
+  // Race tag (top right of header)
+  var raceTagEl = document.getElementById('race-tag-display');
+  if (raceTagEl) {
+    raceTagEl.innerHTML = '<strong>' + race.label + '</strong> · ' + race.bonus;
+  }
+
+  // Options panel race display
+  var optRaceEl = document.getElementById('options-race-display');
+  if (optRaceEl) optRaceEl.textContent = race.label + ' — ' + race.bonus;
+
+  loadRankings();
+}
+
+async function loadRankings() {
+  var rankings = await apiCall('GET', '/api/kingdom/rankings');
+  if (!Array.isArray(rankings)) return;
+  targets = rankings
+    .filter(function(r) { return r.id !== state.kingdomId; })
+    .map(function(r) { return { id: r.id, name: r.name, race: r.race, rank: r.rank, land: r.land, fighters: 0, mages: 0, status: 'unknown' }; });
+  renderTargets(targets, 'target-list', 'selectTarget');
+  renderTargets(targets, 'covert-target-list', 'selectCovertTarget');
+}
+
+// Override takeTurn to hit real server
+takeTurn = async function() {
+  if (state.turns_stored < 1) return toast('No turns available — refills in ' + document.getElementById('regen-countdown').textContent, 'warn');
+  var result = await apiCall('POST', '/api/kingdom/turn');
+  if (result.error) return toast(result.error, 'error');
+  Object.assign(state, result.updates);
+  if (result.turns_stored !== undefined) state.turns_stored = result.turns_stored;
+  syncUI();
+  updateTurnsDisplay();
+  document.getElementById('turn-num').textContent = state.turn;
+  toast('Turn ' + state.turn + ' complete · ' + state.turns_stored + ' turns remaining', 'success');
+};
+
+// Override hire to hit real server
+hire = async function(unit) {
+  var n = parseInt(document.getElementById('hire-' + unit).value) || 0;
+  if (n <= 0) return toast('Enter an amount', 'error');
+  var result = await apiCall('POST', '/api/kingdom/hire', { unit: unit, amount: n });
+  if (result.error) return toast(result.error, 'error');
+  Object.assign(state, result.updates);
+  syncUI();
+  document.getElementById('hire-' + unit).value = 0;
+  var hEl = document.getElementById('h-' + unit);
+  if (hEl) hEl.textContent = fmt(state[unit]);
+  toast('Hired ' + fmt(n) + ' ' + unit, 'success');
+};
+
+// Boot — check auth then show modal or load kingdom
+async function doLogout() {
+  await apiCall('POST', '/api/auth/logout');
+  localStorage.removeItem('narmir_token');
+  location.reload();
+}
+
+apiCall('GET', '/api/auth/me').then(function(me) {
+  if (me.error) {
+    showLoginModal();
+  } else {
+    state.username = me.username;
+    loadKingdom();
+  }
+});
+</script>
+</body>
+</html>
