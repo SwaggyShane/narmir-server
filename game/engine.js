@@ -70,24 +70,34 @@ function processTurn(k) {
   // ── 1. Gold income ───────────────────────────────────────────────────────────
   const income = goldPerTurn(k);
   updates.gold = k.gold + income;
-  events.push({ type: 'system', message: `Turn ${updates.turn}: +${income.toLocaleString()} GC earned. Treasury: ${(k.gold + income).toLocaleString()} GC.` });
+  events.push({ type: 'system', message: `💰 Turn ${updates.turn}: +${income.toLocaleString()} GC earned. Treasury: ${updates.gold.toLocaleString()} GC.` });
 
-  // ── 2. Mana regeneration (cathedrals + base) ─────────────────────────────────
+  // ── 2. Mana regeneration ─────────────────────────────────────────────────────
   const manaGain = manaPerTurn(k);
   updates.mana = k.mana + manaGain;
+  events.push({ type: 'system', message: `✨ Mana: +${manaGain.toLocaleString()} restored. Total: ${updates.mana.toLocaleString()}.` });
 
   // ── 3. Population growth ─────────────────────────────────────────────────────
   const growth = popGrowth(k);
   updates.population = Math.max(0, k.population + growth);
+  if (growth > 0) {
+    events.push({ type: 'system', message: `👥 Population grew by ${growth.toLocaleString()} to ${updates.population.toLocaleString()}.` });
+  } else if (growth < 0) {
+    events.push({ type: 'system', message: `👥 Population declined by ${Math.abs(growth).toLocaleString()} to ${updates.population.toLocaleString()} due to low morale.` });
+  }
 
   // ── 4. Food balance ───────────────────────────────────────────────────────────
   const food = foodBalance(k);
   updates.food = food;
-  if (food < 0) {
+  if (food >= 0) {
+    events.push({ type: 'system', message: `🌾 Food surplus: +${food.toLocaleString()} units. Troops are well fed.` });
+  } else {
+    events.push({ type: 'system', message: `🌾 Food shortage: ${food.toLocaleString()} units deficit. Troops are starving!` });
     const totalTroops = (k.fighters||0) + (k.rangers||0) + (k.clerics||0) + (k.mages||0) +
                         (k.thieves||0) + (k.ninjas||0) + (k.researchers||0) + (k.engineers||0);
     const starvePct = Math.min(0.05, Math.abs(food) / Math.max(totalTroops, 1) * 0.005);
     if (starvePct > 0) {
+      const lost = Math.floor(totalTroops * starvePct);
       updates.fighters    = Math.max(0, Math.floor((k.fighters||0)    * (1 - starvePct)));
       updates.rangers     = Math.max(0, Math.floor((k.rangers||0)     * (1 - starvePct)));
       updates.clerics     = Math.max(0, Math.floor((k.clerics||0)     * (1 - starvePct)));
@@ -96,11 +106,11 @@ function processTurn(k) {
       updates.ninjas      = Math.max(0, Math.floor((k.ninjas||0)      * (1 - starvePct)));
       updates.researchers = Math.max(0, Math.floor((k.researchers||0) * (1 - starvePct)));
       updates.engineers   = Math.max(0, Math.floor((k.engineers||0)   * (1 - starvePct)));
-      events.push({ type: 'system', message: `Food shortage! Troops are deserting — ${Math.floor(starvePct * 100)}% losses across all units.` });
+      events.push({ type: 'system', message: `💀 ${lost.toLocaleString()} units deserted due to starvation (${Math.floor(starvePct * 100)}% losses across all troops).` });
     }
   }
 
-  // ── 5. Troop upkeep (barracks reduce cost) ───────────────────────────────────
+  // ── 5. Troop upkeep ───────────────────────────────────────────────────────────
   const totalTroops = (k.fighters||0) + (k.rangers||0) + (k.clerics||0) + (k.mages||0) +
                       (k.thieves||0) + (k.ninjas||0);
   const barrackDiscount = Math.min(0.5, Math.floor((k.bld_barracks||0) / 2) * 0.01);
@@ -108,20 +118,24 @@ function processTurn(k) {
   if (upkeep > 0) {
     updates.gold = (updates.gold || k.gold) - upkeep;
     if (updates.gold < 0) updates.gold = 0;
+    events.push({ type: 'system', message: `⚔️ Troop upkeep: -${upkeep.toLocaleString()} GC (${totalTroops.toLocaleString()} troops${barrackDiscount > 0 ? ', barracks discount applied' : ''}).` });
   }
 
-  // ── 6. Morale — tax penalty or natural recovery ───────────────────────────────
+  // ── 6. Morale ─────────────────────────────────────────────────────────────────
   if (k.tax > 50) {
     const penalty = Math.floor((k.tax - 50) * 0.5);
     updates.morale = Math.max(0, (k.morale||100) - penalty);
-    events.push({ type: 'system', message: `High taxation (${k.tax}%) reduced morale by ${penalty}.` });
+    events.push({ type: 'system', message: `😡 Morale fell by ${penalty} to ${updates.morale} — citizens angry over ${k.tax}% taxation.` });
   } else {
-    // Morale recovers toward 100 based on entertainment research + colosseums
     const recovery = 1 + Math.floor((k.res_entertainment||0) / 200);
-    updates.morale = Math.min(200, (k.morale||100) + recovery);
+    const newMorale = Math.min(200, (k.morale||100) + recovery);
+    if (newMorale !== k.morale) {
+      updates.morale = newMorale;
+      events.push({ type: 'system', message: `😊 Morale recovered by ${recovery} to ${newMorale}.` });
+    }
   }
 
-  // ── 7. Auto-research — researchers advance all disciplines each turn ──────────
+  // ── 7. Auto-research ──────────────────────────────────────────────────────────
   const schoolBonus = 1 + (Math.floor((k.bld_schools||0) / 5) * 0.02);
   const raceResearch = raceBonus(k, 'research');
   const raceMagic    = raceBonus(k, 'magic');
@@ -129,19 +143,19 @@ function processTurn(k) {
 
   if (researchers > 0) {
     const DISCIPLINES = [
-      { col: 'res_economy',       multi: raceResearch },
-      { col: 'res_weapons',       multi: raceResearch },
-      { col: 'res_armor',         multi: raceResearch },
-      { col: 'res_military',      multi: raceResearch },
-      { col: 'res_attack_magic',  multi: raceMagic    },
-      { col: 'res_defense_magic', multi: raceMagic    },
-      { col: 'res_entertainment', multi: raceResearch },
-      { col: 'res_construction',  multi: raceResearch },
-      { col: 'res_war_machines',  multi: raceResearch },
+      { col: 'res_economy',       label: 'Economy',          multi: raceResearch },
+      { col: 'res_weapons',       label: 'Weapons',          multi: raceResearch },
+      { col: 'res_armor',         label: 'Armor',            multi: raceResearch },
+      { col: 'res_military',      label: 'Military tactics', multi: raceResearch },
+      { col: 'res_attack_magic',  label: 'Attack magic',     multi: raceMagic    },
+      { col: 'res_defense_magic', label: 'Defense magic',    multi: raceMagic    },
+      { col: 'res_entertainment', label: 'Entertainment',    multi: raceResearch },
+      { col: 'res_construction',  label: 'Construction',     multi: raceResearch },
+      { col: 'res_war_machines',  label: 'War machines',     multi: raceResearch },
     ];
-    // Each discipline gets 1/9th of researchers
     const perDiscipline = Math.floor(researchers / DISCIPLINES.length);
-    let anyAdvanced = false;
+    const advances = [];
+
     DISCIPLINES.forEach(function(d) {
       const effective = Math.floor(perDiscipline * schoolBonus * d.multi);
       let inc = 0;
@@ -151,12 +165,15 @@ function processTurn(k) {
       else if (effective >= 200)  inc = 1;
       if (inc > 0) {
         const current = updates[d.col] !== undefined ? updates[d.col] : (k[d.col] || 0);
-        updates[d.col] = Math.min(MAX_RESEARCH, current + inc);
-        anyAdvanced = true;
+        const newVal = Math.min(MAX_RESEARCH, current + inc);
+        if (newVal !== current) {
+          updates[d.col] = newVal;
+          advances.push(`${d.label} → ${newVal}%`);
+        }
       }
     });
 
-    // Spellbook advances from mages assigned as researchers
+    // Spellbook
     const spellEffective = Math.floor(perDiscipline * schoolBonus * raceMagic);
     let spellInc = 0;
     if (spellEffective >= 2000) spellInc = 5;
@@ -164,47 +181,52 @@ function processTurn(k) {
     else if (spellEffective >= 600)  spellInc = 2;
     else if (spellEffective >= 200)  spellInc = 1;
     if (spellInc > 0) {
-      updates.res_spellbook = (updates.res_spellbook !== undefined ? updates.res_spellbook : (k.res_spellbook||0)) + spellInc;
+      const current = updates.res_spellbook !== undefined ? updates.res_spellbook : (k.res_spellbook||0);
+      updates.res_spellbook = current + spellInc;
+      advances.push(`Spellbook → ${updates.res_spellbook}`);
     }
 
-    if (anyAdvanced || spellInc > 0) {
-      events.push({ type: 'system', message: `Research: ${researchers.toLocaleString()} researchers advanced ${anyAdvanced ? 'all disciplines' : 'spellbook'} this turn.` });
+    if (advances.length > 0) {
+      events.push({ type: 'system', message: `📚 Research advanced this turn: ${advances.join(', ')}.` });
+    } else {
+      events.push({ type: 'system', message: `📚 ${researchers.toLocaleString()} researchers studying — more researchers needed for advancement.` });
     }
+  } else {
+    events.push({ type: 'system', message: `📚 No researchers assigned — hire researchers to advance your kingdom's knowledge.` });
   }
 
-  // ── 8. Auto-construction — engineers build farms each turn if food is low ─────
+  // ── 8. Auto-construction ──────────────────────────────────────────────────────
   const engineers = k.engineers || 0;
   if (engineers > 0) {
     const constrBonus = 1 + (Math.floor((k.bld_smithies||0) / 15) * 0.02) * raceBonus(k, 'construction');
-    // Engineers produce build points; auto-allocate to farms if food deficit
     const buildPoints = Math.floor(engineers * constrBonus);
     if (food < 0 && buildPoints >= 10) {
       const newFarms = Math.floor(buildPoints / 10);
       updates.bld_farms = (k.bld_farms||0) + newFarms;
-      events.push({ type: 'system', message: `Engineers auto-built ${newFarms} farm(s) to address food shortage.` });
+      events.push({ type: 'system', message: `🔨 Engineers auto-built ${newFarms} farm(s) to address food shortage. Total farms: ${updates.bld_farms}.` });
+    } else {
+      events.push({ type: 'system', message: `🔨 ${engineers.toLocaleString()} engineers standing by — use Build to construct buildings.` });
     }
   }
 
-  // ── 9. Training fields — auto-advance military tactics ───────────────────────
+  // ── 9. Training fields ────────────────────────────────────────────────────────
   if ((k.bld_training||0) > 0) {
     const trainingGain = Math.floor(k.bld_training / 50);
     if (trainingGain > 0) {
       const current = updates.res_military !== undefined ? updates.res_military : (k.res_military||0);
-      updates.res_military = Math.min(MAX_RESEARCH, current + trainingGain);
+      const newVal = Math.min(MAX_RESEARCH, current + trainingGain);
+      updates.res_military = newVal;
+      events.push({ type: 'system', message: `🏋️ Training fields advanced Military Tactics by ${trainingGain} to ${newVal}%.` });
     }
   }
 
-  // ── 10. Cathedral mana bonus already covered in manaPerTurn ──────────────────
-  // ── 11. Market income already covered in goldPerTurn ─────────────────────────
-  // ── 12. Spellbook decay — minor decay per turn to keep it in check ────────────
-  // (no decay — spellbook only grows)
-
-  // ── 13. Land — rangers auto-search small amount each turn ────────────────────
+  // ── 10. Rangers auto-explore ──────────────────────────────────────────────────
   const rangers = k.rangers || 0;
   if (rangers > 0) {
     const autoLand = Math.floor(rangers * 0.001);
     if (autoLand > 0) {
       updates.land = (k.land||0) + autoLand;
+      events.push({ type: 'system', message: `🗺️ Rangers explored and claimed ${autoLand} acre(s) of new land. Total: ${updates.land.toLocaleString()} acres.` });
     }
   }
 
