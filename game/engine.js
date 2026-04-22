@@ -3,12 +3,23 @@
 // All functions take a kingdom row (or rows) and return mutations + events.
 
 const RACE_BONUSES = {
-  high_elf:  { research: 1.15, magic: 1.20 },
-  dwarf:     { construction: 1.20, war_machines: 1.25 },
-  dire_wolf: { military: 1.25, research: 0.80 },
-  dark_elf:  { covert: 1.20, stealth: 1.20 },
+  // High Elf: masters of research and magic, fragile in direct combat
+  high_elf:  { research: 1.15, magic: 1.20, military: 0.90 },
+
+  // Dwarf: unmatched builders and engineers, slow to learn magic
+  dwarf:     { construction: 1.20, war_machines: 1.25, economy: 1.10, magic: 0.75, research: 0.90 },
+
+  // Dire Wolf: savage fighters, terrible scholars
+  dire_wolf: { military: 1.30, covert: 1.10, research: 0.70, magic: 0.60, economy: 0.85 },
+
+  // Dark Elf: lethal covert operatives, poor open combat
+  dark_elf:  { covert: 1.25, stealth: 1.30, magic: 1.10, military: 0.85, economy: 0.90 },
+
+  // Human: no bonuses or penalties — jack of all trades
   human:     {},
-  orc:       { military: 1.20, economy: 0.90 },
+
+  // Orc: powerful fighters and good economy from raiding, poor research
+  orc:       { military: 1.20, economy: 1.10, research: 0.80, magic: 0.65, construction: 0.90 },
 };
 
 const UNIT_COST = 250; // GC per unit, all types
@@ -31,14 +42,18 @@ function goldPerTurn(k) {
 }
 
 function manaPerTurn(k) {
-  return Math.floor(10 + (k.bld_cathedrals / 25) * 50);
+  const base = 10 + (k.bld_cathedrals / 25) * 50;
+  // Magic races regenerate mana faster
+  return Math.floor(base * raceBonus(k, 'magic'));
 }
 
 function foodBalance(k) {
   const totalTroops = k.fighters + k.rangers + k.clerics + k.mages +
                       k.thieves + k.ninjas + k.researchers + k.engineers;
   const production = Math.floor(k.bld_farms / 10) * 100;
-  const consumption = totalTroops + Math.floor(k.population / 50);
+  // Aggressive races (dire wolf, orc) eat more
+  const consumptionMult = raceBonus(k, 'military') > 1.1 ? 1.15 : 1.0;
+  const consumption = Math.floor((totalTroops + Math.floor(k.population / 50)) * consumptionMult);
   return production - consumption;
 }
 
@@ -47,7 +62,12 @@ function popGrowth(k) {
   const base = Math.floor(k.population * 0.003);
   const entertainment = Math.floor(k.res_entertainment / 100) * 10;
   const colosseumBonus = Math.floor(k.bld_colosseums / 25) * 50;
-  return base + entertainment + colosseumBonus;
+  // High elves grow slowly (long-lived), humans grow fastest
+  const raceGrowthMult = {
+    high_elf: 0.80, dwarf: 0.90, dire_wolf: 1.00,
+    dark_elf: 0.85, human: 1.15, orc: 1.10,
+  }[k.race] || 1.0;
+  return Math.floor((base + entertainment + colosseumBonus) * raceGrowthMult);
 }
 
 function researchIncrement(k, discipline, researchersAssigned) {
@@ -111,10 +131,15 @@ function processTurn(k) {
   }
 
   // ── 5. Troop upkeep ───────────────────────────────────────────────────────────
+  // Aggressive races cost more to maintain; dwarves are disciplined and cost less
+  const upkeepMult = {
+    high_elf: 1.00, dwarf: 0.85, dire_wolf: 1.20,
+    dark_elf: 1.10, human: 1.00, orc: 1.15,
+  }[k.race] || 1.0;
   const totalTroops = (k.fighters||0) + (k.rangers||0) + (k.clerics||0) + (k.mages||0) +
                       (k.thieves||0) + (k.ninjas||0);
   const barrackDiscount = Math.min(0.5, Math.floor((k.bld_barracks||0) / 2) * 0.01);
-  const upkeep = Math.floor(totalTroops * 1 * (1 - barrackDiscount));
+  const upkeep = Math.floor(totalTroops * upkeepMult * (1 - barrackDiscount));
   if (upkeep > 0) {
     updates.gold = (updates.gold || k.gold) - upkeep;
     if (updates.gold < 0) updates.gold = 0;
@@ -220,10 +245,11 @@ function processTurn(k) {
     }
   }
 
-  // ── 10. Rangers auto-explore ──────────────────────────────────────────────────
+  // ── 10. Rangers auto-explore — military race bonus improves scouting ─────────
   const rangers = k.rangers || 0;
   if (rangers > 0) {
-    const autoLand = Math.floor(rangers * 0.001);
+    const scoutMult = raceBonus(k, 'military');
+    const autoLand = Math.floor(rangers * 0.001 * scoutMult);
     if (autoLand > 0) {
       updates.land = (k.land||0) + autoLand;
       events.push({ type: 'system', message: `🗺️ Rangers explored and claimed ${autoLand} acre(s) of new land. Total: ${updates.land.toLocaleString()} acres.` });
@@ -296,12 +322,19 @@ const BUILDING_PIECES = {
   farms: 10, barracks: 2, outposts: 2, guard_towers: 2,
   schools: 5, armories: 5, vaults: 5, smithies: 15,
   markets: 30, cathedrals: 25, training: 50, colosseums: 25, castles: 500,
+  // Equipment — forged by engineers using smithies
+  // 1 piece per unit: smithies reduce cost further via construction bonus
+  weapons: 1, armor: 1,
 };
 
 const BUILDING_COL = {
   farms: 'bld_farms', barracks: 'bld_barracks', outposts: 'bld_outposts',
   guard_towers: 'bld_guard_towers', schools: 'bld_schools', armories: 'bld_armories',
   vaults: 'bld_vaults', smithies: 'bld_smithies', markets: 'bld_markets',
+  cathedrals: 'bld_cathedrals', training: 'bld_training', colosseums: 'bld_colosseums',
+  castles: 'bld_castles',
+  weapons: 'weapons_stockpile', armor: 'armor_stockpile',
+};
   cathedrals: 'bld_cathedrals', training: 'bld_training', colosseums: 'bld_colosseums',
   castles: 'bld_castles',
 };
@@ -313,8 +346,9 @@ function buildStructure(k, building, quantity) {
   if (quantity <= 0) return { error: 'Quantity must be positive' };
 
   const piecesNeeded = quantity * piecesPerUnit;
-  const constrBonus = 1 + (k.bld_smithies / 15) * 0.02 * raceBonus(k, 'construction');
-  const maxBuildable = Math.floor(k.engineers * constrBonus);
+  const smithyBonus  = 1 + (Math.floor((k.bld_smithies||0) / 15) * 0.02);
+  const raceConstr   = raceBonus(k, 'construction');
+  const maxBuildable = Math.floor((k.engineers||0) * smithyBonus * raceConstr);
 
   if (piecesNeeded > maxBuildable) {
     return { error: `Need ${piecesNeeded.toLocaleString()} engineer-turns but only ${maxBuildable.toLocaleString()} available` };
@@ -335,30 +369,44 @@ function resolveMilitaryAttack(attacker, defender, fightersSent, magesSent) {
   if (fightersSent > attacker.fighters) return { error: 'Not enough fighters' };
   if (magesSent > attacker.mages)       return { error: 'Not enough mages' };
 
-  // Attack power
-  const atkWeapon  = attacker.res_weapons / 100;
+  // Attack power — race military and magic bonuses applied
+  // Weapons stockpile: each weapon equips one fighter, up to fighters sent
+  const weaponsEquipped = Math.min(fightersSent, k.weapons_stockpile || 0);
+  const weaponBonus     = 1 + (weaponsEquipped / Math.max(fightersSent, 1)) * 0.25; // up to +25%
+  const atkWeapon  = (attacker.res_weapons / 100) * weaponBonus;
   const atkTactics = attacker.res_military / 100;
   const atkRace    = raceBonus(attacker, 'military');
-  const atkPower   = (fightersSent * atkWeapon * atkTactics * atkRace)
-                   + (magesSent * 2.5 * (attacker.res_attack_magic / 100));
+  const atkMagic   = raceBonus(attacker, 'magic');
+  const atkFighterPower = fightersSent * atkWeapon * atkTactics * atkRace;
+  const atkMagePower    = magesSent * 2.5 * (attacker.res_attack_magic / 100) * atkMagic;
+  const atkPower = atkFighterPower + atkMagePower;
 
-  // Defence power
-  const defArmor   = defender.res_armor / 100;
+  // Defence power — armor stockpile reduces casualties taken
+  const armorEquipped = Math.min(defender.fighters, defender.armor_stockpile || 0);
+  const armorBonus    = 1 + (armorEquipped / Math.max(defender.fighters, 1)) * 0.25; // up to +25%
+  const defArmor   = (defender.res_armor / 100) * armorBonus;
   const defTactics = defender.res_military / 100;
-  const defPower   = (defender.fighters * defArmor * defTactics)
-                   + (defender.mages * 1.5)
-                   + (Math.floor(defender.bld_guard_towers / 2) * 200)
-                   + (Math.floor(defender.bld_castles / 500) * 5000);
+  const defRace    = raceBonus(defender, 'military');
+  const defMagic   = raceBonus(defender, 'magic');
+  const defFighterPower = defender.fighters * defArmor * defTactics * defRace;
+  const defMagePower    = (defender.mages||0) * 1.5 * (defender.res_defense_magic / 100) * defMagic;
+  const defStructures   = (Math.floor((defender.bld_guard_towers||0) / 2) * 200)
+                        + (Math.floor((defender.bld_castles||0) / 500) * 5000);
+  const defPower = defFighterPower + defMagePower + defStructures;
 
-  // Cleric survival bonus
-  const clericSave = 1 - Math.min(0.3, attacker.clerics / (fightersSent + 1) * 0.05);
+  // Clerics reduce attacker casualties — high elves have stronger clerics
+  const clericEfficiency = raceBonus(attacker, 'research'); // elves' scholarly nature helps clerics
+  const clericSave = 1 - Math.min(0.35, (attacker.clerics||0) / (fightersSent + 1) * 0.05 * clericEfficiency);
 
   // Random variance ±20%
   const variance = 0.8 + Math.random() * 0.4;
   const win = (atkPower * variance) > defPower;
 
-  // Casualties
-  const atkLossPct  = win ? (0.04 + Math.random() * 0.08) : (0.20 + Math.random() * 0.25);
+  // Casualties — dark elves take fewer losses on failure (escape bonus from stealth)
+  const atkStealthBonus = raceBonus(attacker, 'stealth') > 1 ? 0.85 : 1.0;
+  const atkLossPct  = win
+    ? (0.04 + Math.random() * 0.08) * atkStealthBonus
+    : (0.20 + Math.random() * 0.25) * atkStealthBonus;
   const defLossPct  = win ? (0.15 + Math.random() * 0.20) : (0.05 + Math.random() * 0.08);
 
   const atkFightersLost = Math.floor(fightersSent * atkLossPct * clericSave);
@@ -370,6 +418,8 @@ function resolveMilitaryAttack(attacker, defender, fightersSent, magesSent) {
     fighters: attacker.fighters - atkFightersLost,
     mages:    attacker.mages    - atkMagesLost,
     land:     attacker.land + landTransferred,
+    // Weapons lost proportional to fighters lost
+    weapons_stockpile: Math.max(0, (attacker.weapons_stockpile||0) - Math.floor(weaponsEquipped * atkLossPct)),
     updated_at: Math.floor(Date.now() / 1000),
   };
   const defenderUpdates = {
@@ -379,15 +429,14 @@ function resolveMilitaryAttack(attacker, defender, fightersSent, magesSent) {
   };
 
   const report = {
-    win,
-    fightersSent, magesSent,
-    atkFightersLost, atkMagesLost,
-    defFightersLost, landTransferred,
+    win, fightersSent, magesSent,
+    atkFightersLost, atkMagesLost, defFightersLost, landTransferred,
+    atkPower: Math.round(atkPower), defPower: Math.round(defPower),
   };
 
   const atkEvent = win
-    ? `You attacked ${defender.name} and won! Captured ${landTransferred} acres. Lost ${atkFightersLost} fighters.`
-    : `Attack on ${defender.name} was repelled. Lost ${atkFightersLost} fighters.`;
+    ? `You attacked ${defender.name} and won! Captured ${landTransferred} acres. Lost ${atkFightersLost} fighters, ${atkMagesLost} mages.`
+    : `Attack on ${defender.name} was repelled. Lost ${atkFightersLost} fighters, ${atkMagesLost} mages.`;
 
   const defEvent = win
     ? `${attacker.name} attacked your kingdom and broke through! Lost ${landTransferred} acres and ${defFightersLost} fighters.`
@@ -432,10 +481,10 @@ function castSpell(caster, target, spellId, power, duration, obscure) {
     updated_at: Math.floor(Date.now() / 1000),
   };
 
-  // Power per turn spread over duration
-  const powerPerTurn = Math.floor(power / duration);
-  const atkMagic = caster.res_attack_magic / 100;
-  const defMagic = target.res_defense_magic / 100;
+  // Power per turn spread over duration, modified by race magic bonuses
+  const powerPerTurn  = Math.floor(power / duration);
+  const atkMagic      = (caster.res_attack_magic / 100) * raceBonus(caster, 'magic');
+  const defMagic      = (target.res_defense_magic / 100) * raceBonus(target, 'magic');
   const effectivePower = Math.floor(powerPerTurn * atkMagic / Math.max(0.5, defMagic));
 
   // Friendly spells
