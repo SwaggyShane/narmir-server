@@ -333,17 +333,50 @@ const BUILDING_COL = {
   war_machine: 'war_machines', weapons: 'weapons_stockpile', armor: 'armor_stockpile',
 };
 
-// Add buildings to the queue — does not cost a turn, just schedules work
+// Gold cost per unit to queue each building
+const BUILDING_GOLD_COST = {
+  farms: 50, barracks: 200, outposts: 150, guard_towers: 150,
+  schools: 500, armories: 400, vaults: 400, smithies: 800,
+  markets: 2000, cathedrals: 1500, training: 3000, colosseums: 1500, castles: 25000,
+  war_machine: 5000, weapons: 100, armor: 150,
+};
+
+// Gold cost per tool
+const TOOL_GOLD_COST = { hammers: 500, scaffolding: 2000, blueprints: 5000 };
+const TOOL_COL       = { hammers: 'tools_hammers', scaffolding: 'tools_scaffolding', blueprints: 'tools_blueprints' };
+
+// Add buildings to the queue — charges gold, no turn cost
 function queueBuildings(k, orders) {
-  // orders: { building: quantity, ... }
   let queue = {};
   try { queue = JSON.parse(k.build_queue || '{}'); } catch { queue = {}; }
+
+  let totalCost = 0;
   for (const [building, qty] of Object.entries(orders)) {
     if (!BUILDING_COST[building]) continue;
-    if (qty <= 0) continue;
-    queue[building] = (queue[building] || 0) + Number(qty);
+    const n = Number(qty);
+    if (n <= 0) continue;
+    const goldPerUnit = BUILDING_GOLD_COST[building] || 100;
+    totalCost += goldPerUnit * n;
   }
-  return { updates: { build_queue: JSON.stringify(queue) } };
+
+  if (totalCost > k.gold) {
+    return { error: `Need ${totalCost.toLocaleString()} GC but only have ${k.gold.toLocaleString()} GC` };
+  }
+
+  for (const [building, qty] of Object.entries(orders)) {
+    if (!BUILDING_COST[building]) continue;
+    const n = Number(qty);
+    if (n <= 0) continue;
+    queue[building] = (queue[building] || 0) + n;
+  }
+
+  return {
+    updates: {
+      build_queue: JSON.stringify(queue),
+      gold: k.gold - totalCost,
+    },
+    totalCost,
+  };
 }
 
 // Process build queue each turn — engineers work on queued buildings
@@ -426,20 +459,20 @@ function processBuildQueue(k, events) {
   return updates;
 }
 
-// Forge construction tools (costs engineer-turns, stored in kingdom)
+// Forge construction tools — costs gold, no engineer requirement
 function forgeTools(k, toolType, quantity) {
-  const TOOL_COST = { hammers: 10, scaffolding: 50, blueprints: 100 };
-  const TOOL_COL  = { hammers: 'tools_hammers', scaffolding: 'tools_scaffolding', blueprints: 'tools_blueprints' };
-  const cost = TOOL_COST[toolType];
+  const cost = TOOL_GOLD_COST[toolType];
   const col  = TOOL_COL[toolType];
   if (!cost || !col) return { error: 'Unknown tool type' };
-  const smithyBonus  = 1 + (Math.floor((k.bld_smithies||0) / 15) * 0.02);
-  const raceConstr   = raceBonus(k, 'construction');
-  const maxBuildable = Math.floor((k.engineers||0) * smithyBonus * raceConstr);
-  const needed       = quantity * cost;
-  if (needed > maxBuildable) return { error: `Need ${needed.toLocaleString()} engineer-turns, only ${maxBuildable.toLocaleString()} available` };
+  const totalCost = cost * quantity;
+  if (totalCost > k.gold) return { error: `Need ${totalCost.toLocaleString()} GC but only have ${k.gold.toLocaleString()} GC` };
   return {
-    updates: { [col]: (k[col]||0) + quantity, updated_at: Math.floor(Date.now()/1000) },
+    updates: {
+      [col]: (k[col]||0) + quantity,
+      gold: k.gold - totalCost,
+      updated_at: Math.floor(Date.now()/1000),
+    },
+    totalCost,
   };
 }
 
