@@ -65,7 +65,7 @@ module.exports = function(db) {
     updates.turns_stored = k.turns_stored - 1;
     await applyUpdates(db, k.id, updates);
     for (const ev of events)
-      await db.run('INSERT INTO news (kingdom_id, type, message) VALUES (?, ?, ?)', [k.id, ev.type || 'system', ev.message]);
+      await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)', [k.id, ev.type || 'system', ev.message, updates.turn || k.turn || 0]);
 
     res.json({ ok: true, updates, events, turns_stored: updates.turns_stored });
   });
@@ -89,7 +89,7 @@ module.exports = function(db) {
     const finalUpdates = { ...turnUpdates, ...hireResult.updates };
     await applyUpdates(db, k.id, finalUpdates);
     for (const ev of events)
-      await db.run('INSERT INTO news (kingdom_id, type, message) VALUES (?, ?, ?)', [k.id, ev.type || 'system', ev.message]);
+      await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)', [k.id, ev.type || 'system', ev.message, turnUpdates.turn || k.turn || 0]);
 
     res.json({ ok: true, updates: finalUpdates, events, turns_stored: finalUpdates.turns_stored });
   });
@@ -119,7 +119,7 @@ module.exports = function(db) {
     events.push(resEvent);
 
     for (const ev of events)
-      await db.run('INSERT INTO news (kingdom_id, type, message) VALUES (?, ?, ?)', [k.id, ev.type || 'system', ev.message]);
+      await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)', [k.id, ev.type || 'system', ev.message, turnUpdates.turn || k.turn || 0]);
 
     res.json({ ok: true, increment: resResult.increment, updates: finalUpdates, events, turns_stored: finalUpdates.turns_stored });
   });
@@ -153,7 +153,7 @@ module.exports = function(db) {
     events.push(buildEvent);
 
     for (const ev of events)
-      await db.run('INSERT INTO news (kingdom_id, type, message) VALUES (?, ?, ?)', [k.id, ev.type || 'system', ev.message]);
+      await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)', [k.id, ev.type || 'system', ev.message, turnUpdates.turn || k.turn || 0]);
 
     res.json({ ok: true, piecesUsed: buildResult.piecesUsed, updates: finalUpdates, events, turns_stored: finalUpdates.turns_stored });
   });
@@ -199,8 +199,8 @@ module.exports = function(db) {
 
     await applyUpdates(db, k.id, turnUpdates);
     for (const ev of events)
-      await db.run('INSERT INTO news (kingdom_id, type, message) VALUES (?, ?, ?)', [k.id, ev.type || 'system', ev.message]);
-    await db.run('INSERT INTO news (kingdom_id, type, message) VALUES (?, ?, ?)', [k.id, 'system', searchMessage]);
+      await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)', [k.id, ev.type || 'system', ev.message, turnUpdates.turn || k.turn || 0]);
+    await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)', [k.id, 'system', searchMessage, turnUpdates.turn || k.turn || 0]);
 
     const allEvents = [...events, { type: 'system', message: searchMessage }];
     res.json({ ok: true, type, result: searchResult, message: searchMessage, updates: turnUpdates, events: allEvents, turns_stored: turnUpdates.turns_stored });
