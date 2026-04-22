@@ -43,7 +43,7 @@ async function initDb() {
       res_weapons       INTEGER NOT NULL DEFAULT 100,
       res_armor         INTEGER NOT NULL DEFAULT 100,
       res_military      INTEGER NOT NULL DEFAULT 100,
-      res_spellbook     INTEGER NOT NULL DEFAULT 500,
+      res_spellbook     INTEGER NOT NULL DEFAULT 0,
       res_attack_magic  INTEGER NOT NULL DEFAULT 100,
       res_defense_magic INTEGER NOT NULL DEFAULT 100,
       res_entertainment INTEGER NOT NULL DEFAULT 100,
