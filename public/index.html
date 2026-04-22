@@ -1527,6 +1527,8 @@ function syncUI() {
   document.getElementById('m-mana').textContent = trunc(state.mana || 0);
   document.getElementById('m-pop').textContent  = trunc(state.pop  || 0);
   document.getElementById('m-land').textContent = trunc(state.land || 0);
+  var moraleEl = document.getElementById('m-morale');
+  if (moraleEl) moraleEl.textContent = (state.morale || 0) + '%';
   document.getElementById('hire-pop').textContent = fmt(state.pop || 0);
   document.getElementById('build-eng').textContent = fmt(state.engineers || 0);
   var expRangers = document.getElementById('exp-rangers-avail');
@@ -1535,10 +1537,28 @@ function syncUI() {
   if (atkAvail) atkAvail.textContent = fmt(state.fighters || 0);
   var atkMagesAvail = document.getElementById('atk-mages-avail');
   if (atkMagesAvail) atkMagesAvail.textContent = fmt(state.mages || 0);
-  // sync status panel unit counts
+  // Sync status panel unit counts
   ['fighters','rangers','clerics','mages','thieves','ninjas','researchers','engineers'].forEach(function(u){
     var el = document.getElementById('s-' + u);
     if (el) el.textContent = fmt(state[u]||0);
+  });
+  // Sync research progress bars
+  var resMap = {
+    res_economy:'eco', res_weapons:'wep', res_armor:'arm', res_military:'mil',
+    res_spellbook:'spell', res_entertainment:'ent', res_attack_magic:'atk', res_defense_magic:'def'
+  };
+  Object.keys(resMap).forEach(function(key) {
+    var bar = document.querySelector('.prog-bar.' + resMap[key]);
+    if (bar) bar.style.width = Math.min(100, (state[key]||0) / 10) + '%';
+    // Update count display in status panel
+    var countEl = document.querySelector('.trow .prog-bar.' + resMap[key]);
+    if (countEl) {
+      var row = countEl.closest('.trow');
+      if (row) {
+        var count = row.querySelector('.count');
+        if (count) count.textContent = fmt(state[key]||0) + (key !== 'res_spellbook' && key !== 'res_mana' ? '%' : '');
+      }
+    }
   });
   populateInputs();
 }
@@ -1869,7 +1889,26 @@ takeTurn = async function() {
   takingTurn = false;
   if (btn) btn.style.opacity = state.turns_stored > 0 ? '1' : '0.4';
   if (result.error) return toast(result.error, 'error');
-  Object.assign(state, result.updates);
+  var u = result.updates || {};
+  // Remap server keys to frontend state keys
+  if (u.population !== undefined) state.pop      = u.population;
+  if (u.gold       !== undefined) state.gold      = u.gold;
+  if (u.mana       !== undefined) state.mana      = u.mana;
+  if (u.land       !== undefined) state.land      = u.land;
+  if (u.morale     !== undefined) state.morale    = u.morale;
+  if (u.turn       !== undefined) state.turn      = u.turn;
+  if (u.fighters   !== undefined) state.fighters  = u.fighters;
+  if (u.rangers    !== undefined) state.rangers   = u.rangers;
+  if (u.clerics    !== undefined) state.clerics   = u.clerics;
+  if (u.mages      !== undefined) state.mages     = u.mages;
+  if (u.thieves    !== undefined) state.thieves   = u.thieves;
+  if (u.ninjas     !== undefined) state.ninjas    = u.ninjas;
+  if (u.researchers!== undefined) state.researchers = u.researchers;
+  if (u.engineers  !== undefined) state.engineers = u.engineers;
+  // Research values
+  ['res_economy','res_weapons','res_armor','res_military','res_spellbook',
+   'res_attack_magic','res_defense_magic','res_entertainment','res_construction','res_war_machines'
+  ].forEach(function(k) { if (u[k] !== undefined) state[k] = u[k]; });
   if (result.turns_stored !== undefined) state.turns_stored = result.turns_stored;
   syncUI();
   updateTurnsDisplay();
