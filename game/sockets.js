@@ -108,14 +108,18 @@ module.exports = function(io, db) {
       const target = await db.get('SELECT * FROM kingdoms WHERE id = ?', [data.targetId]);
       if (!target) return ack?.({ error: 'Target not found' });
       const result = engine.covertSpy(spy, target, Number(data.units) || 100);
-      if (Object.keys(result.spyUpdates || {}).length) await applyUpdates(db, spy.id, result.spyUpdates);
-      await insertNews(db, spy.id, 'covert', result.spyEvent);
+      const spyUpd = result.spyUpdates || {};
+      const xpRes  = engine.awardXp(spy, 'covert', 1);
+      spyUpd.xp    = xpRes.xp;
+      spyUpd.level = xpRes.level;
+      if (Object.keys(spyUpd).length) await applyUpdates(db, spy.id, spyUpd);
+      await insertNews(db, spy.id, 'covert', result.spyEvent, xpRes.level);
       if (result.targetEvent) {
         await insertNews(db, target.id, 'covert', result.targetEvent);
         const s = playerSockets.get(target.player_id);
         if (s) io.to(s).emit('event:covert', { message: result.targetEvent });
       }
-      ack?.({ ok: true, success: result.success, report: result.report || null });
+      ack?.({ ok: true, success: result.success, report: result.report || null, xpEarned: xpRes.earned, levelUp: xpRes.levelled });
     });
 
     // ── COVERT: LOOT ─────────────────────────────────────────────────────────
@@ -125,7 +129,11 @@ module.exports = function(io, db) {
       if (!target) return ack?.({ error: 'Target not found' });
       const result = engine.covertLoot(thief, target, data.lootType, Number(data.thieves) || 100);
       if (result.error) return ack?.({ error: result.error });
-      if (Object.keys(result.thiefUpdates || {}).length) await applyUpdates(db, thief.id, result.thiefUpdates);
+      const thiefUpd = result.thiefUpdates || {};
+      const xpRes    = engine.awardXp(thief, 'covert', 1);
+      thiefUpd.xp    = xpRes.xp;
+      thiefUpd.level = xpRes.level;
+      if (Object.keys(thiefUpd).length) await applyUpdates(db, thief.id, thiefUpd);
       if (result.success && Object.keys(result.targetUpdates || {}).length) await applyUpdates(db, target.id, result.targetUpdates);
       await insertNews(db, thief.id, 'covert', result.thiefEvent || result.event);
       if (result.targetEvent) {
@@ -133,7 +141,7 @@ module.exports = function(io, db) {
         const s = playerSockets.get(target.player_id);
         if (s) io.to(s).emit('event:covert', { message: result.targetEvent });
       }
-      ack?.({ ok: true, success: result.success, stolen: result.stolen });
+      ack?.({ ok: true, success: result.success, stolen: result.stolen, xpEarned: xpRes.earned });
     });
 
     // ── COVERT: ASSASSINATE ──────────────────────────────────────────────────
@@ -143,7 +151,11 @@ module.exports = function(io, db) {
       if (!target) return ack?.({ error: 'Target not found' });
       const result = engine.covertAssassinate(assassin, target, Number(data.ninjas) || 50, data.unitType);
       if (result.error) return ack?.({ error: result.error });
-      if (Object.keys(result.assassinUpdates || {}).length) await applyUpdates(db, assassin.id, result.assassinUpdates);
+      const assUpd = result.assassinUpdates || {};
+      const xpRes  = engine.awardXp(assassin, 'covert', 1);
+      assUpd.xp    = xpRes.xp;
+      assUpd.level = xpRes.level;
+      if (Object.keys(assUpd).length) await applyUpdates(db, assassin.id, assUpd);
       if (result.success && Object.keys(result.targetUpdates || {}).length) await applyUpdates(db, target.id, result.targetUpdates);
       await insertNews(db, assassin.id, 'covert', result.assassinEvent || result.event);
       if (result.targetEvent) {
@@ -151,7 +163,7 @@ module.exports = function(io, db) {
         const s = playerSockets.get(target.player_id);
         if (s) io.to(s).emit('event:covert', { message: result.targetEvent });
       }
-      ack?.({ ok: true, success: result.success, killed: result.killed });
+      ack?.({ ok: true, success: result.success, killed: result.killed, xpEarned: xpRes.earned });
     });
 
     // ── GLOBAL CHAT ──────────────────────────────────────────────────────────

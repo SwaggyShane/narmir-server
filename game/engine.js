@@ -221,6 +221,11 @@ function processTurn(k) {
 
     if (advances.length > 0) {
       events.push({ type: 'system', message: `📚 Research advanced: ${advances.join(', ')}.` });
+      // XP for research advances
+      const resXp = awardXp({ ...k, xp: updates.xp || (k.xp||0), level: updates.level || (k.level||1) }, 'research', advances.length);
+      updates.xp    = resXp.xp;
+      updates.level = resXp.level;
+      if (resXp.levelled) events.push(...resXp.events);
     } else if (researchers > 0) {
       events.push({ type: 'system', message: `📚 ${researchers.toLocaleString()} researchers studying — allocate more per discipline for advancement.` });
     }
@@ -253,6 +258,28 @@ function processTurn(k) {
       events.push({ type: 'system', message: `🗺️ Rangers explored and claimed ${autoLand} acre(s) of new land. Total: ${updates.land.toLocaleString()} acres.` });
     }
   }
+
+  // ── XP awards this turn ───────────────────────────────────────────────────────
+  let totalXp = k.xp || 0;
+  let currentLevel = k.level || 1;
+
+  // Turn XP
+  const turnXp = awardXp({ ...k, xp: totalXp, level: currentLevel }, 'turn', 1);
+  totalXp = turnXp.xp;
+  currentLevel = turnXp.level;
+  if (turnXp.levelled) events.push(...turnXp.events);
+
+  // Gold income XP
+  const goldXp = awardXp({ ...k, xp: totalXp, level: currentLevel }, 'gold_earned', income);
+  totalXp = goldXp.xp;
+  currentLevel = goldXp.level;
+  if (goldXp.levelled) events.push(...goldXp.events);
+
+  // Research XP (awarded after research section runs)
+  // (handled below after DISCIPLINES loop)
+
+  updates.xp    = totalXp;
+  updates.level = currentLevel;
 
   updates.last_turn_at = Math.floor(Date.now() / 1000);
   return { updates, events };
@@ -312,6 +339,72 @@ function studyDiscipline(k, discipline, researchersAssigned) {
     updates: { [col]: newVal, updated_at: Math.floor(Date.now() / 1000) },
     increment,
   };
+}
+
+// ── Experience & Levelling ────────────────────────────────────────────────────
+
+// XP required to reach each level (cumulative from level 1)
+// Formula: level 1-10: 100*L^2, 11-50: 150*L^2, 51-200: 200*L^2, 201-500: 300*L^2, 501-1000: 500*L^2
+function xpForLevel(level) {
+  if (level <= 1)   return 0;
+  if (level <= 10)  return Math.floor(100  * Math.pow(level - 1, 2));
+  if (level <= 50)  return Math.floor(150  * Math.pow(level - 1, 2));
+  if (level <= 200) return Math.floor(200  * Math.pow(level - 1, 2));
+  if (level <= 500) return Math.floor(300  * Math.pow(level - 1, 2));
+  return              Math.floor(500  * Math.pow(level - 1, 2));
+}
+
+function xpToNextLevel(level) {
+  return xpForLevel(level + 1) - xpForLevel(level);
+}
+
+function levelFromXp(totalXp) {
+  let level = 1;
+  while (level < 1000 && totalXp >= xpForLevel(level + 1)) level++;
+  return level;
+}
+
+// Race XP multipliers per activity type
+const XP_RACE_BONUS = {
+  high_elf:  { research: 1.5, magic: 1.5 },
+  dwarf:     { construction: 1.5, economy: 1.25 },
+  dire_wolf: { combat: 1.5, exploration: 1.25 },
+  dark_elf:  { covert: 1.5, magic: 1.25 },
+  human:     { all: 1.10 },
+  orc:       { combat: 1.25, economy: 1.25 },
+};
+
+function xpRaceBonus(k, activity) {
+  const bonuses = XP_RACE_BONUS[k.race] || {};
+  const base = bonuses.all || 1.0;
+  return Math.max(base, bonuses[activity] || base);
+}
+
+// XP base values per activity
+const XP_BASE = {
+  turn:         10,    // per turn taken
+  gold_earned:  0.001, // per GC of income
+  combat_win:   500,   // per combat victory
+  combat_loss:  100,   // per combat defeat
+  research:     50,    // per discipline that advanced
+  construction: 20,    // per building unit completed
+  exploration:  5,     // per acre found
+  spell_cast:   0.01,  // per mana spent
+  covert_op:    150,   // per covert operation
+};
+
+// Award XP and check for level up — returns { xp, level, levelled, events }
+function awardXp(k, activity, amount) {
+  const mult    = xpRaceBonus(k, activity);
+  const earned  = Math.max(1, Math.floor((XP_BASE[activity] || 10) * amount * mult));
+  const newXp   = (k.xp || 0) + earned;
+  const newLevel = levelFromXp(newXp);
+  const levelled = newLevel > (k.level || 1);
+  const events  = [];
+  if (levelled) {
+    events.push({ type: 'system', message: `🌟 Kingdom reached Level ${newLevel}! (${earned.toLocaleString()} XP earned)` });
+  }
+  return { xp: newXp, level: newLevel, earned, levelled, events };
 }
 
 // ── Construction ──────────────────────────────────────────────────────────────
@@ -452,6 +545,15 @@ function processBuildQueue(k, events) {
 
   if (completedItems.length > 0) {
     events.push({ type: 'system', message: `🔨 Construction completed: ${completedItems.join(', ')}.` });
+    // XP for completed buildings
+    const totalCompleted = completedItems.reduce(function(s, item) {
+      const match = item.match(/^(\d[\d,]*)/);
+      return s + (match ? parseInt(match[1].replace(/,/g,'')) : 1);
+    }, 0);
+    const conXp = awardXp(k, 'construction', totalCompleted);
+    updates.xp    = conXp.xp;
+    updates.level = conXp.level;
+    if (conXp.levelled) events.push(...conXp.events);
   } else if (Object.keys(queue).length > 0) {
     events.push({ type: 'system', message: `🔨 Engineers making progress on ${Object.keys(queue).length} project(s) in queue.` });
   }
@@ -544,10 +646,19 @@ function resolveMilitaryAttack(attacker, defender, fightersSent, magesSent) {
     updated_at: Math.floor(Date.now() / 1000),
   };
 
+  const atkXp = awardXp(attacker, win ? 'combat_win' : 'combat_loss', 1);
+  const defXp = awardXp(defender, win ? 'combat_loss' : 'combat_win', 1);
+
+  attackerUpdates.xp    = atkXp.xp;
+  attackerUpdates.level = atkXp.level;
+  defenderUpdates.xp    = defXp.xp;
+  defenderUpdates.level = defXp.level;
+
   const report = {
     win, fightersSent, magesSent,
     atkFightersLost, atkMagesLost, defFightersLost, landTransferred,
     atkPower: Math.round(atkPower), defPower: Math.round(defPower),
+    atkXpEarned: atkXp.earned, atkLevelUp: atkXp.levelled,
   };
 
   const atkEvent = win
@@ -782,5 +893,6 @@ module.exports = {
   resolveMilitaryAttack, castSpell,
   covertSpy, covertLoot, covertAssassinate,
   resolveAllianceDefence,
-  RACE_BONUSES, UNIT_COST, BUILDING_COST, BUILDING_COL, SPELL_DEFS,
+  awardXp, xpForLevel, xpToNextLevel, levelFromXp,
+  RACE_BONUSES, UNIT_COST, BUILDING_COST, BUILDING_GOLD_COST, BUILDING_COL, SPELL_DEFS,
 };
