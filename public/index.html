@@ -570,103 +570,113 @@
     <!-- BUILD -->
     <div id="build" class="panel">
       <div class="card">
-        <div class="card-title">Construction · Engineers: <span id="build-eng">0</span> available</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+          <div>
+            <div class="card-title" style="margin-bottom:2px">Construction</div>
+            <div style="font-size:12px;color:var(--text3)">Engineers: <span id="build-eng" style="color:var(--text)">0</span> available · <span id="b-total-assigned" style="color:var(--gold)">0</span> assigned · <span id="b-total-unassigned" style="color:var(--green)">0</span> unassigned</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-purple" onclick="distributeBuildEvenly()" style="white-space:nowrap">Distribute evenly</button>
+            <button class="btn btn-green" onclick="buildAll()" style="white-space:nowrap">Build all</button>
+          </div>
+        </div>
+
         <div class="trow">
-          <span class="name">Farms</span><span class="desc">Produces food to feed your troops and population</span>
+          <span class="name">Farms</span><span class="desc">Produces food each turn</span>
           <span class="count" id="bld-farms">0</span>
-          <input type="number" id="b-farm" min="0" value="0">
-          <button class="btn" onclick="build('farm',10,'Farms')">Build</button>
+          <input type="number" id="b-farm" min="0" value="0" oninput="updateBuildDisplay()">
+          <button class="btn" onclick="setBuildMax('b-farm','farm')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
         <div class="trow">
-          <span class="name">Barracks</span><span class="desc">Reduces troop upkeep cost each turn</span>
+          <span class="name">Barracks</span><span class="desc">Reduces troop upkeep</span>
           <span class="count" id="bld-barracks">0</span>
-          <input type="number" id="b-barracks" min="0" value="0">
-          <button class="btn" onclick="build('barracks',2,'Barracks')">Build</button>
+          <input type="number" id="b-barracks" min="0" value="0" oninput="updateBuildDisplay()">
+          <button class="btn" onclick="setBuildMax('b-barracks','barracks')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
         <div class="trow">
-          <span class="name">Outposts</span><span class="desc">Provides early warning of incoming attacks</span>
+          <span class="name">Outposts</span><span class="desc">Early attack warning</span>
           <span class="count" id="bld-outposts">0</span>
-          <input type="number" id="b-outpost" min="0" value="0">
-          <button class="btn" onclick="build('outpost',2,'Outposts')">Build</button>
+          <input type="number" id="b-outpost" min="0" value="0" oninput="updateBuildDisplay()">
+          <button class="btn" onclick="setBuildMax('b-outpost','outpost')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
         <div class="trow">
-          <span class="name">Guard towers</span><span class="desc">Reduces enemy covert operation success rate</span>
+          <span class="name">Guard towers</span><span class="desc">Reduces enemy covert success</span>
           <span class="count" id="bld-guard_towers">0</span>
-          <input type="number" id="b-tower" min="0" value="0">
-          <button class="btn" onclick="build('tower',2,'Guard towers')">Build</button>
+          <input type="number" id="b-tower" min="0" value="0" oninput="updateBuildDisplay()">
+          <button class="btn" onclick="setBuildMax('b-tower','tower')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
         <div class="trow">
-          <span class="name">Schools</span><span class="desc">Increases research output for all disciplines</span>
+          <span class="name">Schools</span><span class="desc">Boosts all research output</span>
           <span class="count" id="bld-schools">0</span>
-          <input type="number" id="b-school" min="0" value="0">
-          <button class="btn" onclick="build('school',5,'Schools')">Build</button>
+          <input type="number" id="b-school" min="0" value="0" oninput="updateBuildDisplay()">
+          <button class="btn" onclick="setBuildMax('b-school','school')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
         <div class="trow">
-          <span class="name">Armories</span><span class="desc">Protects weapons stockpile from enemy thieves</span>
+          <span class="name">Armories</span><span class="desc">Protects weapons from thieves</span>
           <span class="count" id="bld-armories">0</span>
-          <input type="number" id="b-armory" min="0" value="0">
-          <button class="btn" onclick="build('armory',5,'Armories')">Build</button>
+          <input type="number" id="b-armory" min="0" value="0" oninput="updateBuildDisplay()">
+          <button class="btn" onclick="setBuildMax('b-armory','armory')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
         <div class="trow">
-          <span class="name">Vaults</span><span class="desc">Protects gold reserves from enemy thieves</span>
+          <span class="name">Vaults</span><span class="desc">Protects gold from thieves</span>
           <span class="count" id="bld-vaults">0</span>
-          <input type="number" id="b-vault" min="0" value="0">
-          <button class="btn" onclick="build('vault',5,'Vaults')">Build</button>
+          <input type="number" id="b-vault" min="0" value="0" oninput="updateBuildDisplay()">
+          <button class="btn" onclick="setBuildMax('b-vault','vault')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
         <div class="trow">
-          <span class="name">Smithies</span><span class="desc">Speeds up engineer construction and equipment forging</span>
+          <span class="name">Smithies</span><span class="desc">Speeds up construction and forging</span>
           <span class="count" id="bld-smithies">0</span>
-          <input type="number" id="b-smithy" min="0" value="0">
-          <button class="btn" onclick="build('smithy',15,'Smithies')">Build</button>
+          <input type="number" id="b-smithy" min="0" value="0" oninput="updateBuildDisplay()">
+          <button class="btn" onclick="setBuildMax('b-smithy','smithy')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
         <div class="trow">
-          <span class="name">Market places</span><span class="desc">Generates additional trade revenue each turn</span>
+          <span class="name">Market places</span><span class="desc">Generates trade revenue</span>
           <span class="count" id="bld-markets">0</span>
-          <input type="number" id="b-market" min="0" value="0">
-          <button class="btn" onclick="build('market',30,'Market places')">Build</button>
+          <input type="number" id="b-market" min="0" value="0" oninput="updateBuildDisplay()">
+          <button class="btn" onclick="setBuildMax('b-market','market')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
         <div class="trow">
-          <span class="name">Cathedrals</span><span class="desc">Regenerates mana each turn and attracts population</span>
+          <span class="name">Cathedrals</span><span class="desc">Regenerates mana and attracts population</span>
           <span class="count" id="bld-cathedrals">0</span>
-          <input type="number" id="b-cathedral" min="0" value="0">
-          <button class="btn" onclick="build('cathedral',25,'Cathedrals')">Build</button>
+          <input type="number" id="b-cathedral" min="0" value="0" oninput="updateBuildDisplay()">
+          <button class="btn" onclick="setBuildMax('b-cathedral','cathedral')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
         <div class="trow">
-          <span class="name">Training fields</span><span class="desc">Automatically advances military tactics each turn</span>
+          <span class="name">Training fields</span><span class="desc">Advances military tactics each turn</span>
           <span class="count" id="bld-training">0</span>
-          <input type="number" id="b-training" min="0" value="0">
-          <button class="btn" onclick="build('training',50,'Training fields')">Build</button>
+          <input type="number" id="b-training" min="0" value="0" oninput="updateBuildDisplay()">
+          <button class="btn" onclick="setBuildMax('b-training','training')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
         <div class="trow">
-          <span class="name">Taverns</span><span class="desc">Boosts entertainment research and improves morale</span>
+          <span class="name">Taverns</span><span class="desc">Boosts morale recovery each turn</span>
           <span class="count" id="bld-colosseums">0</span>
-          <input type="number" id="b-colosseum" min="0" value="0">
-          <button class="btn" onclick="build('colosseum',25,'Taverns')">Build</button>
+          <input type="number" id="b-colosseum" min="0" value="0" oninput="updateBuildDisplay()">
+          <button class="btn" onclick="setBuildMax('b-colosseum','colosseum')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
         <div class="trow">
-          <span class="name">Castles</span><span class="desc">Boosts food production, economy income, and kingdom defences</span>
+          <span class="name">Castles</span><span class="desc">Boosts food, economy, and defences</span>
           <span class="count" id="bld-castles">0</span>
-          <input type="number" id="b-castle" min="0" value="0">
-          <button class="btn" onclick="build('castle',500,'Castles')">Build</button>
+          <input type="number" id="b-castle" min="0" value="0" oninput="updateBuildDisplay()">
+          <button class="btn" onclick="setBuildMax('b-castle','castle')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
-        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;padding:14px 0 8px">Equipment &amp; War Machines — forged by engineers, faster with more smithies</div>
+        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;padding:14px 0 6px">Equipment &amp; War Machines</div>
         <div class="trow">
-          <span class="name">War machines</span><span class="desc">Powerful siege engines that deal bonus damage in attacks</span>
+          <span class="name">War machines</span><span class="desc">Siege engines for attacks</span>
           <span class="count" id="bld-war_machines">0</span>
-          <input type="number" id="b-wm" min="0" value="0">
-          <button class="btn btn-amber" onclick="build('war_machine',20,'War machines')">Build</button>
+          <input type="number" id="b-wm" min="0" value="0" oninput="updateBuildDisplay()">
+          <button class="btn" onclick="setBuildMax('b-wm','war_machine')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
         <div class="trow">
           <span class="name">Weapons</span><span class="desc">Equips fighters for +25% attack — consumed in battle</span>
           <span class="count" id="bld-weapons_stockpile">0</span>
-          <input type="number" id="b-weapons" min="0" value="0">
-          <button class="btn btn-red" onclick="build('weapons',1,'Weapons')">Forge</button>
+          <input type="number" id="b-weapons" min="0" value="0" oninput="updateBuildDisplay()">
+          <button class="btn" onclick="setBuildMax('b-weapons','weapons')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
-        <div class="trow">
+        <div class="trow" style="border-bottom:none">
           <span class="name">Armor</span><span class="desc">Equips fighters for +25% defence — survives battle</span>
           <span class="count" id="bld-armor_stockpile">0</span>
-          <input type="number" id="b-armor" min="0" value="0">
-          <button class="btn btn-blue" onclick="build('armor',1,'Armor')">Forge</button>
+          <input type="number" id="b-armor" min="0" value="0" oninput="updateBuildDisplay()">
+          <button class="btn" onclick="setBuildMax('b-armor','armor')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
       </div>
     </div>
@@ -1107,12 +1117,9 @@ function populateInputs() {
   if (an) an.value = state.ninjas || 0;
   var sn = document.getElementById('sab-ninjas');
   if (sn) sn.value = state.ninjas || 0;
-  // Weapons — forge enough to fully equip all fighters
-  var bw = document.getElementById('b-weapons');
-  if (bw) bw.value = Math.max(0, (state.fighters || 0) - (state.weapons_stockpile || 0));
-  // Armor — forge enough to fully equip all fighters
-  var ba = document.getElementById('b-armor');
-  if (ba) ba.value = Math.max(0, (state.fighters || 0) - (state.armor_stockpile || 0));
+  // Build quantity — default to 1
+  var ba = document.getElementById('b-amount');
+  if (ba && (!ba.value || ba.value === '0')) ba.value = 1;
   // Spell power slider — max mana
   var sp = document.getElementById('sl-power');
   if (sp) { sp.max = state.mana || 200000; sp.value = Math.min(state.mana || 0, 200000); updateSpellCalc(); }
@@ -1506,6 +1513,9 @@ function switchTab(id, btn) {
     updateAllocationDisplay();
     loadAllocationFromState();
   }
+  if (id === 'build') {
+    updateBuildDisplay();
+  }
 }
 
 async function hire(unit) {
@@ -1544,28 +1554,6 @@ async function study(name) {
   toast('+' + result.increment + ' to ' + name + ' · ' + state.turns_stored + ' turns left', 'success');
 }
 
-async function build(key, piecesPerUnit, label) {
-  var n = parseInt(document.getElementById('b-' + key).value) || 0;
-  if (n <= 0) return toast('Enter a quantity to build', 'error');
-  if (state.turns_stored < 1) return toast('No turns available', 'warn');
-  // Map HTML input key to engine building key
-  var buildingKeyMap = {
-    farm:'farms', barracks:'barracks', outpost:'outposts', tower:'guard_towers',
-    school:'schools', armory:'armories', vault:'vaults', smithy:'smithies',
-    market:'markets', cathedral:'cathedrals', training:'training',
-    colosseum:'colosseums', castle:'castles',
-    weapons:'weapons', armor:'armor'
-  };
-  var building = buildingKeyMap[key] || key;
-  var result = await apiCall('POST', '/api/kingdom/build', { building: building, quantity: n });
-  if (result.error) return toast(result.error, 'error');
-  applyServerUpdates(result.updates);
-  if (result.turns_stored !== undefined) { state.turns_stored = result.turns_stored; updateTurnsDisplay(); }
-  syncUI();
-  document.getElementById('b-' + key).value = 0;
-  if (result.events && result.events.length) appendNewsItems(result.events);
-  toast('Built ' + fmt(n) + ' ' + label + ' · ' + state.turns_stored + ' turns left', 'success');
-}
 
 function updateTax(v) {
   v = parseInt(v);
@@ -2119,6 +2107,103 @@ function applyServerUpdates(u) {
 }
 
 // Override hire to hit real server
+// ── Build panel allocation ────────────────────────────────────────────────────
+
+var BUILD_FIELDS = [
+  { id:'b-farm',      key:'farm',        pieces:10  },
+  { id:'b-barracks',  key:'barracks',    pieces:2   },
+  { id:'b-outpost',   key:'outpost',     pieces:2   },
+  { id:'b-tower',     key:'tower',       pieces:2   },
+  { id:'b-school',    key:'school',      pieces:5   },
+  { id:'b-armory',    key:'armory',      pieces:5   },
+  { id:'b-vault',     key:'vault',       pieces:5   },
+  { id:'b-smithy',    key:'smithy',      pieces:15  },
+  { id:'b-market',    key:'market',      pieces:30  },
+  { id:'b-cathedral', key:'cathedral',   pieces:25  },
+  { id:'b-training',  key:'training',    pieces:50  },
+  { id:'b-colosseum', key:'colosseum',   pieces:25  },
+  { id:'b-castle',    key:'castle',      pieces:500 },
+  { id:'b-wm',        key:'war_machine', pieces:20  },
+  { id:'b-weapons',   key:'weapons',     pieces:1   },
+  { id:'b-armor',     key:'armor',       pieces:1   },
+];
+
+function getBuildPiecesUsed() {
+  return BUILD_FIELDS.reduce(function(sum, f) {
+    return sum + ((parseInt(document.getElementById(f.id)?.value) || 0) * f.pieces);
+  }, 0);
+}
+
+function updateBuildDisplay() {
+  var total = state.engineers || 0;
+  var used  = getBuildPiecesUsed();
+  var remaining = Math.max(0, total - used);
+  var ta = document.getElementById('b-total-assigned');
+  var tu = document.getElementById('b-total-unassigned');
+  if (ta) ta.textContent = fmt(used);
+  if (tu) {
+    tu.textContent = fmt(remaining);
+    tu.style.color = used > total ? 'var(--red)' : 'var(--green)';
+  }
+}
+
+function setBuildMax(fieldId, key) {
+  var field = BUILD_FIELDS.find(function(f) { return f.id === fieldId; });
+  if (!field) return;
+  var total      = state.engineers || 0;
+  var used       = getBuildPiecesUsed();
+  var current    = (parseInt(document.getElementById(fieldId)?.value) || 0) * field.pieces;
+  var available  = Math.floor((total - used + current) / field.pieces);
+  var el = document.getElementById(fieldId);
+  if (el) el.value = Math.max(0, available);
+  updateBuildDisplay();
+}
+
+function distributeBuildEvenly() {
+  var total   = state.engineers || 0;
+  var count   = BUILD_FIELDS.length;
+  var piecesEach = Math.floor(total / count);
+  BUILD_FIELDS.forEach(function(f) {
+    var qty = Math.floor(piecesEach / f.pieces);
+    var el = document.getElementById(f.id);
+    if (el) el.value = qty;
+  });
+  updateBuildDisplay();
+}
+
+async function buildAll() {
+  if (state.turns_stored < 1) return toast('No turns available', 'warn');
+  var hasAny = BUILD_FIELDS.some(function(f) {
+    return (parseInt(document.getElementById(f.id)?.value) || 0) > 0;
+  });
+  if (!hasAny) return toast('Enter quantities to build first', 'error');
+
+  var buildingKeyMap = {
+    farm:'farms', barracks:'barracks', outpost:'outposts', tower:'guard_towers',
+    school:'schools', armory:'armories', vault:'vaults', smithy:'smithies',
+    market:'markets', cathedral:'cathedrals', training:'training',
+    colosseum:'colosseums', castle:'castles', war_machine:'war_machines',
+    weapons:'weapons', armor:'armor'
+  };
+
+  // Build each non-zero entry sequentially
+  for (var i = 0; i < BUILD_FIELDS.length; i++) {
+    var f = BUILD_FIELDS[i];
+    var qty = parseInt(document.getElementById(f.id)?.value) || 0;
+    if (qty <= 0) continue;
+    var building = buildingKeyMap[f.key] || f.key;
+    var result = await apiCall('POST', '/api/kingdom/build', { building: building, quantity: qty });
+    if (result.error) { toast(result.error, 'error'); break; }
+    applyServerUpdates(result.updates);
+    if (result.turns_stored !== undefined) { state.turns_stored = result.turns_stored; updateTurnsDisplay(); }
+    if (result.events && result.events.length) appendNewsItems(result.events);
+    document.getElementById(f.id).value = 0;
+  }
+  syncUI();
+  updateBuildDisplay();
+  toast('Construction complete · ' + state.turns_stored + ' turns left', 'success');
+}
+
 // ── Research allocation ───────────────────────────────────────────────────────
 
 var RA_FIELDS = [
