@@ -631,7 +631,13 @@
           <input type="number" id="b-castle" min="0" value="0">
           <button class="btn" onclick="build('castle',500,'Castles')">Build</button>
         </div>
-        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;padding:14px 0 8px">Equipment — forged by engineers · more smithies = faster production</div>
+        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;padding:14px 0 8px">Equipment &amp; War Machines — forged by engineers · more smithies = faster production</div>
+        <div class="trow">
+          <span class="name">War machines</span><span class="desc">Siege engines for attacks · 20 pieces each · require engineers to operate</span>
+          <span class="count" id="bld-war_machines">0</span>
+          <input type="number" id="b-wm" min="0" value="0">
+          <button class="btn btn-amber" onclick="build('war_machine',20,'War machines')">Build</button>
+        </div>
         <div class="trow">
           <span class="name">Weapons</span><span class="desc">Each equips 1 fighter · +25% attack when fully equipped · lost in battle</span>
           <span class="count" id="bld-weapons_stockpile">0</span>
@@ -1505,19 +1511,20 @@ function switchTab(id, btn) {
   }
 }
 
-function hire(unit) {
+async function hire(unit) {
   var n = parseInt(document.getElementById('hire-' + unit).value) || 0;
-  if (n <= 0) return toast('Enter an amount to hire', 'error');
-  var total = n * 250;
-  if (total > state.gold) return toast('Not enough gold — need ' + fmt(total) + ' GC', 'error');
-  if (n > state.pop) return toast('Not enough population available', 'error');
-  state.gold -= total;
-  state.pop -= n;
-  state[unit] = (state[unit] || 0) + n;
+  if (n <= 0) return toast('Enter an amount', 'error');
+  if (state.turns_stored < 1) return toast('No turns available', 'warn');
+  var result = await apiCall('POST', '/api/kingdom/hire', { unit: unit, amount: n });
+  if (result.error) return toast(result.error, 'error');
+  applyServerUpdates(result.updates);
+  if (result.turns_stored !== undefined) { state.turns_stored = result.turns_stored; updateTurnsDisplay(); }
   syncUI();
   document.getElementById('hire-' + unit).value = 0;
-  document.getElementById('h-' + unit).textContent = fmt(state[unit]);
-  toast('Hired ' + fmt(n) + ' ' + unit + ' for ' + fmt(total) + ' GC', 'success');
+  var hEl = document.getElementById('h-' + unit);
+  if (hEl) hEl.textContent = fmt(state[unit]);
+  if (result.events && result.events.length) appendNewsItems(result.events);
+  toast('Hired ' + fmt(n) + ' ' + unit + ' · ' + state.turns_stored + ' turns left', 'success');
 }
 
 async function study(name) {
@@ -1646,7 +1653,8 @@ function syncUI() {
     vaults:'bld_vaults', smithies:'bld_smithies', markets:'bld_markets',
     cathedrals:'bld_cathedrals', training:'bld_training', colosseums:'bld_colosseums',
     castles:'bld_castles',
-    weapons_stockpile:'weapons_stockpile', armor_stockpile:'armor_stockpile'
+    weapons_stockpile:'weapons_stockpile', armor_stockpile:'armor_stockpile',
+    war_machines:'war_machines'
   };
   Object.keys(bldMap).forEach(function(bld) {
     var el = document.getElementById('bld-' + bld);
@@ -1886,6 +1894,7 @@ async function loadKingdom() {
     bld_castles: kingdom.bld_castles,
     weapons_stockpile: kingdom.weapons_stockpile || 0,
     armor_stockpile:   kingdom.armor_stockpile   || 0,
+    war_machines:      kingdom.war_machines       || 0,
   });
   syncUI();
   updateTurnsDisplay();
@@ -2042,27 +2051,11 @@ function applyServerUpdates(u) {
   ].forEach(function(k) { if (u[k] !== undefined) state[k] = u[k]; });
   ['bld_farms','bld_barracks','bld_outposts','bld_guard_towers','bld_schools','bld_armories',
    'bld_vaults','bld_smithies','bld_markets','bld_cathedrals','bld_training','bld_colosseums','bld_castles',
-   'weapons_stockpile','armor_stockpile'
+   'weapons_stockpile','armor_stockpile','war_machines'
   ].forEach(function(k) { if (u[k] !== undefined) state[k] = u[k]; });
 }
 
 // Override hire to hit real server
-hire = async function(unit) {
-  var n = parseInt(document.getElementById('hire-' + unit).value) || 0;
-  if (n <= 0) return toast('Enter an amount', 'error');
-  if (state.turns_stored < 1) return toast('No turns available', 'warn');
-  var result = await apiCall('POST', '/api/kingdom/hire', { unit: unit, amount: n });
-  if (result.error) return toast(result.error, 'error');
-  applyServerUpdates(result.updates);
-  if (result.turns_stored !== undefined) { state.turns_stored = result.turns_stored; updateTurnsDisplay(); }
-  syncUI();
-  document.getElementById('hire-' + unit).value = 0;
-  var hEl = document.getElementById('h-' + unit);
-  if (hEl) hEl.textContent = fmt(state[unit]);
-  if (result.events && result.events.length) appendNewsItems(result.events);
-  toast('Hired ' + fmt(n) + ' ' + unit + ' · ' + state.turns_stored + ' turns left', 'success');
-};
-
 // Boot — check auth then show modal or load kingdom
 async function doLogout() {
   await apiCall('POST', '/api/auth/logout');
