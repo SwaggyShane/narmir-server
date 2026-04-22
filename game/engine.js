@@ -228,19 +228,9 @@ function processTurn(k) {
     events.push({ type: 'system', message: `📚 No researchers — hire researchers and allocate them to advance your kingdom's knowledge.` });
   }
 
-  // ── 8. Auto-construction ──────────────────────────────────────────────────────
-  const engineers = k.engineers || 0;
-  if (engineers > 0) {
-    const constrBonus = 1 + (Math.floor((k.bld_smithies||0) / 15) * 0.02) * raceBonus(k, 'construction');
-    const buildPoints = Math.floor(engineers * constrBonus);
-    if (food < 0 && buildPoints >= 10) {
-      const newFarms = Math.floor(buildPoints / 10);
-      updates.bld_farms = (k.bld_farms||0) + newFarms;
-      events.push({ type: 'system', message: `🔨 Engineers auto-built ${newFarms} farm(s) to address food shortage. Total farms: ${updates.bld_farms}.` });
-    } else {
-      events.push({ type: 'system', message: `🔨 ${engineers.toLocaleString()} engineers standing by — use Build to construct buildings.` });
-    }
-  }
+  // ── 8. Build queue — engineers work on queued buildings each turn ─────────────
+  const buildUpdates = processBuildQueue(k, events);
+  Object.assign(updates, buildUpdates);
 
   // ── 9. Training fields ────────────────────────────────────────────────────────
   if ((k.bld_training||0) > 0) {
@@ -326,11 +316,12 @@ function studyDiscipline(k, discipline, researchersAssigned) {
 
 // ── Construction ──────────────────────────────────────────────────────────────
 
-const BUILDING_PIECES = {
-  farms: 10, barracks: 2, outposts: 2, guard_towers: 2,
-  schools: 5, armories: 5, vaults: 5, smithies: 15,
-  markets: 30, cathedrals: 25, training: 50, colosseums: 25, castles: 500,
-  war_machine: 20, weapons: 1, armor: 1,
+// Engineer-turns required to complete one unit of each building
+const BUILDING_COST = {
+  farms: 10, barracks: 20, outposts: 20, guard_towers: 20,
+  schools: 50, armories: 50, vaults: 50, smithies: 150,
+  markets: 300, cathedrals: 250, training: 500, colosseums: 250, castles: 5000,
+  war_machine: 200, weapons: 10, armor: 10,
 };
 
 const BUILDING_COL = {
@@ -342,27 +333,113 @@ const BUILDING_COL = {
   war_machine: 'war_machines', weapons: 'weapons_stockpile', armor: 'armor_stockpile',
 };
 
-function buildStructure(k, building, quantity) {
-  const piecesPerUnit = BUILDING_PIECES[building];
-  const col = BUILDING_COL[building];
-  if (!piecesPerUnit || !col) return { error: 'Unknown building type' };
-  if (quantity <= 0) return { error: 'Quantity must be positive' };
+// Add buildings to the queue — does not cost a turn, just schedules work
+function queueBuildings(k, orders) {
+  // orders: { building: quantity, ... }
+  let queue = {};
+  try { queue = JSON.parse(k.build_queue || '{}'); } catch { queue = {}; }
+  for (const [building, qty] of Object.entries(orders)) {
+    if (!BUILDING_COST[building]) continue;
+    if (qty <= 0) continue;
+    queue[building] = (queue[building] || 0) + Number(qty);
+  }
+  return { updates: { build_queue: JSON.stringify(queue) } };
+}
 
-  const piecesNeeded = quantity * piecesPerUnit;
+// Process build queue each turn — engineers work on queued buildings
+function processBuildQueue(k, events) {
+  const updates = {};
+  let queue    = {};
+  let progress = {};
+  try { queue    = JSON.parse(k.build_queue    || '{}'); } catch { queue = {}; }
+  try { progress = JSON.parse(k.build_progress || '{}'); } catch { progress = {}; }
+
+  if (Object.keys(queue).length === 0) return updates;
+
+  // Tool bonuses
+  const hammerBonus     = 1 + (k.tools_hammers     || 0) * 0.05;
+  const scaffoldBonus   = 1 + (k.tools_scaffolding  || 0) * 0.15;
+  const blueprintBonus  = 1 + (k.tools_blueprints   || 0) * 0.25;
+  const smithyBonus     = 1 + (Math.floor((k.bld_smithies||0) / 15) * 0.02);
+  const raceConstr      = raceBonus(k, 'construction');
+  const toolMult        = hammerBonus * scaffoldBonus * blueprintBonus * smithyBonus * raceConstr;
+
+  // Allocated engineers per building from build_allocation JSON
+  let allocation = {};
+  try { allocation = JSON.parse(k.build_allocation || '{}'); } catch { allocation = {}; }
+
+  const totalEngineers = k.engineers || 0;
+  const totalAllocated = Object.values(allocation).reduce((s,v) => s + (Number(v)||0), 0);
+  // If no allocation set, spread evenly across queued buildings
+  const queueKeys = Object.keys(queue);
+  const defaultPer = queueKeys.length > 0 ? Math.floor(totalEngineers / queueKeys.length) : 0;
+
+  const completedItems = [];
+
+  for (const building of queueKeys) {
+    const qty = queue[building];
+    if (!qty || qty <= 0) continue;
+    const cost = BUILDING_COST[building];
+    if (!cost) continue;
+
+    const engAssigned = totalAllocated > 0 ? (Number(allocation[building]) || 0) : defaultPer;
+    const workDone    = Math.floor(engAssigned * toolMult);
+
+    const prevProgress = progress[building] || 0;
+    const totalProgress = prevProgress + workDone;
+    const costPerUnit   = cost;
+    const completed     = Math.floor(totalProgress / costPerUnit);
+    const actualCompleted = Math.min(completed, qty);
+    const remainder     = totalProgress - (actualCompleted * costPerUnit);
+
+    if (actualCompleted > 0) {
+      const col = BUILDING_COL[building];
+      if (col) {
+        updates[col] = (updates[col] !== undefined ? updates[col] : (k[col] || 0)) + actualCompleted;
+      }
+      queue[building] = qty - actualCompleted;
+      if (queue[building] <= 0) delete queue[building];
+      progress[building] = queue[building] > 0 ? remainder : 0;
+      completedItems.push(`${actualCompleted.toLocaleString()} ${building.replace('_', ' ')}`);
+    } else {
+      progress[building] = totalProgress;
+    }
+  }
+
+  // Clean up zero entries
+  for (const k2 of Object.keys(queue)) {
+    if ((queue[k2] || 0) <= 0) delete queue[k2];
+  }
+  for (const k2 of Object.keys(progress)) {
+    if (!queue[k2]) delete progress[k2];
+  }
+
+  updates.build_queue    = JSON.stringify(queue);
+  updates.build_progress = JSON.stringify(progress);
+
+  if (completedItems.length > 0) {
+    events.push({ type: 'system', message: `🔨 Construction completed: ${completedItems.join(', ')}.` });
+  } else if (Object.keys(queue).length > 0) {
+    events.push({ type: 'system', message: `🔨 Engineers making progress on ${Object.keys(queue).length} project(s) in queue.` });
+  }
+
+  return updates;
+}
+
+// Forge construction tools (costs engineer-turns, stored in kingdom)
+function forgeTools(k, toolType, quantity) {
+  const TOOL_COST = { hammers: 10, scaffolding: 50, blueprints: 100 };
+  const TOOL_COL  = { hammers: 'tools_hammers', scaffolding: 'tools_scaffolding', blueprints: 'tools_blueprints' };
+  const cost = TOOL_COST[toolType];
+  const col  = TOOL_COL[toolType];
+  if (!cost || !col) return { error: 'Unknown tool type' };
   const smithyBonus  = 1 + (Math.floor((k.bld_smithies||0) / 15) * 0.02);
   const raceConstr   = raceBonus(k, 'construction');
   const maxBuildable = Math.floor((k.engineers||0) * smithyBonus * raceConstr);
-
-  if (piecesNeeded > maxBuildable) {
-    return { error: `Need ${piecesNeeded.toLocaleString()} engineer-turns but only ${maxBuildable.toLocaleString()} available` };
-  }
-
+  const needed       = quantity * cost;
+  if (needed > maxBuildable) return { error: `Need ${needed.toLocaleString()} engineer-turns, only ${maxBuildable.toLocaleString()} available` };
   return {
-    updates: {
-      [col]: k[col] + quantity,
-      updated_at: Math.floor(Date.now() / 1000),
-    },
-    piecesUsed: piecesNeeded,
+    updates: { [col]: (k[col]||0) + quantity, updated_at: Math.floor(Date.now()/1000) },
   };
 }
 
