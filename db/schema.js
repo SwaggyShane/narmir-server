@@ -96,6 +96,7 @@ async function initDb() {
       kingdom_id  INTEGER NOT NULL REFERENCES kingdoms(id),
       type        TEXT    NOT NULL,
       message     TEXT    NOT NULL,
+      turn_num    INTEGER NOT NULL DEFAULT 0,
       is_read     INTEGER NOT NULL DEFAULT 0,
       created_at  INTEGER NOT NULL DEFAULT (unixepoch())
     );
@@ -126,49 +127,29 @@ async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_chat_room       ON chat_messages(room, created_at);
   `);
 
-  // ── Migrations — add columns that may not exist in older databases ───────────
-  const cols = await _db.all("PRAGMA table_info(kingdoms)");
-  const colNames = cols.map(c => c.name);
-  if (!colNames.includes('turns_stored')) {
-    await _db.exec('ALTER TABLE kingdoms ADD COLUMN turns_stored INTEGER NOT NULL DEFAULT 200');
-    console.log('[db] Migration: added turns_stored column');
-  }
-  if (!colNames.includes('research_allocation')) {
-    await _db.exec("ALTER TABLE kingdoms ADD COLUMN research_allocation TEXT NOT NULL DEFAULT '{}'");
-    console.log('[db] Migration: added research_allocation column');
-  }
-  if (!colNames.includes('weapons_stockpile')) {
-    await _db.exec('ALTER TABLE kingdoms ADD COLUMN weapons_stockpile INTEGER NOT NULL DEFAULT 0');
-    console.log('[db] Migration: added weapons_stockpile column');
-  }
-  if (!colNames.includes('armor_stockpile')) {
-    await _db.exec('ALTER TABLE kingdoms ADD COLUMN armor_stockpile INTEGER NOT NULL DEFAULT 0');
-    console.log('[db] Migration: added armor_stockpile column');
-  }
-  if (!colNames.includes('turns_stored')) {
-    await _db.exec('ALTER TABLE kingdoms ADD COLUMN turns_stored INTEGER NOT NULL DEFAULT 200');
-    console.log('[db] Migration: added turns_stored column');
-  }
-  if (!colNames.includes('research_allocation')) {
-    await _db.exec("ALTER TABLE kingdoms ADD COLUMN research_allocation TEXT NOT NULL DEFAULT '{}'");
-    console.log('[db] Migration: added research_allocation column');
+  // ── Migrations — safe, idempotent, never crash on duplicate ─────────────────
+  async function addColumn(table, col, def) {
+    try {
+      await _db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`);
+      console.log(`[db] Migration: added ${col} to ${table}`);
+    } catch (e) {
+      if (!e.message.includes('duplicate column')) throw e;
+    }
   }
 
-  // Ensure player admin/ban columns exist
-  const playerCols = await _db.all("PRAGMA table_info(players)");
-  const playerColNames = playerCols.map(c => c.name);
-  if (!playerColNames.includes('is_admin')) {
-    await _db.exec('ALTER TABLE players ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0');
-    console.log('[db] Migration: added is_admin column');
-  }
-  if (!playerColNames.includes('is_banned')) {
-    await _db.exec('ALTER TABLE players ADD COLUMN is_banned INTEGER NOT NULL DEFAULT 0');
-    console.log('[db] Migration: added is_banned column');
-  }
-  if (!playerColNames.includes('ban_reason')) {
-    await _db.exec('ALTER TABLE players ADD COLUMN ban_reason TEXT');
-    console.log('[db] Migration: added ban_reason column');
-  }
+  const cols = (await _db.all('PRAGMA table_info(kingdoms)')).map(c => c.name);
+  if (!cols.includes('turns_stored'))        await addColumn('kingdoms', 'turns_stored',        'INTEGER NOT NULL DEFAULT 200');
+  if (!cols.includes('research_allocation')) await addColumn('kingdoms', 'research_allocation', "TEXT NOT NULL DEFAULT '{}'");
+  if (!cols.includes('weapons_stockpile'))   await addColumn('kingdoms', 'weapons_stockpile',   'INTEGER NOT NULL DEFAULT 0');
+  if (!cols.includes('armor_stockpile'))     await addColumn('kingdoms', 'armor_stockpile',     'INTEGER NOT NULL DEFAULT 0');
+
+  const pCols = (await _db.all('PRAGMA table_info(players)')).map(c => c.name);
+  if (!pCols.includes('is_admin'))   await addColumn('players', 'is_admin',   'INTEGER NOT NULL DEFAULT 0');
+  if (!pCols.includes('is_banned'))  await addColumn('players', 'is_banned',  'INTEGER NOT NULL DEFAULT 0');
+  if (!pCols.includes('ban_reason')) await addColumn('players', 'ban_reason', 'TEXT');
+
+  const nCols = (await _db.all('PRAGMA table_info(news)')).map(c => c.name);
+  if (!nCols.includes('turn_num')) await addColumn('news', 'turn_num', 'INTEGER NOT NULL DEFAULT 0');
 
   // Seed default server_state row for regen tracking
   await _db.run(`
