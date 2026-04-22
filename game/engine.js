@@ -307,7 +307,7 @@ const CAPS = {
   // No cap on researchers or engineers
 
   // Buildings: small kingdoms start with low limits
-  bld_farms:        { base: 50,    max: 100000  },
+  bld_farms:        { base: 100,   max: 1000000 },
   bld_barracks:     { base: 10,    max: 50000   },
   bld_outposts:     { base: 10,    max: 25000   },
   bld_guard_towers: { base: 10,    max: 25000   },
