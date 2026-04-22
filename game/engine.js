@@ -744,9 +744,10 @@ function resolveAllianceDefence(attackResult, allies) {
 
 module.exports = {
   goldPerTurn, manaPerTurn, foodBalance, popGrowth,
-  processTurn, hireUnits, studyDiscipline, buildStructure,
+  processTurn, hireUnits, studyDiscipline,
+  queueBuildings, processBuildQueue, forgeTools,
   resolveMilitaryAttack, castSpell,
   covertSpy, covertLoot, covertAssassinate,
   resolveAllianceDefence,
-  RACE_BONUSES, UNIT_COST, BUILDING_PIECES, BUILDING_COL, SPELL_DEFS,
+  RACE_BONUSES, UNIT_COST, BUILDING_COST, BUILDING_COL, SPELL_DEFS,
 };
