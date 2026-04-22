@@ -1148,12 +1148,34 @@ function trunc(n) {
 }
 
 function populateInputs() {
-  // Hire — max affordable with current gold and pop
-  var maxHire = Math.min(state.pop || 0, Math.floor((state.gold || 0) / 250));
-  ['fighters','rangers','clerics','mages','thieves','ninjas','researchers','engineers'].forEach(function(u) {
+  // Hire — max affordable with current gold and pop, capped by level
+  var HIRE_CAPS_JS = {
+    fighters: [500, 5000000], rangers: [250, 2000000], clerics: [100, 1000000],
+    mages: [100, 1000000], thieves: [100, 500000], ninjas: [50, 250000]
+  };
+  function hireLevelCap(unit) {
+    var c = HIRE_CAPS_JS[unit];
+    if (!c) return Infinity;
+    var lv = Math.max(1, Math.min(1000, state.level || 1));
+    return Math.floor(c[0] + (c[1] - c[0]) * (lv - 1) / 999);
+  }
+  var maxAfford = Math.min(state.pop || 0, Math.floor((state.gold || 0) / 250));
+  ['fighters','rangers','clerics','mages','thieves','ninjas'].forEach(function(u) {
     var el = document.getElementById('hire-' + u);
-    if (el) el.value = maxHire;
+    if (!el) return;
+    var cap = hireLevelCap(u);
+    var current = state[u] || 0;
+    var canHire = Math.max(0, Math.min(maxAfford, cap - current));
+    el.value = canHire;
+    // Show current / cap on count display
+    var hEl = document.getElementById('h-' + u);
+    if (hEl) hEl.textContent = fmt(current) + ' / ' + fmt(cap);
   });
+  // Researchers and engineers have no cap
+  var re = document.getElementById('hire-researchers');
+  if (re) re.value = maxAfford;
+  var ee = document.getElementById('hire-engineers');
+  if (ee) ee.value = maxAfford;
   // Research — single researcher input
   var ra = document.getElementById('r-amount');
   if (ra) ra.value = state.researchers || 0;
