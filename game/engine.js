@@ -322,9 +322,7 @@ const BUILDING_PIECES = {
   farms: 10, barracks: 2, outposts: 2, guard_towers: 2,
   schools: 5, armories: 5, vaults: 5, smithies: 15,
   markets: 30, cathedrals: 25, training: 50, colosseums: 25, castles: 500,
-  // Equipment — forged by engineers using smithies
-  // 1 piece per unit: smithies reduce cost further via construction bonus
-  weapons: 1, armor: 1,
+  war_machine: 20, weapons: 1, armor: 1,
 };
 
 const BUILDING_COL = {
@@ -333,7 +331,7 @@ const BUILDING_COL = {
   vaults: 'bld_vaults', smithies: 'bld_smithies', markets: 'bld_markets',
   cathedrals: 'bld_cathedrals', training: 'bld_training', colosseums: 'bld_colosseums',
   castles: 'bld_castles',
-  weapons: 'weapons_stockpile', armor: 'armor_stockpile',
+  war_machine: 'war_machines', weapons: 'weapons_stockpile', armor: 'armor_stockpile',
 };
 
 function buildStructure(k, building, quantity) {
@@ -376,7 +374,10 @@ function resolveMilitaryAttack(attacker, defender, fightersSent, magesSent) {
   const atkMagic   = raceBonus(attacker, 'magic');
   const atkFighterPower = fightersSent * atkWeapon * atkTactics * atkRace;
   const atkMagePower    = magesSent * 2.5 * (attacker.res_attack_magic / 100) * atkMagic;
-  const atkPower = atkFighterPower + atkMagePower;
+  // War machines: each adds 500 attack power, scaled by war machines research and race
+  const wmCount    = Math.min(attacker.war_machines || 0, attacker.engineers || 0); // need engineers to operate
+  const wmBonus    = wmCount * 500 * (attacker.res_war_machines / 100) * raceBonus(attacker, 'war_machines');
+  const atkPower = atkFighterPower + atkMagePower + wmBonus;
 
   // Defence power — armor stockpile reduces casualties taken
   const armorEquipped = Math.min(defender.fighters, defender.armor_stockpile || 0);
