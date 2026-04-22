@@ -189,6 +189,6 @@ async function applyUpdates(db, kingdomId, updates) {
   await db.run(`UPDATE kingdoms SET ${cols} WHERE id = ?`, [...Object.values(updates), kingdomId]);
 }
 
-async function insertNews(db, kingdomId, type, message) {
-  await db.run('INSERT INTO news (kingdom_id, type, message) VALUES (?, ?, ?)', [kingdomId, type, message]);
+async function insertNews(db, kingdomId, type, message, turnNum) {
+  await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)', [kingdomId, type, message, turnNum || 0]);
 }
