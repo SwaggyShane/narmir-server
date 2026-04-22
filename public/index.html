@@ -1736,9 +1736,15 @@ async function apiCall(method, path, body) {
       credentials: 'include',
       body: body ? JSON.stringify(body) : undefined,
     });
-    return res.json();
+    var text = await res.text();
+    try {
+      return JSON.parse(text);
+    } catch {
+      console.error('[api] non-JSON response (' + res.status + '):', text.slice(0, 200));
+      return { error: 'Server error ' + res.status + ' — check Render logs' };
+    }
   } catch (err) {
-    console.error('[api] error:', method, path, err);
+    console.error('[api] fetch error:', method, path, err);
     return { error: err.message };
   }
 }
