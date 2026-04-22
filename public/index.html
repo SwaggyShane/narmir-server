@@ -282,13 +282,12 @@
     <button class="nav-item" onclick="switchTab('hire',this)"><span class="icon">&#9651;</span>Hire</button>
     <button class="nav-item" onclick="switchTab('research',this)"><span class="icon">&#9670;</span>Research</button>
     <button class="nav-item" onclick="switchTab('build',this)"><span class="icon">&#9650;</span>Build</button>
-    <button class="nav-item" onclick="switchTab('options',this)"><span class="icon">&#9881;</span>Options</button>
+    <button class="nav-item" onclick="switchTab('exploration',this)"><span class="icon">&#9685;</span>Exploration</button>
 
     <div class="nav-section">Warfare</div>
     <button class="nav-item" onclick="switchTab('attack',this)"><span class="icon">&#9876;</span>Attack</button>
     <button class="nav-item" onclick="switchTab('spells',this)"><span class="icon">&#10024;</span>Spells</button>
     <button class="nav-item" onclick="switchTab('covert',this)"><span class="icon">&#128373;</span>Covert</button>
-    <button class="nav-item" onclick="switchTab('exploration',this)"><span class="icon">&#9685;</span>Exploration</button>
 
     <div class="nav-section">Social</div>
     <button class="nav-item" onclick="switchTab('alliances',this)"><span class="icon">&#9876;</span>Alliances</button>
@@ -385,6 +384,22 @@
           </div>
         </div>
       </div>
+
+      <!-- Tax rate -->
+      <div class="card" style="margin-top:0">
+        <div class="card-title">Tax rate</div>
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:10px">
+          <input type="range" id="tax-slider" min="0" max="100" step="1" value="42" oninput="updateTax(this.value)" style="flex:1">
+          <span style="font-size:22px;font-weight:700;color:var(--gold);min-width:48px" id="tax-disp">42%</span>
+          <div style="display:flex;gap:8px">
+            <button class="btn" onclick="setTax(42)">42%</button>
+            <button class="btn" onclick="setTax(50)">50%</button>
+            <button class="btn btn-red" onclick="setTax(0)">0%</button>
+          </div>
+        </div>
+        <div style="font-size:12px;color:var(--text3);line-height:1.7">42% is the sweet spot — max gold without morale penalty. Above 50%: citizens leave. Below 30%: minimal income.</div>
+      </div>
+
     </div>
 
     <!-- HIRE -->
@@ -446,66 +461,88 @@
     <!-- RESEARCH -->
     <div id="research" class="panel">
       <div class="card">
-        <div class="card-title">Research — assign researchers to disciplines · ~2,000 researchers = max increment</div>
+        <div class="card-title">Research</div>
+
+        <!-- Single control row -->
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Researchers to assign</label>
+            <input type="number" id="r-amount" min="0" max="1000000" value="0"
+              style="width:130px;font-size:15px;padding:8px 10px;text-align:left">
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:200px">
+            <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Discipline</label>
+            <select id="r-discipline" style="width:100%;padding:8px 10px;font-size:14px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text)">
+              <option value="Economy">Economy — gold earned per turn</option>
+              <option value="Weapons">Weapons — attack damage bonus</option>
+              <option value="Armor">Armor — defense rating bonus</option>
+              <option value="Military tactics">Military tactics — all troop effectiveness</option>
+              <option value="Spellbook">Spellbook — more &amp; stronger spells</option>
+              <option value="Attack magic">Attack magic — destructive spell damage</option>
+              <option value="Defense magic">Defense magic — protective spell power</option>
+              <option value="Entertainment">Entertainment — morale &amp; population growth</option>
+              <option value="Construction skills">Construction skills — build more per turn</option>
+              <option value="War machines">War machines — WM power &amp; durability</option>
+            </select>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">&nbsp;</label>
+            <button class="btn btn-purple" onclick="study(document.getElementById('r-discipline').value)"
+              style="padding:8px 20px;font-size:14px;white-space:nowrap">Study</button>
+          </div>
+        </div>
+
+        <!-- Current levels table -->
+        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Current levels</div>
         <div class="trow">
-          <span class="name">Economy</span><span class="desc">Gold earned per turn</span>
-          <span class="count">740%</span><span class="badge badge-green">+5/turn</span>
-          <input type="number" id="r-eco" min="0" max="1000000" value="2000">
-          <button class="btn btn-purple" onclick="study('Economy')">Study</button>
+          <span class="name">Economy</span><span class="desc">Gold per turn</span>
+          <div class="prog-wrap"><div class="prog-bar eco" id="pb-eco" style="width:74%"></div></div>
+          <span class="count" id="rv-eco">740%</span>
         </div>
         <div class="trow">
-          <span class="name">Weapons</span><span class="desc">Attack damage bonus</span>
-          <span class="count">520%</span><span class="badge badge-blue">+3/turn</span>
-          <input type="number" id="r-wep" min="0" max="1000000" value="1200">
-          <button class="btn btn-purple" onclick="study('Weapons')">Study</button>
+          <span class="name">Weapons</span><span class="desc">Attack damage</span>
+          <div class="prog-wrap"><div class="prog-bar wep" id="pb-wep" style="width:52%"></div></div>
+          <span class="count" id="rv-wep">520%</span>
         </div>
         <div class="trow">
-          <span class="name">Armor</span><span class="desc">Defense rating bonus</span>
-          <span class="count">480%</span><span class="badge badge-blue">+3/turn</span>
-          <input type="number" id="r-arm" min="0" max="1000000" value="1200">
-          <button class="btn btn-purple" onclick="study('Armor')">Study</button>
+          <span class="name">Armor</span><span class="desc">Defense rating</span>
+          <div class="prog-wrap"><div class="prog-bar arm" id="pb-arm" style="width:48%"></div></div>
+          <span class="count" id="rv-arm">480%</span>
         </div>
         <div class="trow">
-          <span class="name">Military tactics</span><span class="desc">All troop effectiveness</span>
-          <span class="count">360%</span><span class="badge badge-amber">+2/turn</span>
-          <input type="number" id="r-mil" min="0" max="1000000" value="800">
-          <button class="btn btn-purple" onclick="study('Military tactics')">Study</button>
+          <span class="name">Military tactics</span><span class="desc">Troop effectiveness</span>
+          <div class="prog-wrap"><div class="prog-bar mil" id="pb-mil" style="width:36%"></div></div>
+          <span class="count" id="rv-mil">360%</span>
         </div>
         <div class="trow">
-          <span class="name">Spellbook</span><span class="desc">More &amp; stronger spells</span>
-          <span class="count">6,100</span><span class="badge badge-green">+5/turn</span>
-          <input type="number" id="r-spell" min="0" max="1000000" value="2000">
-          <button class="btn btn-purple" onclick="study('Spellbook')">Study</button>
+          <span class="name">Spellbook</span><span class="desc">Spell power</span>
+          <div class="prog-wrap"><div class="prog-bar spell" id="pb-spell" style="width:61%"></div></div>
+          <span class="count" id="rv-spell">6,100</span>
         </div>
         <div class="trow">
-          <span class="name">Attack magic</span><span class="desc">Destructive spell damage</span>
-          <span class="count">410%</span><span class="badge badge-blue">+3/turn</span>
-          <input type="number" id="r-atk" min="0" max="1000000" value="1200">
-          <button class="btn btn-purple" onclick="study('Attack magic')">Study</button>
+          <span class="name">Attack magic</span><span class="desc">Spell damage</span>
+          <div class="prog-wrap"><div class="prog-bar" style="width:41%;background:var(--red)" id="pb-atk"></div></div>
+          <span class="count" id="rv-atk">410%</span>
         </div>
         <div class="trow">
-          <span class="name">Defense magic</span><span class="desc">Protective spell power</span>
-          <span class="count">290%</span><span class="badge badge-amber">+2/turn</span>
-          <input type="number" id="r-def" min="0" max="1000000" value="800">
-          <button class="btn btn-purple" onclick="study('Defense magic')">Study</button>
+          <span class="name">Defense magic</span><span class="desc">Spell protection</span>
+          <div class="prog-wrap"><div class="prog-bar arm" id="pb-def" style="width:29%"></div></div>
+          <span class="count" id="rv-def">290%</span>
         </div>
         <div class="trow">
-          <span class="name">Entertainment</span><span class="desc">Morale &amp; population growth</span>
-          <span class="count">280%</span><span class="badge badge-amber">+2/turn</span>
-          <input type="number" id="r-ent" min="0" max="1000000" value="600">
-          <button class="btn btn-purple" onclick="study('Entertainment')">Study</button>
+          <span class="name">Entertainment</span><span class="desc">Morale &amp; pop</span>
+          <div class="prog-wrap"><div class="prog-bar" style="width:28%;background:var(--green)" id="pb-ent"></div></div>
+          <span class="count" id="rv-ent">280%</span>
         </div>
         <div class="trow">
-          <span class="name">Construction skills</span><span class="desc">Build more per turn</span>
-          <span class="count">310%</span><span class="badge badge-amber">+2/turn</span>
-          <input type="number" id="r-con" min="0" max="1000000" value="600">
-          <button class="btn btn-purple" onclick="study('Construction skills')">Study</button>
+          <span class="name">Construction</span><span class="desc">Build speed</span>
+          <div class="prog-wrap"><div class="prog-bar" style="width:31%;background:var(--amber)" id="pb-con"></div></div>
+          <span class="count" id="rv-con">310%</span>
         </div>
         <div class="trow">
-          <span class="name">War machines</span><span class="desc">WM power &amp; durability</span>
-          <span class="count">190%</span><span class="badge badge-amber">+1/turn</span>
-          <input type="number" id="r-wm" min="0" max="1000000" value="400">
-          <button class="btn btn-purple" onclick="study('War machines')">Study</button>
+          <span class="name">War machines</span><span class="desc">WM power</span>
+          <div class="prog-wrap"><div class="prog-bar" style="width:19%;background:var(--text3)" id="pb-wm"></div></div>
+          <span class="count" id="rv-wm">190%</span>
         </div>
       </div>
     </div>
@@ -595,49 +632,24 @@
       </div>
     </div>
 
-    <!-- OPTIONS -->
+    <!-- OPTIONS (hidden panel) -->
     <div id="options" class="panel">
       <div class="two-col">
         <div class="card">
-          <div class="card-title">Tax rate</div>
-          <div class="option-row">
-            <span class="option-label">Current tax</span>
-            <input type="range" id="tax-slider" min="0" max="100" step="1" value="42" oninput="updateTax(this.value)" style="flex:1">
-            <span class="option-val" id="tax-disp">42%</span>
-          </div>
-          <div style="font-size:12px;color:var(--text3);line-height:1.7;margin-bottom:14px">
-            42% is the sweet spot — maximum gold without morale penalty.<br>
-            Above 50%: citizens will leave, harming your population.<br>
-            Below 30%: you earn almost nothing from taxation.
-          </div>
-          <div style="display:flex;gap:8px">
-            <button class="btn" onclick="setTax(42)">Set 42%</button>
-            <button class="btn" onclick="setTax(50)">Set 50%</button>
-            <button class="btn btn-red" onclick="setTax(0)">0% (crisis)</button>
-          </div>
-        </div>
-        <div class="card">
           <div class="card-title">Kingdom identity</div>
-          <div style="margin-bottom:14px">
-            <div style="font-size:12px;color:var(--text3);margin-bottom:6px">Kingdom name</div>
-            <div style="display:flex;gap:8px">
-              <input type="text" id="kname-inp" value="Ironveil" style="width:160px;font-size:14px;padding:7px 10px">
-              <button class="btn btn-purple" onclick="saveName()">Save</button>
-            </div>
-          </div>
           <div>
             <div style="font-size:12px;color:var(--text3);margin-bottom:6px">Race <span style="color:var(--text3);font-style:italic">(permanent — chosen at registration)</span></div>
             <div id="options-race-display" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--purple);padding:8px 10px;font-size:13px;font-weight:600;">—</div>
           </div>
         </div>
-      </div>
-      <div class="card">
-        <div class="card-title">Vacation mode</div>
-        <div style="font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.7">
-          While on vacation your kingdom cannot be attacked or targeted by spells, but you cannot take turns or interact with others.
-          Intended for planned real-world absences. This feature is currently restricted by the game admin due to prior abuse.
+        <div class="card">
+          <div class="card-title">Vacation mode</div>
+          <div style="font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.7">
+            While on vacation your kingdom cannot be attacked or targeted by spells, but you cannot take turns or interact with others.
+            Intended for planned real-world absences. This feature is currently restricted by the game admin.
+          </div>
+          <button class="btn btn-red" onclick="toast('Vacation mode is currently disabled by admin','warn')">Request vacation mode</button>
         </div>
-        <button class="btn btn-red" onclick="toast('Vacation mode is currently disabled by admin','warn')">Request vacation mode</button>
       </div>
     </div>
 
@@ -887,7 +899,7 @@
 
 <!-- ═══════════════════════════════════════════ EXPLORATION PANEL ══ -->
 <div id="exploration" class="panel" style="display:none">
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:stretch">
 
     <div class="card">
       <div class="card-title">Scout &amp; search</div>
@@ -915,9 +927,9 @@
       </div>
     </div>
 
-    <div class="card">
+    <div class="card" style="display:flex;flex-direction:column">
       <div class="card-title">Exploration log</div>
-      <div id="exploration-log" style="display:flex;flex-direction:column;gap:8px;min-height:120px">
+      <div id="exploration-log" style="flex:1;overflow-y:auto;max-height:320px;display:flex;flex-direction:column;gap:8px">
         <div style="font-size:13px;color:var(--text3);padding:12px 0">No expeditions sent yet this session.</div>
       </div>
     </div>
@@ -1038,11 +1050,9 @@ function populateInputs() {
     var el = document.getElementById('hire-' + u);
     if (el) el.value = maxHire;
   });
-  // Research — all researchers
-  ['r-eco','r-wep','r-arm','r-mil','r-spell','r-atk','r-def','r-ent','r-con','r-wm'].forEach(function(id) {
-    var el = document.getElementById(id);
-    if (el) el.value = state.researchers || 0;
-  });
+  // Research — single researcher input
+  var ra = document.getElementById('r-amount');
+  if (ra) ra.value = state.researchers || 0;
   // Attack — all available fighters/mages
   var af = document.getElementById('atk-fighters');
   var am = document.getElementById('atk-mages');
@@ -1456,6 +1466,10 @@ function switchTab(id, btn) {
     if (nb) nb.remove();
     loadNews();
   }
+  if (id === 'research') {
+    var ra = document.getElementById('r-amount');
+    if (ra) ra.value = state.researchers || 0;
+  }
 }
 
 function hire(unit) {
@@ -1505,12 +1519,6 @@ function setTax(v) {
   toast('Tax rate set to ' + v + '%', v > 50 ? 'warn' : 'success');
 }
 
-function saveName() {
-  var n = document.getElementById('kname-inp').value.trim();
-  if (!n) return;
-  document.getElementById('kingdom-name').textContent = n;
-  toast('Kingdom renamed to ' + n, 'success');
-}
 
 function takeTurn() {
   state.turn++;
@@ -1544,23 +1552,19 @@ function syncUI() {
     var el = document.getElementById('s-' + u);
     if (el) el.textContent = fmt(state[u]||0);
   });
-  // Sync research progress bars
-  var resMap = {
+  // Sync research levels display
+  var resDisplay = {
     res_economy:'eco', res_weapons:'wep', res_armor:'arm', res_military:'mil',
-    res_spellbook:'spell', res_entertainment:'ent', res_attack_magic:'atk', res_defense_magic:'def'
+    res_spellbook:'spell', res_attack_magic:'atk', res_defense_magic:'def',
+    res_entertainment:'ent', res_construction:'con', res_war_machines:'wm'
   };
-  Object.keys(resMap).forEach(function(key) {
-    var bar = document.querySelector('.prog-bar.' + resMap[key]);
-    if (bar) bar.style.width = Math.min(100, (state[key]||0) / 10) + '%';
-    // Update count display in status panel
-    var countEl = document.querySelector('.trow .prog-bar.' + resMap[key]);
-    if (countEl) {
-      var row = countEl.closest('.trow');
-      if (row) {
-        var count = row.querySelector('.count');
-        if (count) count.textContent = fmt(state[key]||0) + (key !== 'res_spellbook' && key !== 'res_mana' ? '%' : '');
-      }
-    }
+  Object.keys(resDisplay).forEach(function(key) {
+    var id = resDisplay[key];
+    var val = state[key] || 0;
+    var bar = document.getElementById('pb-' + id);
+    if (bar) bar.style.width = Math.min(100, val / 10) + '%';
+    var count = document.getElementById('rv-' + id);
+    if (count) count.textContent = fmt(val) + (key !== 'res_spellbook' ? '%' : '');
   });
   // Sync building counts
   var bldMap = {
@@ -1606,15 +1610,14 @@ function updateTurnsDisplay() {
   <button class="bnav-item" onclick="switchTabMobile('hire',this)"><span class="bicon">&#9651;</span>Hire</button>
   <button class="bnav-item" onclick="switchTabMobile('research',this)"><span class="bicon">&#9670;</span>Study</button>
   <button class="bnav-item" onclick="switchTabMobile('build',this)"><span class="bicon">&#9650;</span>Build</button>
+  <button class="bnav-item" onclick="switchTabMobile('exploration',this)"><span class="bicon">&#9685;</span>Explore</button>
   <div class="bnav-sep"></div>
   <button class="bnav-item" onclick="switchTabMobile('attack',this)"><span class="bicon">&#9876;</span>Attack</button>
   <button class="bnav-item" onclick="switchTabMobile('spells',this)"><span class="bicon">&#10024;</span>Spells</button>
   <button class="bnav-item" onclick="switchTabMobile('covert',this)"><span class="bicon">&#128373;</span>Covert</button>
-  <button class="bnav-item" onclick="switchTabMobile('exploration',this)"><span class="bicon">&#9685;</span>Explore</button>
   <div class="bnav-sep"></div>
   <button class="bnav-item" onclick="switchTabMobile('alliances',this)"><span class="bicon">&#9876;</span>Allies</button>
   <button class="bnav-item" onclick="switchTabMobile('news',this)"><span class="bicon">&#9741;</span>News<span id="bnav-news-badge" class="bnav-badge">3</span></button>
-  <button class="bnav-item" onclick="switchTabMobile('options',this)"><span class="bicon">&#9881;</span>Options</button>
   <div class="bnav-sep"></div>
   <button class="bnav-item" onclick="doLogout()" style="color:var(--red)"><span class="bicon">&#10005;</span>Logout</button>
 </nav>
@@ -1656,12 +1659,12 @@ function showLoginModal() {
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(13,14,20,.97);z-index:9999;display:flex;align-items:center;justify-content:center;';
 
   var races = [
-    { value:'high_elf',  label:'High Elf',  bonus:'+15% research · powerful magic' },
-    { value:'dwarf',     label:'Dwarf',      bonus:'+20% construction · strong war machines' },
-    { value:'dire_wolf', label:'Dire Wolf',  bonus:'+25% military attack · poor research' },
-    { value:'dark_elf',  label:'Dark Elf',   bonus:'+20% covert · stealth bonus' },
-    { value:'human',     label:'Human',      bonus:'Balanced · no bonuses or penalties' },
-    { value:'orc',       label:'Orc',        bonus:'+20% fighter strength · -10% economy' },
+    { value:'high_elf',  label:'High Elf',  bonus:'+15% research · +20% magic power · -10% military' },
+    { value:'dwarf',     label:'Dwarf',      bonus:'+20% construction · +25% war machines · +10% economy · -25% magic · -10% research' },
+    { value:'dire_wolf', label:'Dire Wolf',  bonus:'+30% military · +10% covert · -30% research · -40% magic · -15% economy' },
+    { value:'dark_elf',  label:'Dark Elf',   bonus:'+25% covert · +30% stealth · +10% magic · -15% military · -10% economy' },
+    { value:'human',     label:'Human',      bonus:'No bonuses or penalties — master of none, threat to all' },
+    { value:'orc',       label:'Orc',        bonus:'+20% military · +10% economy · -20% research · -35% magic · -10% construction' },
   ];
 
   var raceOptions = races.map(function(r) {
@@ -1804,12 +1807,12 @@ async function loadKingdom() {
 
   // Race data
   var raceData = {
-    high_elf:  { label: 'High Elf',   plural: 'High Elves',  bonus: '+15% research · powerful magic' },
-    dwarf:     { label: 'Dwarf',      plural: 'Dwarves',     bonus: '+20% construction · strong war machines' },
-    dire_wolf: { label: 'Dire Wolf',  plural: 'Dire Wolves', bonus: '+25% military attack · poor research' },
-    dark_elf:  { label: 'Dark Elf',   plural: 'Dark Elves',  bonus: '+20% covert · stealth bonus' },
-    human:     { label: 'Human',      plural: 'Humans',      bonus: 'Balanced · no bonuses or penalties' },
-    orc:       { label: 'Orc',        plural: 'Orcs',        bonus: '+20% fighter strength · -10% economy' },
+    high_elf:  { label: 'High Elf',   plural: 'High Elves',  bonus: '+15% research · +20% magic · -10% military' },
+    dwarf:     { label: 'Dwarf',      plural: 'Dwarves',     bonus: '+20% construction · +25% war machines · +10% economy · -25% magic · -10% research' },
+    dire_wolf: { label: 'Dire Wolf',  plural: 'Dire Wolves', bonus: '+30% military · +10% covert · -30% research · -40% magic · -15% economy' },
+    dark_elf:  { label: 'Dark Elf',   plural: 'Dark Elves',  bonus: '+25% covert · +30% stealth · +10% magic · -15% military · -10% economy' },
+    human:     { label: 'Human',      plural: 'Humans',      bonus: 'No bonuses or penalties' },
+    orc:       { label: 'Orc',        plural: 'Orcs',        bonus: '+20% military · +10% economy · -20% research · -35% magic · -10% construction' },
   };
   var race = raceData[kingdom.race] || { label: kingdom.race, plural: kingdom.race, bonus: '' };
 
@@ -1971,12 +1974,17 @@ hire = async function(unit) {
 
 // Override study to hit real server and deduct turn
 study = async function(name) {
-  var idMap = { Economy:'r-eco', Weapons:'r-wep', Armor:'r-arm', 'Military tactics':'r-mil', Spellbook:'r-spell', 'Attack magic':'r-atk', 'Defense magic':'r-def', Entertainment:'r-ent', 'Construction skills':'r-con', 'War machines':'r-wm' };
-  var disciplineMap = { Economy:'economy', Weapons:'weapons', Armor:'armor', 'Military tactics':'military', Spellbook:'spellbook', 'Attack magic':'attack_magic', 'Defense magic':'defense_magic', Entertainment:'entertainment', 'Construction skills':'construction', 'War machines':'war_machines' };
-  var n = parseInt(document.getElementById(idMap[name])?.value) || 0;
-  if (n <= 0) return toast('Enter a number of researchers', 'error');
+  var disciplineMap = {
+    Economy:'economy', Weapons:'weapons', Armor:'armor', 'Military tactics':'military',
+    Spellbook:'spellbook', 'Attack magic':'attack_magic', 'Defense magic':'defense_magic',
+    Entertainment:'entertainment', 'Construction skills':'construction', 'War machines':'war_machines'
+  };
+  var n = parseInt(document.getElementById('r-amount')?.value) || 0;
+  if (n <= 0) return toast('Enter a number of researchers to assign', 'error');
   if (state.turns_stored < 1) return toast('No turns available', 'warn');
-  var result = await apiCall('POST', '/api/kingdom/research', { discipline: disciplineMap[name], researchers: n });
+  var disc = disciplineMap[name];
+  if (!disc) return toast('Unknown discipline: ' + name, 'error');
+  var result = await apiCall('POST', '/api/kingdom/research', { discipline: disc, researchers: n });
   if (result.error) return toast(result.error, 'error');
   applyServerUpdates(result.updates);
   if (result.turns_stored !== undefined) { state.turns_stored = result.turns_stored; updateTurnsDisplay(); }
