@@ -2050,30 +2050,20 @@ function showLoginModal() {
     state.username = username;
     overlay.innerHTML = '<div style="color:#e8b84b;font-size:16px;font-weight:600;text-align:center;padding:40px">Loading your kingdom...</div>';
 
-    // Try to load kingdom — retry up to 3 times (cookie timing on Render)
-    var loaded = false;
-    for (var retryCount = 0; retryCount < 3; retryCount++) {
-      try {
-        await loadKingdom();
-        loaded = true;
-        break;
-      } catch(e) {
-        console.warn('[narmir] loadKingdom retry ' + (retryCount+1) + ' failed:', e.message);
-        if (retryCount < 2) await new Promise(function(r){ setTimeout(r, 1000); });
-      }
+    // Always remove overlay, even if loadKingdom fails
+    try {
+      await loadKingdom();
+    } catch(e) {
+      console.error('[narmir] loadKingdom failed:', e.message, e.stack);
     }
     overlay.remove();
-    if (!loaded) {
-      toast('Logged in but kingdom failed to load. Try refreshing.', 'warn');
-    }
   }
 }
 
 async function loadKingdom() {
   var kingdom = await apiCall('GET', '/api/kingdom/me');
   if (kingdom.error) {
-    if (!state.username) showLoginModal();
-    throw new Error(kingdom.error);
+    return; // caller handles — overlay.remove() already scheduled
   }
   Object.assign(state, {
     gold: kingdom.gold, pop: kingdom.population, land: kingdom.land,
@@ -2768,7 +2758,12 @@ apiCall('GET', '/api/auth/me').then(function(me) {
     showLoginModal();
   } else {
     state.username = me.username;
-    loadKingdom();
+    loadKingdom().then(function() {
+      if (!state.kingdomId) showLoginModal();
+    }).catch(function(e) {
+      console.error('[narmir] boot loadKingdom failed:', e.message);
+      showLoginModal();
+    });
   }
 });
 </script>
