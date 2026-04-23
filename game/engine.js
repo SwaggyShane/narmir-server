@@ -1287,7 +1287,7 @@ async function resolveExpeditions(db, k, engine) {
 
       // Insert one news item per reward (no multiline strings)
       await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)',
-        [k.id, 'system', `${label} expedition returned!`, k.turn || 0]);
+        [k.id, 'system', `${label} expedition returned! Check the expedition log for your rewards.`, k.turn || 0]);
       for (const r of rewards) {
         await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)',
           [k.id, 'system', `• ${r.text}`, k.turn || 0]);
