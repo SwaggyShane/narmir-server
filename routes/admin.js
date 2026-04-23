@@ -122,11 +122,11 @@ module.exports = function(db, io) {
     // Whitelist every settable kingdom column
     const ALLOWED = new Set([
       'gold','mana','land','population','morale','food','turn','turns_stored',
-      'fighters','rangers','clerics','mages','thieves','ninjas','researchers','engineers',
-      'war_machines','weapons_stockpile','armor_stockpile',
+      'fighters','rangers','clerics','mages','thieves','ninjas','researchers','engineers','scribes',
+      'war_machines','weapons_stockpile','armor_stockpile','maps','blueprints_stored',
       'bld_farms','bld_barracks','bld_outposts','bld_guard_towers','bld_schools',
       'bld_armories','bld_vaults','bld_smithies','bld_markets','bld_cathedrals',
-      'bld_training','bld_colosseums','bld_castles',
+      'bld_training','bld_colosseums','bld_castles','bld_libraries',
       'res_economy','res_weapons','res_armor','res_military','res_attack_magic',
       'res_defense_magic','res_entertainment','res_construction','res_war_machines','res_spellbook',
       'xp','level',
