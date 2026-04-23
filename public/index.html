@@ -1521,7 +1521,25 @@ async function launchExpedition(type) {
   await loadActiveExpeditions();
   toast(labels[type] + ' expedition launched!', 'success');
   var icons = { scout: '🔭', deep: '🌲', dungeon: '⚔️' };
-  logExpeditionEntry(icons[type], labels[type] + ' expedition launched', rangers + ' rangers' + (fighters ? ', ' + fighters + ' fighters' : '') + ' · returns in ' + result.turns_left + ' turns');
+  var turnCounts = { scout: 10, deep: 25, dungeon: 50 };
+  var log = document.getElementById('exploration-log');
+  if (log) {
+    var empty = log.querySelector('[style*="No expeditions"]');
+    if (empty) empty.remove();
+    // Remove any existing live entry for this type
+    var existing = document.getElementById('exp-log-live-' + type);
+    if (existing) existing.closest('.exp-log-entry') && existing.closest('.exp-log-entry').remove();
+
+    var entry = document.createElement('div');
+    entry.className = 'exp-log-entry';
+    entry.style.cssText = 'display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px';
+    entry.innerHTML = '<span style="font-size:18px;flex-shrink:0">' + icons[type] + '</span>'
+      + '<div><div style="color:var(--text)">' + labels[type] + ' expedition launched</div>'
+      + '<div style="font-size:11px;color:var(--text3);margin-top:2px">'
+      + rangers + ' rangers' + (fighters ? ', ' + fighters + ' fighters' : '')
+      + ' · <span id="exp-log-live-' + type + '">' + turnCounts[type] + ' turns remaining</span></div></div>';
+    log.insertBefore(entry, log.firstChild);
+  }
 }
 
 function logExpeditionEntry(icon, title, subtitle) {
@@ -1541,27 +1559,45 @@ async function loadActiveExpeditions() {
   var result = await apiCall('GET', '/api/kingdom/expedition/list');
   var bar = document.getElementById('active-expeditions');
   if (!bar) return;
-  if (!Array.isArray(result) || result.length === 0) { bar.style.display = 'none'; return; }
+
+  if (!Array.isArray(result) || result.length === 0) {
+    bar.style.display = 'none';
+    // Re-enable all buttons
+    ['scout','deep','dungeon'].forEach(function(t) {
+      var btn = document.getElementById('btn-exp-' + t);
+      if (btn) { btn.disabled = false; btn.textContent = t === 'dungeon' ? 'Launch raid' : 'Launch expedition'; }
+    });
+    return;
+  }
 
   var labels = { scout: '🔭 Scout', deep: '🌲 Deep', dungeon: '⚔️ Dungeon' };
   var colors = { scout: 'var(--green)', deep: 'var(--purple)', dungeon: 'var(--red)' };
-  bar.style.display = 'flex';
   bar.style.cssText = 'display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;align-items:center';
   bar.innerHTML = result.map(function(exp) {
     return '<div style="display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border);border-left:3px solid ' + (colors[exp.type]||'var(--text3)') + ';border-radius:var(--radius);padding:8px 12px;font-size:13px">'
       + '<span style="font-weight:600;color:' + (colors[exp.type]||'var(--text)') + '">' + (labels[exp.type]||exp.type) + '</span>'
       + '<span style="color:var(--text3)">·</span>'
-      + '<span style="color:var(--text2)">' + exp.turns_left + ' turns remaining</span>'
+      + '<span style="color:var(--text2)">' + exp.turns_left + ' turn' + (exp.turns_left === 1 ? '' : 's') + ' remaining</span>'
       + '<span style="color:var(--text3)">·</span>'
       + '<span style="color:var(--text3)">' + exp.rangers.toLocaleString() + ' rangers' + (exp.fighters > 0 ? ', ' + exp.fighters.toLocaleString() + ' fighters' : '') + '</span>'
-      + '<button onclick="cancelExpedition(' + exp.id + ')" style="margin-left:6px;padding:2px 8px;font-size:11px;background:transparent;border:1px solid var(--border2);border-radius:4px;color:var(--text3);cursor:pointer">Cancel</button>'
       + '</div>';
-  }).join('') + '<button onclick="clearAllExpeditions()" style="padding:4px 10px;font-size:11px;background:transparent;border:1px solid var(--red);border-radius:4px;color:var(--red);cursor:pointer">Clear all stuck</button>';
+  }).join('');
 
+  // Update launch buttons and log entries
   ['scout','deep','dungeon'].forEach(function(t) {
     var active = result.find(function(e) { return e.type === t; });
     var btn = document.getElementById('btn-exp-' + t);
-    if (btn) { btn.disabled = !!active; btn.textContent = active ? 'Underway — ' + active.turns_left + ' turns left' : (t === 'dungeon' ? 'Launch raid' : 'Launch expedition'); }
+    if (btn) {
+      btn.disabled = !!active;
+      btn.textContent = active ? 'Underway — ' + active.turns_left + ' turn' + (active.turns_left === 1 ? '' : 's') + ' left' : (t === 'dungeon' ? 'Launch raid' : 'Launch expedition');
+    }
+    // Update the live log entry for this expedition type
+    var logEntry = document.getElementById('exp-log-live-' + t);
+    if (logEntry && active) {
+      logEntry.textContent = active.turns_left + ' turn' + (active.turns_left === 1 ? '' : 's') + ' remaining';
+    } else if (logEntry && !active) {
+      logEntry.closest('.exp-log-entry').remove();
+    }
   });
 }
 
