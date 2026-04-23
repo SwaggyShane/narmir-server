@@ -1963,6 +1963,7 @@ async function apiCall(method, path, body) {
 
 function showLoginModal() {
   document.getElementById('app').style.display = 'none';
+  document.getElementById('bottom-nav').style.display = 'none';
   var ov = document.getElementById('login-overlay');
   ov.style.display = 'flex';
   ov.style.flexDirection = 'column';
@@ -1979,6 +1980,7 @@ function showLoginModal() {
 function hideLoginModal() {
   document.getElementById('login-overlay').style.display = 'none';
   document.getElementById('app').style.display = '';
+  document.getElementById('bottom-nav').style.display = '';
 }
 
 function initLoginModal() {
