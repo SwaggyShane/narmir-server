@@ -503,6 +503,7 @@
           <div style="display:flex;gap:8px">
             <button class="btn btn-purple" onclick="distributeEvenly()" style="white-space:nowrap">Distribute evenly</button>
             <button class="btn btn-gold" onclick="saveResearchAllocation()" style="white-space:nowrap">Save allocation</button>
+            <button class="btn btn-red" onclick="releaseAllResearchers()" style="white-space:nowrap">Release all</button>
           </div>
         </div>
         <div id="research-no-researchers" style="display:none;background:rgba(232,184,75,.08);border:1px solid var(--gold);border-radius:var(--radius);padding:10px 14px;font-size:13px;color:var(--gold);margin-bottom:12px">
@@ -2624,6 +2625,15 @@ function loadBuildAllocation() {
     if (el) el.value = alloc[key] || 0;
   });
   updateBuildDisplay();
+}
+
+async function releaseAllResearchers() {
+  RA_FIELDS.forEach(function(id) { var el = document.getElementById(id); if (el) el.value = 0; });
+  updateAllocationDisplay();
+  var result = await apiCall('POST', '/api/kingdom/research-allocation', { allocation: {} });
+  if (result.error) return toast(result.error, 'error');
+  state.research_allocation = {};
+  toast('All researchers released', 'success');
 }
 
 async function releaseAllEngineers() {
