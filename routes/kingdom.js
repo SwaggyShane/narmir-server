@@ -66,6 +66,7 @@ module.exports = function(db) {
     await applyUpdates(db, k.id, updates);
 
     // Tick active expeditions
+    console.log(`[turn] kingdom id=${k.id} player_id=${k.player_id} taking turn`);
     await engine.resolveExpeditions(db, { ...k, ...updates }, engine);
 
     for (const ev of events)
@@ -252,6 +253,7 @@ module.exports = function(db) {
 
     await db.run('INSERT INTO expeditions (kingdom_id, type, turns_left, rangers, fighters) VALUES (?, ?, ?, ?, ?)',
       [k.id, type, EXP_TURNS[type], r, f]);
+    console.log(`[expedition] inserted: kingdom_id=${k.id} type=${type} turns=${EXP_TURNS[type]}`);
     await db.run('UPDATE kingdoms SET rangers = rangers - ?, fighters = fighters - ? WHERE id = ?', [r, f, k.id]);
 
     const label = { scout: 'Scout', deep: 'Deep', dungeon: 'Dungeon' }[type];
