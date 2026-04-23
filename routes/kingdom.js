@@ -12,11 +12,13 @@ module.exports = function(db) {
       [req.player.playerId]
     );
     if (!k) return res.status(404).json({ error: 'Kingdom not found' });
-    try { k.research_allocation = JSON.parse(k.research_allocation || '{}'); } catch { k.research_allocation = {}; }
-    try { k.library_allocation  = JSON.parse(k.library_allocation  || '{}'); } catch { k.library_allocation  = {}; }
-    try { k.library_progress    = JSON.parse(k.library_progress    || '{}'); } catch { k.library_progress    = {}; }
-    try { k.scrolls             = JSON.parse(k.scrolls             || '{}'); } catch { k.scrolls             = {}; }
-    try { k.active_effects      = JSON.parse(k.active_effects      || '{}'); } catch { k.active_effects      = {}; }
+    try { k.research_allocation    = JSON.parse(k.research_allocation    || '{}'); } catch { k.research_allocation    = {}; }
+    try { k.mage_tower_allocation  = JSON.parse(k.mage_tower_allocation  || '{}'); } catch { k.mage_tower_allocation  = {}; }
+    try { k.shrine_allocation      = JSON.parse(k.shrine_allocation      || '{}'); } catch { k.shrine_allocation      = {}; }
+    try { k.library_allocation     = JSON.parse(k.library_allocation     || '{}'); } catch { k.library_allocation     = {}; }
+    try { k.library_progress       = JSON.parse(k.library_progress       || '{}'); } catch { k.library_progress       = {}; }
+    try { k.scrolls                = JSON.parse(k.scrolls                || '{}'); } catch { k.scrolls                = {}; }
+    try { k.active_effects         = JSON.parse(k.active_effects         || '{}'); } catch { k.active_effects         = {}; }
     res.json(k);
   });
 
@@ -232,6 +234,36 @@ module.exports = function(db) {
     const allEvents = [...events, { type: 'system', message: searchMessage }];
     if (xpResult.levelled) allEvents.push(...xpResult.events);
     res.json({ ok: true, type, result: searchResult, message: searchMessage, updates: turnUpdates, events: allEvents, turns_stored: turnUpdates.turns_stored });
+  });
+
+  // ── Mage tower allocation ────────────────────────────────────────────────────
+  router.post('/mage-tower-allocation', requireAuth, async (req, res) => {
+    const { allocation } = req.body;
+    if (!allocation || typeof allocation !== 'object') return res.status(400).json({ error: 'allocation required' });
+    const k = await db.get('SELECT id, bld_cathedrals, mages FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
+    if (!k) return res.status(404).json({ error: 'Kingdom not found' });
+    if ((k.bld_cathedrals || 0) === 0) return res.status(400).json({ error: 'You need at least 1 Mage Tower first' });
+    const magesAlloc = Math.min(Number(allocation.mages) || 0, k.mages || 0);
+    const researchMages = Math.min(Number(allocation.research_mages) || 0, k.mages || 0);
+    const save = {
+      mages:                Math.min(magesAlloc + researchMages, k.mages || 0),
+      research_mages:       researchMages,
+      research_discipline:  allocation.research_discipline || null,
+    };
+    await db.run('UPDATE kingdoms SET mage_tower_allocation = ? WHERE id = ?', [JSON.stringify(save), k.id]);
+    res.json({ ok: true, allocation: save });
+  });
+
+  // ── Shrine allocation ─────────────────────────────────────────────────────────
+  router.post('/shrine-allocation', requireAuth, async (req, res) => {
+    const { allocation } = req.body;
+    if (!allocation || typeof allocation !== 'object') return res.status(400).json({ error: 'allocation required' });
+    const k = await db.get('SELECT id, bld_shrines, clerics FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
+    if (!k) return res.status(404).json({ error: 'Kingdom not found' });
+    if ((k.bld_shrines || 0) === 0) return res.status(400).json({ error: 'You need at least 1 Shrine first' });
+    const clericsAlloc = Math.min(Number(allocation.clerics) || 0, k.clerics || 0);
+    await db.run('UPDATE kingdoms SET shrine_allocation = ? WHERE id = ?', [JSON.stringify({ clerics: clericsAlloc }), k.id]);
+    res.json({ ok: true, allocation: { clerics: clericsAlloc } });
   });
 
   // ── Library allocation ────────────────────────────────────────────────────────
