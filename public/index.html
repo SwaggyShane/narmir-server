@@ -1911,11 +1911,26 @@ function switchTabMobile(id, btn) {
 
 // ── Server connector ──────────────────────────────────────────────────────────
 
-// Token storage with localStorage fallback to memory
+// Token storage — cookie first, memory fallback
 var _memToken = null;
-function getToken() { try { return localStorage.getItem('narmir_token') || _memToken; } catch(e) { return _memToken; } }
-function setToken(t) { _memToken = t; try { localStorage.setItem('narmir_token', t); } catch(e) {} }
-function clearToken() { _memToken = null; try { localStorage.removeItem('narmir_token'); } catch(e) {} }
+function getToken() {
+  try {
+    var m = document.cookie.match(/narmir_token=([^;]+)/);
+    if (m) return decodeURIComponent(m[1]);
+  } catch(e) {}
+  try { return localStorage.getItem('narmir_token') || _memToken; } catch(e) {}
+  return _memToken;
+}
+function setToken(t) {
+  _memToken = t;
+  try { document.cookie = 'narmir_token=' + encodeURIComponent(t) + ';path=/;max-age=2592000;SameSite=Lax'; } catch(e) {}
+  try { localStorage.setItem('narmir_token', t); } catch(e) {}
+}
+function clearToken() {
+  _memToken = null;
+  try { document.cookie = 'narmir_token=;path=/;max-age=0'; } catch(e) {}
+  try { localStorage.removeItem('narmir_token'); } catch(e) {}
+}
 
 async function apiCall(method, path, body) {
   try {
