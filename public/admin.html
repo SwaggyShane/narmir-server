@@ -21,7 +21,6 @@ h2{font-size:15px;font-weight:600;color:var(--text2);text-transform:uppercase;le
 .badge-red{background:rgba(224,92,92,.15);color:var(--red)}
 .badge-green{background:rgba(76,175,125,.15);color:var(--green)}
 .badge-gold{background:rgba(232,184,75,.15);color:var(--gold)}
-.badge-blue{background:rgba(91,156,245,.15);color:var(--blue)}
 .card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px;margin-bottom:16px}
 .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:24px}
 .stat{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px}
@@ -41,8 +40,8 @@ tr:hover td{background:var(--bg3)}
 .btn-green:hover{background:rgba(76,175,125,.1)}
 .btn-gold{background:var(--gold);border-color:var(--gold);color:#0d0e14;font-weight:700}
 .btn-gold:hover{opacity:.9}
-input[type=text],input[type=number],textarea{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);padding:7px 10px;font-size:13px;outline:none;transition:border-color .15s}
-input[type=text]:focus,input[type=number]:focus,textarea:focus{border-color:var(--purple)}
+input[type=text],input[type=number],input[type=password],textarea{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);padding:7px 10px;font-size:13px;outline:none;transition:border-color .15s}
+input:focus,textarea:focus{border-color:var(--purple)}
 textarea{width:100%;resize:vertical;min-height:60px}
 .announce-row{display:flex;gap:8px;align-items:flex-start}
 .announce-row textarea{flex:1}
@@ -51,11 +50,13 @@ textarea{width:100%;resize:vertical;min-height:60px}
 .toast.show{opacity:1;transform:translateY(0)}
 .toast.success{border-color:var(--green);color:var(--green)}
 .toast.error{border-color:var(--red);color:var(--red)}
-.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:center;justify-content:center}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto}
 .modal-overlay.open{display:flex}
-.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:24px 28px;max-width:400px;width:90%}
-.modal h3{font-size:16px;font-weight:600;margin-bottom:14px}
-.modal-btns{display:flex;gap:8px;margin-top:16px;justify-content:flex-end}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:24px 28px;width:100%;max-width:420px}
+.modal.wide{max-width:720px}
+.modal h3{font-size:16px;font-weight:600;margin-bottom:16px}
+.modal-btns{display:flex;gap:8px;margin-top:18px;justify-content:flex-end}
+.sec-label{grid-column:1/-1;font-size:11px;font-weight:700;color:var(--purple);text-transform:uppercase;letter-spacing:.6px;padding:10px 0 2px;border-bottom:1px solid var(--border);margin-bottom:2px}
 #auth-screen{max-width:360px;margin:80px auto}
 </style>
 </head>
@@ -82,7 +83,7 @@ textarea{width:100%;resize:vertical;min-height:60px}
     </div>
   </div>
 
-  <div class="stats-grid" id="stats-grid">
+  <div class="stats-grid">
     <div class="stat"><div class="lbl">Players</div><div class="val" id="st-players">—</div></div>
     <div class="stat"><div class="lbl">Kingdoms</div><div class="val" id="st-kingdoms">—</div></div>
     <div class="stat"><div class="lbl">Banned</div><div class="val" id="st-banned" style="color:var(--red)">—</div></div>
@@ -94,7 +95,7 @@ textarea{width:100%;resize:vertical;min-height:60px}
   <div class="card">
     <h2 style="margin-top:0">Global announcement</h2>
     <div class="announce-row">
-      <textarea id="announce-msg" placeholder="Message to broadcast to all players in global chat..."></textarea>
+      <textarea id="announce-msg" placeholder="Message to broadcast to all players..."></textarea>
       <button class="btn btn-gold" onclick="sendAnnouncement()" style="padding:9px 16px">Send</button>
     </div>
   </div>
@@ -109,14 +110,8 @@ textarea{width:100%;resize:vertical;min-height:60px}
     <table>
       <thead>
         <tr>
-          <th>Kingdom</th>
-          <th>Username</th>
-          <th>Race</th>
-          <th>Land</th>
-          <th>Gold</th>
-          <th>Turns</th>
-          <th>Status</th>
-          <th>Actions</th>
+          <th>Kingdom</th><th>Username</th><th>Race</th>
+          <th>Land</th><th>Gold</th><th>Turns</th><th>Status</th><th>Actions</th>
         </tr>
       </thead>
       <tbody id="kingdom-table"></tbody>
@@ -137,15 +132,14 @@ textarea{width:100%;resize:vertical;min-height:60px}
   </div>
 </div>
 
-<!-- Set gold modal -->
-<div class="modal-overlay" id="gold-modal">
-  <div class="modal">
-    <h3>Set gold</h3>
-    <input type="number" id="gold-amount" placeholder="Gold amount" style="width:100%;margin-bottom:10px">
-    <div style="font-size:12px;color:var(--text3)">Kingdom: <span id="gold-name" style="color:var(--text)"></span></div>
+<!-- Edit kingdom modal -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal wide">
+    <h3>Edit Kingdom — <span id="edit-kname" style="color:var(--gold)"></span></h3>
+    <div id="edit-fields" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px 14px;max-height:60vh;overflow-y:auto;padding-right:6px"></div>
     <div class="modal-btns">
-      <button class="btn" onclick="closeGoldModal()">Cancel</button>
-      <button class="btn btn-gold" onclick="confirmSetGold()">Set gold</button>
+      <button class="btn" onclick="closeEditModal()">Cancel</button>
+      <button class="btn btn-gold" onclick="confirmEdit()">Save all changes</button>
     </div>
   </div>
 </div>
@@ -154,39 +148,65 @@ textarea{width:100%;resize:vertical;min-height:60px}
 
 <script>
 var allKingdoms = [];
-var banTarget = null;
-var goldTarget = null;
+var banTarget   = null;
+var editTarget  = null;
+
+var EDIT_SECTIONS = [
+  { label:'Resources', fields:[
+    {key:'gold',label:'Gold'},{key:'mana',label:'Mana'},{key:'land',label:'Land'},
+    {key:'population',label:'Population'},{key:'food',label:'Food'},{key:'morale',label:'Morale'},
+    {key:'turn',label:'Turn #'},{key:'turns_stored',label:'Turns stored'},{key:'tax_rate',label:'Tax rate'},
+    {key:'xp',label:'XP'},{key:'level',label:'Level'},
+  ]},
+  { label:'Units', fields:[
+    {key:'fighters',label:'Fighters'},{key:'rangers',label:'Rangers'},{key:'clerics',label:'Clerics'},
+    {key:'mages',label:'Mages'},{key:'thieves',label:'Thieves'},{key:'ninjas',label:'Ninjas'},
+    {key:'researchers',label:'Researchers'},{key:'engineers',label:'Engineers'},
+    {key:'war_machines',label:'War machines'},{key:'weapons_stockpile',label:'Weapons stockpile'},
+    {key:'armor_stockpile',label:'Armor stockpile'},
+  ]},
+  { label:'Buildings', fields:[
+    {key:'bld_farms',label:'Farms'},{key:'bld_barracks',label:'Barracks'},{key:'bld_outposts',label:'Outposts'},
+    {key:'bld_guard_towers',label:'Guard towers'},{key:'bld_schools',label:'Schools'},
+    {key:'bld_armories',label:'Armories'},{key:'bld_vaults',label:'Vaults'},
+    {key:'bld_smithies',label:'Smithies'},{key:'bld_markets',label:'Markets'},
+    {key:'bld_cathedrals',label:'Cathedrals'},{key:'bld_training',label:'Training fields'},
+    {key:'bld_colosseums',label:'Taverns'},{key:'bld_castles',label:'Castles'},
+  ]},
+  { label:'Research', fields:[
+    {key:'res_economy',label:'Economy'},{key:'res_weapons',label:'Weapons'},
+    {key:'res_armor',label:'Armor'},{key:'res_military',label:'Military'},
+    {key:'res_attack_magic',label:'Attack magic'},{key:'res_defense_magic',label:'Defense magic'},
+    {key:'res_entertainment',label:'Entertainment'},{key:'res_construction',label:'Construction'},
+    {key:'res_war_machines',label:'War machines'},{key:'res_spellbook',label:'Spellbook'},
+  ]},
+];
 
 function toast(msg, type) {
   var el = document.getElementById('toast');
-  el.textContent = msg;
-  el.className = 'toast ' + (type || '');
-  el.classList.add('show');
-  setTimeout(function(){ el.classList.remove('show'); }, 2500);
+  el.textContent = msg; el.className = 'toast '+(type||''); el.classList.add('show');
+  setTimeout(function(){ el.classList.remove('show'); }, 2800);
 }
 
 async function api(method, path, body) {
   try {
     var res = await fetch(path, {
-      method: method,
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
+      method: method, headers: {'Content-Type':'application/json'}, credentials: 'include',
       body: body ? JSON.stringify(body) : undefined,
     });
-    return res.json();
-  } catch(e) {
-    return { error: e.message };
-  }
+    var text = await res.text();
+    try { return JSON.parse(text); } catch { return {error: text.slice(0,200)}; }
+  } catch(e) { return {error: e.message}; }
 }
 
 async function adminLogin() {
   var u = document.getElementById('a-user').value.trim();
   var p = document.getElementById('a-pass').value;
   var err = document.getElementById('auth-err');
-  if (!u || !p) { err.textContent = 'Username and password required'; return; }
-  var result = await api('POST', '/api/auth/login', { username: u, password: p });
-  if (result.error) { err.textContent = result.error; return; }
-  if (!result.isAdmin) { err.textContent = 'This account does not have admin access'; return; }
+  if (!u||!p) { err.textContent='Username and password required'; return; }
+  var r = await api('POST','/api/auth/login',{username:u,password:p});
+  if (r.error) { err.textContent=r.error; return; }
+  if (!r.isAdmin) { err.textContent='Not an admin account'; return; }
   document.getElementById('admin-user').textContent = u;
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('main-screen').style.display = 'block';
@@ -194,75 +214,115 @@ async function adminLogin() {
 }
 
 function adminLogout() {
-  api('POST', '/api/auth/logout');
+  api('POST','/api/auth/logout');
   document.getElementById('main-screen').style.display = 'none';
   document.getElementById('auth-screen').style.display = 'block';
 }
 
 async function loadData() {
-  var stats = await api('GET', '/api/admin/stats');
-  if (stats.error) { toast('Failed to load stats: ' + stats.error, 'error'); return; }
-  document.getElementById('st-players').textContent = stats.players;
+  var stats = await api('GET','/api/admin/stats');
+  if (stats.error) { toast('Stats error: '+stats.error,'error'); return; }
+  document.getElementById('st-players').textContent  = stats.players;
   document.getElementById('st-kingdoms').textContent = stats.kingdoms;
-  document.getElementById('st-banned').textContent = stats.banned;
-  document.getElementById('st-combats').textContent = stats.combats;
+  document.getElementById('st-banned').textContent   = stats.banned;
+  document.getElementById('st-combats').textContent  = stats.combats;
   document.getElementById('st-messages').textContent = stats.messages;
   document.getElementById('st-regen').textContent = stats.lastRegen
-    ? new Date(stats.lastRegen * 1000).toLocaleTimeString()
-    : '—';
-
-  var kingdoms = await api('GET', '/api/admin/kingdoms');
-  if (kingdoms.error) { toast('Failed to load kingdoms: ' + kingdoms.error, 'error'); return; }
+    ? new Date(stats.lastRegen*1000).toLocaleTimeString() : '—';
+  var kingdoms = await api('GET','/api/admin/kingdoms');
+  if (kingdoms.error) { toast('Kingdoms error: '+kingdoms.error,'error'); return; }
   allKingdoms = kingdoms;
   renderTable(kingdoms);
 }
 
 function renderTable(rows) {
   var tbody = document.getElementById('kingdom-table');
-  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="8" style="color:var(--text3);text-align:center;padding:20px">No kingdoms found</td></tr>'; return; }
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="color:var(--text3);text-align:center;padding:20px">No kingdoms found</td></tr>';
+    return;
+  }
   tbody.innerHTML = rows.map(function(k) {
-    var banned = k.is_banned ? '<span class="badge badge-red">Banned</span>' : '<span class="badge badge-green">Active</span>';
-    var admin  = k.is_admin  ? ' <span class="badge badge-gold">Admin</span>' : '';
+    var banned = k.is_banned
+      ? '<span class="badge badge-red">Banned</span>'
+      : '<span class="badge badge-green">Active</span>';
+    var admin = k.is_admin ? ' <span class="badge badge-gold">Admin</span>' : '';
+    var kData = encodeURIComponent(JSON.stringify(k));
     return '<tr>'
-      + '<td style="color:var(--text);font-weight:500">' + k.name + '</td>'
-      + '<td>' + k.username + admin + '</td>'
-      + '<td style="color:var(--text3)">' + k.race.replace('_',' ') + '</td>'
-      + '<td>' + k.land.toLocaleString() + '</td>'
-      + '<td style="color:var(--gold)">' + k.gold.toLocaleString() + '</td>'
-      + '<td>' + (k.turns_stored || 0) + '/200</td>'
-      + '<td>' + banned + '</td>'
-      + '<td style="display:flex;gap:5px;flex-wrap:wrap">'
-      + '<button class="btn" onclick="resetTurns(' + k.id + ',\'' + k.name + '\')">+Turns</button>'
-      + '<button class="btn" onclick="openGoldModal(' + k.id + ',\'' + k.name + '\')">Gold</button>'
-      + (k.is_banned
-          ? '<button class="btn btn-green" onclick="unban(' + k.player_id + ',\'' + k.username + '\')">Unban</button>'
-          : '<button class="btn btn-red" onclick="openBanModal(' + k.player_id + ',\'' + k.username + '\')">Ban</button>')
-      + '</td>'
-      + '</tr>';
+      +'<td style="color:var(--text);font-weight:500">'+k.name+'</td>'
+      +'<td>'+k.username+admin+'</td>'
+      +'<td style="color:var(--text3)">'+k.race.replace(/_/g,' ')+'</td>'
+      +'<td>'+(k.land||0).toLocaleString()+'</td>'
+      +'<td style="color:var(--gold)">'+(k.gold||0).toLocaleString()+'</td>'
+      +'<td>'+(k.turns_stored||0)+'/200</td>'
+      +'<td>'+banned+'</td>'
+      +'<td style="display:flex;gap:5px;flex-wrap:wrap">'
+      +'<button class="btn btn-gold" onclick="openEditModal(\''+kData+'\')">Edit</button>'
+      +'<button class="btn" onclick="resetTurns('+k.id+',\''+escQ(k.name)+'\')">+Turns</button>'
+      +(k.is_banned
+        ? '<button class="btn btn-green" onclick="unban('+k.player_id+',\''+escQ(k.username)+'\')">Unban</button>'
+        : '<button class="btn btn-red" onclick="openBanModal('+k.player_id+',\''+escQ(k.username)+'\')">Ban</button>')
+      +'</td></tr>';
   }).join('');
 }
 
+function escQ(s) { return String(s).replace(/'/g,"&#39;"); }
+
 function filterTable(q) {
-  var filtered = allKingdoms.filter(function(k) {
+  renderTable(allKingdoms.filter(function(k){
     return k.name.toLowerCase().includes(q.toLowerCase())
         || k.username.toLowerCase().includes(q.toLowerCase());
+  }));
+}
+
+function openEditModal(kData) {
+  var k = JSON.parse(decodeURIComponent(kData));
+  editTarget = k.id;
+  document.getElementById('edit-kname').textContent = k.name + ' (' + k.username + ')';
+  var html = '';
+  EDIT_SECTIONS.forEach(function(sec) {
+    html += '<div class="sec-label">'+sec.label+'</div>';
+    sec.fields.forEach(function(f) {
+      var val = (k[f.key] !== undefined && k[f.key] !== null) ? k[f.key] : 0;
+      html += '<div style="display:flex;flex-direction:column;gap:3px">'
+        +'<label style="font-size:11px;color:var(--text3)">'+f.label+'</label>'
+        +'<input type="number" id="ef-'+f.key+'" value="'+Number(val)+'" style="width:100%">'
+        +'</div>';
+    });
   });
-  renderTable(filtered);
+  document.getElementById('edit-fields').innerHTML = html;
+  document.getElementById('edit-modal').classList.add('open');
+}
+
+function closeEditModal() {
+  document.getElementById('edit-modal').classList.remove('open');
+  editTarget = null;
+}
+
+async function confirmEdit() {
+  var fields = {};
+  EDIT_SECTIONS.forEach(function(sec) {
+    sec.fields.forEach(function(f) {
+      var el = document.getElementById('ef-'+f.key);
+      if (el && el.value !== '') fields[f.key] = el.value;
+    });
+  });
+  var r = await api('POST','/api/admin/set-kingdom',{kingdomId:editTarget, fields:fields});
+  if (r.error) return toast(r.error,'error');
+  toast('Saved: '+r.updated.join(', '),'success');
+  closeEditModal(); loadData();
 }
 
 async function resetTurns(kingdomId, name) {
-  var result = await api('POST', '/api/admin/reset-turns', { kingdomId: kingdomId });
-  if (result.error) return toast(result.error, 'error');
-  toast('Turns reset to 200 for ' + name, 'success');
-  loadData();
+  var r = await api('POST','/api/admin/reset-turns',{kingdomId:kingdomId});
+  if (r.error) return toast(r.error,'error');
+  toast('Turns reset for '+name,'success'); loadData();
 }
 
 async function resetAllTurns() {
   if (!confirm('Reset ALL kingdoms to 200 turns?')) return;
-  var result = await api('POST', '/api/admin/reset-turns-all');
-  if (result.error) return toast(result.error, 'error');
-  toast('All kingdoms reset to 200 turns', 'success');
-  loadData();
+  var r = await api('POST','/api/admin/reset-turns-all');
+  if (r.error) return toast(r.error,'error');
+  toast('All turns reset to 200','success'); loadData();
 }
 
 function openBanModal(playerId, username) {
@@ -271,61 +331,31 @@ function openBanModal(playerId, username) {
   document.getElementById('ban-reason').value = '';
   document.getElementById('ban-modal').classList.add('open');
 }
-
-function closeBanModal() {
-  document.getElementById('ban-modal').classList.remove('open');
-  banTarget = null;
-}
+function closeBanModal() { document.getElementById('ban-modal').classList.remove('open'); banTarget=null; }
 
 async function confirmBan() {
   var reason = document.getElementById('ban-reason').value.trim();
-  var result = await api('POST', '/api/admin/ban', { playerId: banTarget, reason: reason });
-  if (result.error) return toast(result.error, 'error');
-  toast('Player banned', 'success');
-  closeBanModal();
-  loadData();
+  var r = await api('POST','/api/admin/ban',{playerId:banTarget,reason:reason});
+  if (r.error) return toast(r.error,'error');
+  toast('Player banned','success'); closeBanModal(); loadData();
 }
 
 async function unban(playerId, username) {
-  var result = await api('POST', '/api/admin/unban', { playerId: playerId });
-  if (result.error) return toast(result.error, 'error');
-  toast(username + ' unbanned', 'success');
-  loadData();
-}
-
-function openGoldModal(kingdomId, name) {
-  goldTarget = kingdomId;
-  document.getElementById('gold-name').textContent = name;
-  document.getElementById('gold-amount').value = '';
-  document.getElementById('gold-modal').classList.add('open');
-}
-
-function closeGoldModal() {
-  document.getElementById('gold-modal').classList.remove('open');
-  goldTarget = null;
-}
-
-async function confirmSetGold() {
-  var amount = parseInt(document.getElementById('gold-amount').value);
-  if (isNaN(amount) || amount < 0) return toast('Enter a valid gold amount', 'error');
-  var result = await api('POST', '/api/admin/set-gold', { kingdomId: goldTarget, amount: amount });
-  if (result.error) return toast(result.error, 'error');
-  toast('Gold updated', 'success');
-  closeGoldModal();
-  loadData();
+  var r = await api('POST','/api/admin/unban',{playerId:playerId});
+  if (r.error) return toast(r.error,'error');
+  toast(username+' unbanned','success'); loadData();
 }
 
 async function sendAnnouncement() {
   var msg = document.getElementById('announce-msg').value.trim();
-  if (!msg) return toast('Enter a message', 'error');
-  var result = await api('POST', '/api/admin/announce', { message: msg });
-  if (result.error) return toast(result.error, 'error');
-  toast('Announcement sent to all players', 'success');
+  if (!msg) return toast('Enter a message','error');
+  var r = await api('POST','/api/admin/announce',{message:msg});
+  if (r.error) return toast(r.error,'error');
+  toast('Announcement sent','success');
   document.getElementById('announce-msg').value = '';
 }
 
-// Check auth on load
-api('GET', '/api/auth/me').then(function(me) {
+api('GET','/api/auth/me').then(function(me) {
   if (me.error || !me.isAdmin) {
     document.getElementById('auth-screen').style.display = 'block';
   } else {
