@@ -12,8 +12,11 @@ module.exports = function(db) {
       [req.player.playerId]
     );
     if (!k) return res.status(404).json({ error: 'Kingdom not found' });
-    // Parse JSON allocation
     try { k.research_allocation = JSON.parse(k.research_allocation || '{}'); } catch { k.research_allocation = {}; }
+    try { k.library_allocation  = JSON.parse(k.library_allocation  || '{}'); } catch { k.library_allocation  = {}; }
+    try { k.library_progress    = JSON.parse(k.library_progress    || '{}'); } catch { k.library_progress    = {}; }
+    try { k.scrolls             = JSON.parse(k.scrolls             || '{}'); } catch { k.scrolls             = {}; }
+    try { k.active_effects      = JSON.parse(k.active_effects      || '{}'); } catch { k.active_effects      = {}; }
     res.json(k);
   });
 
@@ -231,10 +234,29 @@ module.exports = function(db) {
     res.json({ ok: true, type, result: searchResult, message: searchMessage, updates: turnUpdates, events: allEvents, turns_stored: turnUpdates.turns_stored });
   });
 
+  // ── Library allocation ────────────────────────────────────────────────────────
+  router.post('/library-allocation', requireAuth, async (req, res) => {
+    const { allocation } = req.body;
+    if (!allocation || typeof allocation !== 'object') return res.status(400).json({ error: 'allocation required' });
+    const k = await db.get('SELECT id, bld_libraries, mages, scribes FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
+    if (!k) return res.status(404).json({ error: 'Kingdom not found' });
+    if ((k.bld_libraries || 0) === 0) return res.status(400).json({ error: 'You need at least 1 library first' });
+    const magesAlloc   = Math.min(Number(allocation.mages)   || 0, k.mages   || 0);
+    const scribesAlloc = Math.min(Number(allocation.scribes) || 0, k.scribes || 0);
+    const save = {
+      mages:        magesAlloc,
+      scribes:      scribesAlloc,
+      scroll_craft: allocation.scroll_craft || null,
+      scribe_craft: allocation.scribe_craft || null,
+    };
+    await db.run('UPDATE kingdoms SET library_allocation = ? WHERE id = ?', [JSON.stringify(save), k.id]);
+    res.json({ ok: true, allocation: save });
+  });
+
   // ── Fire units ────────────────────────────────────────────────────────────────
   router.post('/fire', requireAuth, async (req, res) => {
     const { unit, amount } = req.body;
-    const validUnits = ['fighters','rangers','clerics','mages','thieves','ninjas','researchers','engineers'];
+    const validUnits = ['fighters','rangers','clerics','mages','thieves','ninjas','researchers','engineers','scribes'];
     if (!validUnits.includes(unit)) return res.status(400).json({ error: 'Invalid unit type' });
     const n = Math.max(0, parseInt(amount) || 0);
     if (n <= 0) return res.status(400).json({ error: 'Amount must be positive' });
