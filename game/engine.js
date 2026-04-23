@@ -1061,8 +1061,37 @@ function resolveAllianceDefence(attackResult, allies) {
 }
 
 // ── Expedition rewards ──────────────────────────────────────────────────────
-function roll(chance) { return Math.random() < chance; }
-function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+const JUNK_PRIZES = [
+  'a suspiciously damp sock',
+  'a map to a location that no longer exists',
+  'a very confident fortune cookie with no fortune inside',
+  'a half-eaten ration bar of unknown vintage',
+  'a decorative rock (it does nothing)',
+  'a pamphlet titled "10 Reasons Orcs Are Actually Quite Misunderstood"',
+  'a jar of mysterious grey paste (do not eat)',
+  'a slightly bent sword that the previous owner called "Destiny"',
+  'a tiny flag from a kingdom that fell 300 years ago',
+  'a love letter addressed to someone named Grimbold',
+  'a collection of 47 different types of dirt',
+  'a boot (just the one)',
+  'a certificate of participation from the Third Annual Swamp Festival',
+  'a wheel of cheese that has achieved sentience (probably)',
+  'a bag of magic beans that are, on closer inspection, just beans',
+  'a very thorough guide to knitting (no one in your kingdom knows how to read)',
+  'a suspicious smell that follows rangers home',
+  'a crystal ball showing only static',
+  'an extremely detailed painting of a cloud',
+  'a dwarf\'s shopping list (mostly cheese)',
+  'a torch that only works in daylight',
+  'a book called "How To Stop Being Poor" — all pages blank',
+  'a rusty key to an unknown lock',
+  'a proclamation declaring your kingdom "pretty good, probably"',
+  'a coupon for 10% off at an inn that burned down decades ago',
+];
+
+function junkPrize() {
+  return JUNK_PRIZES[Math.floor(Math.random() * JUNK_PRIZES.length)];
+}
 
 const RARITY = {
   common:    { label: 'Common',    color: '#9a9bb5' },
@@ -1107,6 +1136,10 @@ function expeditionRewards(type, rangers, fighters, k) {
       const bonus = rand(20, 80);
       rewards.push({ rarity: 'epic', text: `An ancient map reveals ${bonus} additional acres — scouts claim them!`, key: 'land', val: bonus });
       updates.land = (updates.land || k.land || 0) + bonus;
+    }
+    // Junk — always a chance of useless nonsense
+    if (roll(0.40)) {
+      rewards.push({ rarity: 'common', text: `Your rangers also found ${junkPrize()}` });
     }
 
   } else if (type === 'deep') {
@@ -1154,6 +1187,10 @@ function expeditionRewards(type, rangers, fighters, k) {
       rewards.push({ rarity: 'legendary', text: `⚡ LEGENDARY: An ancient artifact of ${label} — permanent +${boost}% to ${label}`, key: disc, val: boost });
       updates[disc] = (k[disc] || 0) + boost;
     }
+    // Junk — the deep wilderness is full of weird stuff
+    if (roll(0.60)) {
+      rewards.push({ rarity: 'common', text: `Hidden deep in the wilderness, your rangers also discovered ${junkPrize()}` });
+    }
 
   } else if (type === 'dungeon') {
     const power = (rangers + fighters * 2) * tacBonus;
@@ -1195,6 +1232,10 @@ function expeditionRewards(type, rangers, fighters, k) {
         const boost2 = rand(50, 150);
         rewards.push({ rarity: 'legendary', text: `⚡ LEGENDARY: The dungeon's heart pulsed with ancient magic — spellbook permanently +${boost2}`, key: 'res_spellbook', val: boost2 });
         updates.res_spellbook = (updates.res_spellbook || k.res_spellbook || 0) + boost2;
+      }
+      // Even dungeon raiders find junk
+      if (roll(0.5)) {
+        rewards.push({ rarity: 'common', text: `Amid the carnage, someone pocketed ${junkPrize()}` });
       }
     }
   }
