@@ -80,7 +80,7 @@ module.exports = function(db, io) {
       gold = 10000, mana = 500, land = 150, population = 5000, food = 2000, morale = 100,
       turn = 0, turns_stored = 200,
       fighters = 0, rangers = 0, clerics = 0, mages = 0, thieves = 0, ninjas = 0,
-      researchers = 0, engineers = 0,
+      researchers = 500, engineers = 100,
       war_machines = 0, weapons_stockpile = 0, armor_stockpile = 0,
       bld_farms = 200, bld_barracks = 0, bld_outposts = 0, bld_guard_towers = 0,
       bld_schools = 0, bld_armories = 0, bld_vaults = 0, bld_smithies = 0,
