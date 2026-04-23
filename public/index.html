@@ -176,6 +176,7 @@
   .news-item { padding: 7px 10px; font-size: 13px; color: var(--text2); line-height: 1.6; border-radius: var(--radius); }
   .news-item:hover { background: var(--bg3); }
   .news-item .time { font-size: 11px; color: var(--text3); margin-right: 6px; }
+  .news-expedition { background: rgba(232,184,75,.07); border: 1px solid rgba(232,184,75,.25); border-radius: var(--radius); padding: 8px 12px; margin: 2px 0; color: var(--text); }
   .news-turn-group { margin-bottom: 14px; }
   .bld-icon { display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;font-size:15px;flex-shrink:0;margin-right:4px; }
   .news-turn-header {
@@ -364,7 +365,7 @@
       </div>
       <div class="metric">
         <div class="lbl">Food</div>
-        <div class="val" id="m-food">OK</div>
+        <div class="val" id="m-food">0</div>
         <div class="sub">200 farms</div>
       </div>
     </div>
@@ -1929,6 +1930,8 @@ function syncUI() {
   document.getElementById('m-land').textContent = trunc(state.land || 0);
   var moraleEl = document.getElementById('m-morale');
   if (moraleEl) moraleEl.textContent = (state.morale || 0) + '%';
+  var foodEl = document.getElementById('m-food');
+  if (foodEl) foodEl.textContent = trunc(state.food || 0);
   document.getElementById('hire-pop').textContent = fmt(state.pop || 0);
   document.getElementById('build-eng').textContent = fmt(state.engineers || 0);
   var expRangers = document.getElementById('exp-rangers-avail');
@@ -2207,6 +2210,7 @@ async function loadKingdom() {
   Object.assign(state, {
     gold: kingdom.gold, pop: kingdom.population, land: kingdom.land,
     morale: kingdom.morale, tax: kingdom.tax, turn: kingdom.turn, mana: kingdom.mana,
+    food: kingdom.food || 0,
     fighters: kingdom.fighters, rangers: kingdom.rangers, clerics: kingdom.clerics,
     mages: kingdom.mages, thieves: kingdom.thieves, ninjas: kingdom.ninjas,
     researchers: kingdom.researchers, engineers: kingdom.engineers,
@@ -2306,26 +2310,35 @@ async function loadNews() {
 
   var typeClass = { attack:'news-attack', spell:'news-magic', alliance:'news-hl', covert:'news-hl' };
 
-  // Group items by turn number (infer from sequential bunching by created_at)
-  // Items arrive newest-first from server; group runs of items close in time together
-  var groups = [];
-  var currentGroup = null;
-  var GROUP_GAP_SECS = 10; // items within 10s of each other = same turn
-
+  // Group strictly by turn_num
+  var turnMap = {};
+  var turnOrder = [];
   items.forEach(function(item) {
-    if (!currentGroup || (currentGroup.ts - item.created_at) > GROUP_GAP_SECS) {
-      currentGroup = { ts: item.created_at, items: [] };
-      groups.push(currentGroup);
-    }
-    currentGroup.items.push(item);
+    var t = item.turn_num || 0;
+    if (!turnMap[t]) { turnMap[t] = []; turnOrder.push(t); }
+    turnMap[t].push(item);
   });
+  // turnOrder is newest-first since items come newest-first
+  // dedupe and sort descending
+  turnOrder = turnOrder.filter(function(v,i,a){ return a.indexOf(v)===i; });
+  turnOrder.sort(function(a,b){ return b-a; });
 
-  list.innerHTML = groups.map(function(group, gi) {
-    var turnLabel = group.items[0].turn_num ? 'Turn ' + group.items[0].turn_num : (gi === 0 ? 'Latest' : 'Earlier');
-    var timeLabel = timeAgo(group.ts);
-    var rows = group.items.map(function(item) {
+  list.innerHTML = turnOrder.map(function(t, gi) {
+    var groupItems = turnMap[t];
+    var turnLabel = t > 0 ? 'Turn ' + t : 'Before game start';
+    var timeLabel = timeAgo(groupItems[0].created_at);
+    var rows = groupItems.map(function(item) {
+      var isExpedition = item.message && (
+        item.message.startsWith('🔭') || item.message.startsWith('🌲') ||
+        item.message.startsWith('⚔️') || item.message.startsWith('🧭') ||
+        item.message.startsWith('•')
+      );
       var cls = typeClass[item.type] || 'news-hl';
-      return '<div class="news-item"><span class="' + cls + '">' + item.message + '</span></div>';
+      var msgHtml = item.message.replace(/\n/g, '<br>');
+      if (isExpedition) {
+        return '<div class="news-item news-expedition">' + msgHtml + '</div>';
+      }
+      return '<div class="news-item"><span class="' + cls + '">' + msgHtml + '</span></div>';
     }).join('');
     return '<div class="news-turn-group">'
       + '<div class="news-turn-header">'
@@ -2337,8 +2350,7 @@ async function loadNews() {
   }).join('');
 
   ['news-badge','bnav-news-badge'].forEach(function(id) {
-    var b = document.getElementById(id);
-    if (b) b.remove();
+    var b = document.getElementById(id); if (b) b.remove();
   });
 }
 
@@ -2419,6 +2431,7 @@ function applyServerUpdates(u) {
   if (u.mana        !== undefined) state.mana          = u.mana;
   if (u.land        !== undefined) state.land          = u.land;
   if (u.morale      !== undefined) state.morale        = u.morale;
+  if (u.food        !== undefined) state.food          = u.food;
   if (u.turn        !== undefined) state.turn          = u.turn;
   if (u.turns_stored!== undefined) state.turns_stored = u.turns_stored;
   if (u.fighters    !== undefined) state.fighters      = u.fighters;
