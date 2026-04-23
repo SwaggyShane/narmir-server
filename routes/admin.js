@@ -105,7 +105,7 @@ module.exports = function(db, io) {
       'bld_training','bld_colosseums','bld_castles',
       'res_economy','res_weapons','res_armor','res_military','res_attack_magic',
       'res_defense_magic','res_entertainment','res_construction','res_war_machines','res_spellbook',
-      'tax_rate','xp','level',
+      'xp','level',
     ]);
 
     const safe = Object.fromEntries(
