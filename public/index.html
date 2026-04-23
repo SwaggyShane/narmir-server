@@ -157,6 +157,8 @@
   .btn-purple:active { background: var(--purple2); }
   .btn-red { background: transparent; border-color: var(--red); color: var(--red); }
   .btn-red:active { background: rgba(224,92,92,.15); }
+  .btn-green { background: transparent; border-color: var(--green); color: var(--green); }
+  .btn-green:active { background: rgba(76,175,130,.15); }
   .btn-amber { background: transparent; border-color: var(--amber); color: var(--amber); }
   .btn-amber:active { background: rgba(240,168,50,.15); }
   .btn-blue { background: transparent; border-color: var(--blue); color: var(--blue); }
@@ -1100,50 +1102,97 @@
 
 <!-- ═══════════════════════════════════════════ EXPLORATION PANEL ══ -->
 <div id="exploration" class="panel" style="display:none">
+
+  <!-- Active expeditions bar -->
+  <div id="active-expeditions" style="display:none;margin-bottom:12px"></div>
+
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:stretch">
 
-    <div class="card">
-      <div class="card-title">Scout &amp; search</div>
-      <div style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.7">
-        Send rangers into the realm to find unclaimed land, forage for gold, or locate enemy kingdoms to attack or ally with. The more rangers you send, the better the results.
+    <!-- Left col: instant search + three expedition launchers -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+
+      <!-- Instant search -->
+      <div class="card">
+        <div class="card-title">Instant search — <span style="color:var(--green);font-weight:400;font-size:12px">costs 1 turn</span></div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:12px">Quick operations that return results immediately.</div>
+        <div class="trow" style="margin-bottom:12px">
+          <span class="name">Rangers</span>
+          <span style="font-size:12px;color:var(--text3);margin-right:8px">Available: <span id="exp-rangers-avail">0</span></span>
+          <input type="number" id="search-rangers" min="0" value="0" style="width:90px">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+          <button class="btn" style="padding:10px;font-size:12px;text-align:center" onclick="searchAction('land')">
+            <div style="font-size:18px;margin-bottom:4px">🗺️</div>Search for land
+          </button>
+          <button class="btn" style="padding:10px;font-size:12px;text-align:center" onclick="searchAction('gold')">
+            <div style="font-size:18px;margin-bottom:4px">⛏️</div>Forage for gold
+          </button>
+          <button class="btn" style="padding:10px;font-size:12px;text-align:center" onclick="searchAction('targets')">
+            <div style="font-size:18px;margin-bottom:4px">🔭</div>Scout targets
+          </button>
+        </div>
       </div>
-      <div class="trow" style="margin-bottom:14px">
-        <span class="name">Rangers to send</span>
-        <span style="font-size:12px;color:var(--text3);margin-right:8px">Available: <span id="exp-rangers-avail">3,200</span></span>
-        <input type="number" id="search-rangers" min="0" value="500" style="width:90px">
+
+      <!-- Scout Expedition -->
+      <div class="card" style="border-left:3px solid var(--green)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <div class="card-title" style="margin:0">🔭 Scout Expedition</div>
+          <span style="font-size:11px;background:rgba(76,175,130,.15);color:var(--green);padding:3px 8px;border-radius:20px;font-weight:600">10 turns</span>
+        </div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.6">Rangers explore nearby territory. Rewards range from common to rare — gold, land, mana, wandering troops, and occasionally an ancient map.</div>
+        <div class="trow" style="margin-bottom:10px">
+          <span class="name" style="font-size:12px">Rangers</span>
+          <span style="font-size:11px;color:var(--text3);margin-right:6px">avail: <span id="scout-rangers-avail">0</span></span>
+          <input type="number" id="exp-scout-rangers" min="1" value="100" style="width:80px">
+        </div>
+        <button class="btn btn-green" style="width:100%" onclick="launchExpedition('scout')" id="btn-exp-scout">Launch expedition</button>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
-        <button class="btn" style="padding:10px;font-size:13px" onclick="searchAction('land')">
-          <div style="font-size:16px;margin-bottom:4px">&#127758;</div>
-          Search for land
-        </button>
-        <button class="btn" style="padding:10px;font-size:13px" onclick="searchAction('gold')">
-          <div style="font-size:16px;margin-bottom:4px">&#9775;</div>
-          Forage for gold
-        </button>
-        <button class="btn" style="padding:10px;font-size:13px" onclick="searchAction('targets')">
-          <div style="font-size:16px;margin-bottom:4px">&#128269;</div>
-          Scout targets
-        </button>
+
+      <!-- Deep Expedition -->
+      <div class="card" style="border-left:3px solid var(--purple)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <div class="card-title" style="margin:0">🌲 Deep Expedition</div>
+          <span style="font-size:11px;background:rgba(124,106,245,.15);color:var(--purple);padding:3px 8px;border-radius:20px;font-weight:600">25 turns</span>
+        </div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.6">Rangers venture deep into uncharted wilderness. Substantially better rewards including research scrolls, mercenary companies, ruins, and rare legendary artifacts.</div>
+        <div class="trow" style="margin-bottom:10px">
+          <span class="name" style="font-size:12px">Rangers</span>
+          <span style="font-size:11px;color:var(--text3);margin-right:6px">avail: <span id="deep-rangers-avail">0</span></span>
+          <input type="number" id="exp-deep-rangers" min="1" value="250" style="width:80px">
+        </div>
+        <button class="btn btn-purple" style="width:100%" onclick="launchExpedition('deep')" id="btn-exp-deep">Launch expedition</button>
       </div>
+
+      <!-- Dungeon Raid -->
+      <div class="card" style="border-left:3px solid var(--red)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <div class="card-title" style="margin:0">⚔️ Dungeon Raid</div>
+          <span style="font-size:11px;background:rgba(224,92,92,.15);color:var(--red);padding:3px 8px;border-radius:20px;font-weight:600">50 turns</span>
+        </div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.6">Fighters and rangers assault an ancient dungeon. High risk — failure costs fighters. Success yields legendary artifacts, war machines, permanent research boosts, and massive gold hoards.</div>
+        <div class="trow" style="margin-bottom:8px">
+          <span class="name" style="font-size:12px">Rangers</span>
+          <span style="font-size:11px;color:var(--text3);margin-right:6px">avail: <span id="dungeon-rangers-avail">0</span></span>
+          <input type="number" id="exp-dungeon-rangers" min="1" value="100" style="width:80px">
+        </div>
+        <div class="trow" style="margin-bottom:10px">
+          <span class="name" style="font-size:12px">Fighters</span>
+          <span style="font-size:11px;color:var(--text3);margin-right:6px">avail: <span id="dungeon-fighters-avail">0</span></span>
+          <input type="number" id="exp-dungeon-fighters" min="1" value="500" style="width:80px">
+        </div>
+        <button class="btn btn-red" style="width:100%" onclick="launchExpedition('dungeon')" id="btn-exp-dungeon">Launch raid</button>
+      </div>
+
     </div>
 
+    <!-- Right col: expedition log -->
     <div class="card" style="display:flex;flex-direction:column">
-      <div class="card-title">Exploration log</div>
-      <div id="exploration-log" style="flex:1;overflow-y:auto;max-height:320px;display:flex;flex-direction:column;gap:8px">
-        <div style="font-size:13px;color:var(--text3);padding:12px 0">No expeditions sent yet this session.</div>
+      <div class="card-title">Expedition log</div>
+      <div id="exploration-log" style="flex:1;overflow-y:auto;max-height:700px;display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:13px;color:var(--text3);padding:12px 0">No expeditions sent yet.</div>
       </div>
     </div>
 
-  </div>
-
-  <div class="card" style="margin-top:0">
-    <div class="card-title">Ranger tips</div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;font-size:13px;color:var(--text2);line-height:1.7">
-      <div><strong style="color:var(--text)">Land search</strong><br>Rangers find unclaimed acres and bring them back to your kingdom. Results scale with ranger count and Military Tactics research.</div>
-      <div><strong style="color:var(--text)">Gold foraging</strong><br>Rangers pillage and forage through the wilderness, returning with raw gold. Useful when your economy is still developing.</div>
-      <div><strong style="color:var(--text)">Target scouting</strong><br>Rangers locate other kingdoms and add them to your attack target list. You won't find the same kingdom twice until all are discovered.</div>
-    </div>
   </div>
 </div>
 
@@ -1422,31 +1471,98 @@ function searchAction(type) {
 
   apiCall('POST', '/api/kingdom/search', { type: type, rangers: r }).then(function(result) {
     if (result.error) return toast(result.error, 'error');
-
-    if (result.turns_stored !== undefined) {
-      state.turns_stored = result.turns_stored;
-      updateTurnsDisplay();
-    }
+    if (result.turns_stored !== undefined) { state.turns_stored = result.turns_stored; updateTurnsDisplay(); }
     applyServerUpdates(result.updates || {});
     if (result.type === 'land' && result.result) state.land = (state.land || 0) + result.result.found;
     if (result.type === 'gold' && result.result) state.gold = (state.gold || 0) + result.result.found;
     syncUI();
     if (result.events && result.events.length) appendNewsItems(result.events);
     toast(result.message, 'success');
-
-    var icons = { land: '&#127758;', gold: '&#9775;', targets: '&#128269;' };
-    var log = document.getElementById('exploration-log');
-    if (log) {
-      var empty = log.querySelector('[style*="No expeditions"]');
-      if (empty) empty.remove();
-      var entry = document.createElement('div');
-      entry.style.cssText = 'display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px';
-      entry.innerHTML = '<span style="font-size:18px;flex-shrink:0">' + (icons[type] || '&#9685;') + '</span>'
-        + '<div><div style="color:var(--text)">' + result.message + '</div>'
-        + '<div style="font-size:11px;color:var(--text3);margin-top:2px">Sent ' + fmt(r) + ' rangers · 1 turn used · ' + (result.turns_stored || 0) + ' turns left</div></div>';
-      log.insertBefore(entry, log.firstChild);
-    }
+    var icons = { land: '🗺️', gold: '⛏️', targets: '🔭' };
+    logExpeditionEntry(icons[type] || '🧭', result.message, 'Sent ' + fmt(r) + ' rangers · 1 turn used');
   });
+}
+
+async function launchExpedition(type) {
+  var rangers = parseInt(document.getElementById('exp-' + type + '-rangers').value) || 0;
+  var fighters = type === 'dungeon' ? (parseInt(document.getElementById('exp-dungeon-fighters').value) || 0) : 0;
+
+  if (rangers < 1) return toast('Send at least 1 ranger', 'error');
+  if (rangers > state.rangers) return toast('Not enough rangers', 'error');
+  if (type === 'dungeon' && fighters < 1) return toast('Dungeon raids require fighters', 'error');
+  if (type === 'dungeon' && fighters > state.fighters) return toast('Not enough fighters', 'error');
+
+  var labels = { scout: '10-turn Scout', deep: '25-turn Deep', dungeon: '50-turn Dungeon' };
+  var btn = document.getElementById('btn-exp-' + type);
+  if (btn) { btn.disabled = true; btn.textContent = 'Launching...'; }
+
+  var result = await apiCall('POST', '/api/kingdom/expedition/start', { type, rangers, fighters });
+  if (btn) { btn.disabled = false; btn.textContent = type === 'dungeon' ? 'Launch raid' : 'Launch expedition'; }
+
+  if (result.error) return toast(result.error, 'error');
+
+  // Update state — troops are locked away
+  if (result.updated) {
+    state.rangers = result.updated.rangers;
+    state.fighters = result.updated.fighters !== undefined ? result.updated.fighters : state.fighters;
+  }
+  syncUI();
+  updateExpeditionAvailability();
+  await loadActiveExpeditions();
+  toast(labels[type] + ' expedition launched!', 'success');
+  var icons = { scout: '🔭', deep: '🌲', dungeon: '⚔️' };
+  logExpeditionEntry(icons[type], labels[type] + ' expedition launched', rangers + ' rangers' + (fighters ? ', ' + fighters + ' fighters' : '') + ' · returns in ' + result.turns_left + ' turns');
+}
+
+function logExpeditionEntry(icon, title, subtitle) {
+  var log = document.getElementById('exploration-log');
+  if (!log) return;
+  var empty = log.querySelector('[style*="No expeditions"]');
+  if (empty) empty.remove();
+  var entry = document.createElement('div');
+  entry.style.cssText = 'display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px';
+  entry.innerHTML = '<span style="font-size:18px;flex-shrink:0">' + icon + '</span>'
+    + '<div><div style="color:var(--text)">' + title + '</div>'
+    + '<div style="font-size:11px;color:var(--text3);margin-top:2px">' + subtitle + '</div></div>';
+  log.insertBefore(entry, log.firstChild);
+}
+
+async function loadActiveExpeditions() {
+  var result = await apiCall('GET', '/api/kingdom/expedition/list');
+  var bar = document.getElementById('active-expeditions');
+  if (!bar) return;
+  if (!Array.isArray(result) || result.length === 0) { bar.style.display = 'none'; return; }
+
+  var labels = { scout: '🔭 Scout', deep: '🌲 Deep', dungeon: '⚔️ Dungeon' };
+  var colors = { scout: 'var(--green)', deep: 'var(--purple)', dungeon: 'var(--red)' };
+  bar.style.display = 'flex';
+  bar.style.cssText = 'display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px';
+  bar.innerHTML = result.map(function(exp) {
+    return '<div style="display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border);border-left:3px solid ' + (colors[exp.type]||'var(--text3)') + ';border-radius:var(--radius);padding:8px 12px;font-size:13px">'
+      + '<span style="font-weight:600;color:' + (colors[exp.type]||'var(--text)') + '">' + (labels[exp.type]||exp.type) + '</span>'
+      + '<span style="color:var(--text3)">·</span>'
+      + '<span style="color:var(--text2)">' + exp.turns_left + ' turns remaining</span>'
+      + '<span style="color:var(--text3)">·</span>'
+      + '<span style="color:var(--text3)">' + exp.rangers + ' rangers' + (exp.fighters > 0 ? ', ' + exp.fighters + ' fighters' : '') + '</span>'
+      + '</div>';
+  }).join('');
+
+  // Disable buttons for active types
+  ['scout','deep','dungeon'].forEach(function(t) {
+    var active = result.find(function(e) { return e.type === t; });
+    var btn = document.getElementById('btn-exp-' + t);
+    if (btn) { btn.disabled = !!active; btn.textContent = active ? 'Underway — ' + active.turns_left + ' turns left' : (t === 'dungeon' ? 'Launch raid' : 'Launch expedition'); }
+  });
+}
+
+function updateExpeditionAvailability() {
+  var r = state.rangers || 0;
+  var f = state.fighters || 0;
+  ['exp-rangers-avail','scout-rangers-avail','deep-rangers-avail','dungeon-rangers-avail'].forEach(function(id) {
+    var el = document.getElementById(id); if (el) el.textContent = fmt(r);
+  });
+  var df = document.getElementById('dungeon-fighters-avail');
+  if (df) df.textContent = fmt(f);
 }
 
 /* ── Spells ── */
@@ -1685,6 +1801,10 @@ function switchTab(id, btn) {
   }
   if (id === 'training') {
     loadTrainingAllocation();
+  }
+  if (id === 'exploration') {
+    updateExpeditionAvailability();
+    loadActiveExpeditions();
   }
   if (id === 'research') {
     updateAllocationDisplay();
@@ -2141,6 +2261,7 @@ async function loadKingdom() {
   loadBuildAllocation();
   loadTrainingAllocation();
   renderBuildQueue();
+  loadActiveExpeditions();
 }
 
 async function loadNews() {
