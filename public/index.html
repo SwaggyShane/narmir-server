@@ -2719,7 +2719,8 @@ async function saveResearchAllocation() {
     total += val;
   });
   if (total > (state.researchers || 0)) {
-    return toast('Allocated ' + fmt(total) + ' but only have ' + fmt(state.researchers) + ' researchers', 'error');
+    // Soft warning — engine will clamp but let user save anyway
+    toast('Warning: allocated ' + fmt(total) + ' but only have ' + fmt(state.researchers || 0) + ' researchers — extra will be ignored', 'warn');
   }
   var result = await apiCall('POST', '/api/kingdom/research-allocation', { allocation: allocation });
   if (result.error) return toast(result.error, 'error');
