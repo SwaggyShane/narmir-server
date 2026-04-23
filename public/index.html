@@ -263,7 +263,7 @@
 </head>
 <body>
 
-<div class="app">
+<div class="app" id="app">
 
   <!-- Topbar -->
   <header class="topbar">
@@ -1962,18 +1962,10 @@ async function apiCall(method, path, body) {
 }
 
 function showLoginModal() {
+  document.getElementById('app').style.display = 'none';
   var ov = document.getElementById('login-overlay');
-  if (ov) {
-    ov.style.display = 'flex';
-    ov.style.position = 'fixed';
-    ov.style.top = '0';
-    ov.style.left = '0';
-    ov.style.right = '0';
-    ov.style.bottom = '0';
-    ov.style.width = '100%';
-    ov.style.height = '100%';
-    ov.style.zIndex = '9999';
-  }
+  ov.style.display = 'flex';
+  ov.style.flexDirection = 'column';
   document.getElementById('auth-error').textContent = '';
   document.getElementById('register-fields').style.display = 'none';
   document.getElementById('btn-login').disabled = false;
@@ -1985,8 +1977,8 @@ function showLoginModal() {
 }
 
 function hideLoginModal() {
-  var ov = document.getElementById('login-overlay');
-  if (ov) ov.style.display = 'none';
+  document.getElementById('login-overlay').style.display = 'none';
+  document.getElementById('app').style.display = '';
 }
 
 function initLoginModal() {
@@ -2783,7 +2775,7 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 </script>
-<div id="login-overlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;min-height:100vh;background:rgba(13,14,20,.97);z-index:9999;align-items:center;justify-content:center;">
+<div id="login-overlay" style="min-height:100vh;background:#0d0e14;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;">
   <div style="background:#13141d;border:1px solid #363a52;border-radius:12px;padding:28px 32px;width:90%;max-width:400px;">
     <div style="font-size:22px;font-weight:700;color:#e8b84b;margin-bottom:4px">NARMIR</div>
     <div style="font-size:13px;color:#9a9bb5;margin-bottom:20px">Land of Magic and Conquest</div>
