@@ -1061,6 +1061,10 @@ function resolveAllianceDefence(attackResult, allies) {
 }
 
 // ── Expedition rewards ──────────────────────────────────────────────────────
+// ── Expedition helpers ──────────────────────────────────────────────────────
+function roll(chance) { return Math.random() < chance; }
+function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
 const JUNK_PRIZES = [
   'a suspiciously damp sock',
   'a map to a location that no longer exists',
