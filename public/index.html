@@ -2041,9 +2041,9 @@ function initLoginModal() {
       var kingdomName = document.getElementById('auth-kingdom').value.trim();
       var race        = document.getElementById('auth-race').value;
       if (!kingdomName) { errEl.textContent = 'Kingdom name required'; return; }
-      body = { username, password, kingdomName, race };
+      body = { username: username, password: password, kingdomName: kingdomName, race: race };
     } else {
-      body = { username, password };
+      body = { username: username, password: password };
     }
 
     document.getElementById('btn-login').disabled = true;
@@ -2066,11 +2066,9 @@ function initLoginModal() {
 }
 
 async function loadKingdom() {
-  debugLog('loadKingdom: fetching /api/kingdom/me...');
   var kingdom = await apiCall('GET', '/api/kingdom/me');
-  debugLog('kingdom/me: ' + (kingdom.error ? 'ERR ' + kingdom.error : 'ok id=' + kingdom.id + ' name=' + kingdom.name));
   if (kingdom.error) {
-    return; // caller handles — overlay.remove() already scheduled
+    return;
   }
   Object.assign(state, {
     gold: kingdom.gold, pop: kingdom.population, land: kingdom.land,
@@ -2111,8 +2109,7 @@ async function loadKingdom() {
     build_progress: (() => { try { return typeof kingdom.build_progress === 'string' ? JSON.parse(kingdom.build_progress||'{}') : (kingdom.build_progress||{}); } catch { return {}; } })(),
     build_allocation: (() => { try { return typeof kingdom.build_allocation === 'string' ? JSON.parse(kingdom.build_allocation||'{}') : (kingdom.build_allocation||{}); } catch { return {}; } })(),
   });
-  debugLog('state assigned, calling syncUI...');
-  try { syncUI(); debugLog('syncUI ok'); } catch(e) { debugLog('syncUI CRASH: ' + e.message); }
+  syncUI();
   updateTurnsDisplay();
   document.getElementById('turn-num').textContent = kingdom.turn;
   var moraleEl = document.getElementById('m-morale');
