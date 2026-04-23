@@ -71,6 +71,18 @@ module.exports = function(db) {
     // Tick active expeditions
     await engine.resolveExpeditions(db, { ...k, ...updates }, engine);
 
+    // Re-fetch rangers and fighters in case expeditions returned troops via SQL INCREMENT
+    const refreshed = await db.get('SELECT rangers, fighters, mana, scrolls, maps, blueprints_stored, library_progress FROM kingdoms WHERE id = ?', [k.id]);
+    if (refreshed) {
+      updates.rangers            = refreshed.rangers;
+      updates.fighters           = refreshed.fighters;
+      updates.mana               = refreshed.mana;
+      updates.scrolls            = refreshed.scrolls;
+      updates.maps               = refreshed.maps;
+      updates.blueprints_stored  = refreshed.blueprints_stored;
+      updates.library_progress   = refreshed.library_progress;
+    }
+
     for (const ev of events)
       await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)', [k.id, ev.type || 'system', ev.message, updates.turn || k.turn || 0]);
 
