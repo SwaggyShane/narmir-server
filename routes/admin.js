@@ -74,6 +74,30 @@ module.exports = function(db, io) {
     res.json({ ok: true });
   });
 
+  // POST /api/admin/reset-all-kingdoms — wipe all kingdoms back to starting stats
+  router.post('/reset-all-kingdoms', async (_req, res) => {
+    await db.run(`UPDATE kingdoms SET
+      gold = 10000, mana = 500, land = 150, population = 5000, food = 2000, morale = 100,
+      turn = 0, turns_stored = 200,
+      fighters = 0, rangers = 0, clerics = 0, mages = 0, thieves = 0, ninjas = 0,
+      researchers = 0, engineers = 0,
+      war_machines = 0, weapons_stockpile = 0, armor_stockpile = 0,
+      bld_farms = 200, bld_barracks = 0, bld_outposts = 0, bld_guard_towers = 0,
+      bld_schools = 0, bld_armories = 0, bld_vaults = 0, bld_smithies = 0,
+      bld_markets = 0, bld_cathedrals = 0, bld_training = 0, bld_colosseums = 0, bld_castles = 0,
+      res_economy = 100, res_weapons = 100, res_armor = 100, res_military = 100,
+      res_attack_magic = 100, res_defense_magic = 100, res_entertainment = 100,
+      res_construction = 100, res_war_machines = 100, res_spellbook = 500,
+      xp = 0, level = 1,
+      research_allocation = '{}', build_allocation = '{}', build_queue = '[]',
+      tools_hammers = 0, tools_scaffolding = 0, tools_blueprints = 0
+    `);
+    await db.run('DELETE FROM expeditions');
+    await db.run('DELETE FROM news');
+    await db.run('DELETE FROM combat_log');
+    res.json({ ok: true });
+  });
+
   // POST /api/admin/set-gold — set a kingdom's gold
   router.post('/set-gold', async (req, res) => {
     const { kingdomId, amount } = req.body;
