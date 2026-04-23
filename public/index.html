@@ -2085,14 +2085,9 @@ function showLoginModal() {
     }
     try { setToken(result.token); } catch(e) {}
     state.username = username;
-    // Hide the overlay directly — no reload needed
+    // Physically delete the overlay from the DOM
     var ov = document.getElementById('login-overlay');
-    if (ov) {
-      ov.style.display = 'none';
-      ov.style.visibility = 'hidden';
-      ov.style.zIndex = '-1';
-      ov.style.pointerEvents = 'none';
-    }
+    if (ov && ov.parentNode) { ov.parentNode.removeChild(ov); }
     loadKingdom();
   }
 }
@@ -2800,6 +2795,9 @@ apiCall('GET', '/api/auth/me').then(function(me) {
   if (me.error) {
     showLoginModal();
   } else {
+    // Remove any leftover login overlay from previous session
+    var ov = document.getElementById('login-overlay');
+    if (ov && ov.parentNode) ov.parentNode.removeChild(ov);
     state.username = me.username;
     loadKingdom();
   }
