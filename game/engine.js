@@ -466,7 +466,26 @@ function hireUnits(k, unit, amount) {
   if (!validUnits.includes(unit)) return { error: 'Invalid unit type' };
   if (amount <= 0) return { error: 'Amount must be positive' };
 
-  // Level cap check (researchers and engineers have no cap)
+  // School cap — researchers need schools (100 per school)
+  if (unit === 'researchers') {
+    const schoolCap = (k.bld_schools || 0) * 100;
+    const currentResearchers = k.researchers || 0;
+    if (schoolCap === 0) return { error: 'You need at least 1 school to hire researchers' };
+    if (currentResearchers >= schoolCap) return { error: `School capacity full — ${schoolCap.toLocaleString()} researchers max with ${k.bld_schools} school${k.bld_schools > 1 ? 's' : ''} (100 per school)` };
+    if (currentResearchers + amount > schoolCap) return { error: `Only room for ${(schoolCap - currentResearchers).toLocaleString()} more researchers — build more schools (100 per school)` };
+  }
+
+  // Barracks cap — military troops need barracks (500 per barracks)
+  const BARRACKS_TROOPS = ['fighters','rangers','clerics','thieves','ninjas'];
+  if (BARRACKS_TROOPS.includes(unit)) {
+    const barracksCap = (k.bld_barracks || 0) * 500;
+    const currentTroops = BARRACKS_TROOPS.reduce((s, u) => s + (k[u] || 0), 0);
+    if (barracksCap === 0) return { error: 'You need at least 1 barracks to hire troops' };
+    if (currentTroops >= barracksCap) return { error: `Barracks full — ${barracksCap.toLocaleString()} troops max with ${k.bld_barracks} barracks (500 per barracks)` };
+    if (currentTroops + amount > barracksCap) return { error: `Only room for ${(barracksCap - currentTroops).toLocaleString()} more troops — build more barracks (500 per barracks)` };
+  }
+
+  // Level cap check (researchers, engineers, scribes have no level cap)
   if (!['researchers','engineers','scribes'].includes(unit)) {
     const cap = getCap(unit, k.level || 1);
     const current = k[unit] || 0;
