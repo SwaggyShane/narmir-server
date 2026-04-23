@@ -2068,18 +2068,10 @@ function showLoginModal() {
       submitting = false;
       return;
     }
-    debugLog('step1: past error check');
-    try { if (result.token) setToken(result.token); } catch(e) { debugLog('token store err: ' + e.message); }
-    debugLog('step2: token stored');
-    state.username = username;
-    debugLog('step3: username set, removing modal...');
-    try {
-      var ov1 = document.getElementById('login-overlay');
-      debugLog('found overlay: ' + (ov1 ? 'yes' : 'no'));
-      if (ov1 && ov1.parentNode) ov1.parentNode.removeChild(ov1);
-      debugLog('modal removed');
-    } catch(e) { debugLog('remove err: ' + e.message); }
-    loadKingdom().catch(function(e) { debugLog('loadKingdom err: ' + e.message); });
+    // Store token then reload — cleanest way to dismiss modal and load kingdom
+    try { if (result.token) setToken(result.token); } catch(e) {}
+    debugLog('reloading...');
+    window.location.reload();
   }
 }
 
