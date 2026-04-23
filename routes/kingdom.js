@@ -264,7 +264,9 @@ module.exports = function(db) {
   router.get('/expedition/list', requireAuth, async (req, res) => {
     const k = await db.get('SELECT id FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
     if (!k) return res.status(404).json({ error: 'Kingdom not found' });
-    const exps = await db.all('SELECT * FROM expeditions WHERE kingdom_id = ? ORDER BY created_at DESC', [k.id]);
+    // Clean up any stuck zero-turn expeditions
+    await db.run('DELETE FROM expeditions WHERE kingdom_id = ? AND turns_left <= 0', [k.id]);
+    const exps = await db.all('SELECT * FROM expeditions WHERE kingdom_id = ? AND turns_left > 0 ORDER BY created_at DESC', [k.id]);
     res.json(exps);
   });
 
