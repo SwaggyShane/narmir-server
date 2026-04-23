@@ -42,9 +42,16 @@ function goldPerTurn(k) {
 }
 
 function manaPerTurn(k) {
-  const base = 10 + (k.bld_cathedrals / 25) * 50;
-  // Magic races regenerate mana faster
-  return Math.floor(base * raceBonus(k, 'magic'));
+  // Base mana from mage towers: each tower = 5 base mana
+  const baseMana = (k.bld_cathedrals || 0) * 5;
+  // Bonus from mages allocated to mage tower: 1 mana per 5 mages
+  let towerAlloc = {};
+  try { towerAlloc = JSON.parse(k.mage_tower_allocation || '{}'); } catch { towerAlloc = {}; }
+  const magesInTower = Math.min(Number(towerAlloc.mages) || 0, k.mages || 0);
+  const capacity = (k.bld_cathedrals || 0) * 20;
+  const effectiveMages = Math.min(magesInTower, capacity);
+  const mageMana = Math.floor(effectiveMages / 5);
+  return Math.floor((baseMana + mageMana) * raceBonus(k, 'magic'));
 }
 
 function foodBalance(k) {
@@ -303,7 +310,15 @@ function processTurn(k) {
   const libUpdates = processLibrary({ ...k, ...updates }, events);
   Object.assign(updates, libUpdates);
 
-  // ── 8c. Active effects — tick down debuffs/buffs ─────────────────────────────
+  // ── 8c. Mage tower research — research from mages in towers ──────────────────
+  const towerUpdates = processMageTower({ ...k, ...updates }, events);
+  Object.assign(updates, towerUpdates);
+
+  // ── 8d. Shrines — clerics boost morale and prepare to heal ───────────────────
+  const shrineUpdates = processShrine({ ...k, ...updates }, events);
+  Object.assign(updates, shrineUpdates);
+
+  // ── 8e. Active effects — tick down debuffs/buffs ─────────────────────────────
   const effectUpdates = processActiveEffects({ ...k, ...updates }, events);
   Object.assign(updates, effectUpdates);
 
@@ -577,7 +592,7 @@ function awardXp(k, activity, amount) {
 const BUILDING_COST = {
   farms: 2500, barracks: 5000, outposts: 7500, guard_towers: 2500,
   schools: 7500, armories: 2500, vaults: 10000, smithies: 10000,
-  markets: 10000, cathedrals: 15000, training: 20000, colosseums: 5000,
+  markets: 10000, cathedrals: 15000, shrines: 5000, training: 20000, colosseums: 5000,
   castles: 100000, libraries: 10000,
   war_machine: 200, weapons: 10, armor: 10,
 };
@@ -586,17 +601,16 @@ const BUILDING_COL = {
   farms: 'bld_farms', barracks: 'bld_barracks', outposts: 'bld_outposts',
   guard_towers: 'bld_guard_towers', schools: 'bld_schools', armories: 'bld_armories',
   vaults: 'bld_vaults', smithies: 'bld_smithies', markets: 'bld_markets',
-  cathedrals: 'bld_cathedrals', training: 'bld_training', colosseums: 'bld_colosseums',
-  castles: 'bld_castles', libraries: 'bld_libraries',
+  cathedrals: 'bld_cathedrals', shrines: 'bld_shrines', training: 'bld_training',
+  colosseums: 'bld_colosseums', castles: 'bld_castles', libraries: 'bld_libraries',
   war_machine: 'war_machines', weapons: 'weapons_stockpile', armor: 'armor_stockpile',
 };
 
-// Gold cost per unit to queue each building
 const BUILDING_GOLD_COST = {
   farms: 50, barracks: 200, outposts: 150, guard_towers: 150,
   schools: 500, armories: 400, vaults: 400, smithies: 800,
-  markets: 2000, cathedrals: 1500, training: 10000, colosseums: 1500, castles: 25000,
-  libraries: 2000,
+  markets: 2000, cathedrals: 3000, shrines: 1000, training: 10000, colosseums: 1500,
+  castles: 25000, libraries: 2000,
   war_machine: 5000, weapons: 100, armor: 150,
 };
 
@@ -1355,6 +1369,81 @@ async function resolveExpeditions(db, k, engine) {
   }
 }
 
+// ── Mage Tower — research allocation from mages ──────────────────────────────
+function processMageTower(k, events) {
+  const updates = {};
+  const towers = k.bld_cathedrals || 0;
+  if (towers === 0) return updates;
+
+  let towerAlloc = {};
+  try { towerAlloc = JSON.parse(k.mage_tower_allocation || '{}'); } catch { towerAlloc = {}; }
+
+  // Mages assigned to research in towers
+  const magesForResearch = Math.min(Number(towerAlloc.research_mages) || 0, k.mages || 0);
+  const capacity = towers * 20;
+  const effectiveMages = Math.min(magesForResearch, capacity);
+  if (effectiveMages <= 0) return updates;
+
+  // Each mage in tower contributes to the research_allocation discipline chosen
+  const discipline = towerAlloc.research_discipline || null;
+  if (!discipline) return updates;
+
+  const DISC_COL = {
+    economy:'res_economy', weapons:'res_weapons', armor:'res_armor', military:'res_military',
+    attack_magic:'res_attack_magic', defense_magic:'res_defense_magic',
+    entertainment:'res_entertainment', construction:'res_construction',
+    war_machines:'res_war_machines', spellbook:'res_spellbook',
+  };
+  const col = DISC_COL[discipline];
+  if (!col) return updates;
+
+  const schoolBonus = 1 + (Math.floor((k.bld_schools||0) / 5) * 0.02);
+  const isMagic = ['attack_magic','defense_magic','spellbook'].includes(discipline);
+  const raceMulti = isMagic ? raceBonus(k, 'magic') : raceBonus(k, 'research');
+  const effective = Math.floor(effectiveMages * schoolBonus * raceMulti);
+
+  let inc = 0;
+  if (effective >= 2000) inc = 5;
+  else if (effective >= 1200) inc = 3;
+  else if (effective >= 600)  inc = 2;
+  else if (effective >= 100)  inc = 1;
+
+  if (inc > 0) {
+    const current = updates[col] !== undefined ? updates[col] : (k[col] || 0);
+    updates[col] = Math.min(10000, current + inc);
+    events.push({ type: 'system', message: `🗼 Mage Tower: ${discipline.replace('_',' ')} advanced by ${inc} (${effectiveMages.toLocaleString()} mages studying).` });
+  }
+
+  return updates;
+}
+
+// ── Shrine — clerics boost morale and prepare healing ────────────────────────
+function processShrine(k, events) {
+  const updates = {};
+  const shrines = k.bld_shrines || 0;
+  if (shrines === 0) return updates;
+
+  let shrineAlloc = {};
+  try { shrineAlloc = JSON.parse(k.shrine_allocation || '{}'); } catch { shrineAlloc = {}; }
+
+  const clericsInShrine = Math.min(Number(shrineAlloc.clerics) || 0, k.clerics || 0);
+  const capacity = shrines * 15; // 15 clerics per shrine
+  const effectiveClerics = Math.min(clericsInShrine, capacity);
+  if (effectiveClerics <= 0) return updates;
+
+  // Each 10 clerics in shrine = +1 morale per turn
+  const moraleGain = Math.max(1, Math.floor(effectiveClerics / 10));
+  const currentMorale = updates.morale !== undefined ? updates.morale : (k.morale || 0);
+  if (currentMorale < 200) {
+    updates.morale = Math.min(200, currentMorale + moraleGain);
+    if (moraleGain > 0) {
+      events.push({ type: 'system', message: `⛩️ Shrine: ${effectiveClerics.toLocaleString()} clerics praying — morale +${moraleGain}.` });
+    }
+  }
+
+  return updates;
+}
+
 // ── Library processing — runs each turn ──────────────────────────────────────
 function processLibrary(k, events) {
   const updates = {};
@@ -1466,7 +1555,7 @@ function processActiveEffects(k, events) {
 module.exports = {
   goldPerTurn, manaPerTurn, foodBalance, popGrowth,
   processTurn, hireUnits, studyDiscipline,
-  queueBuildings, processBuildQueue, processLibrary, processActiveEffects, forgeTools,
+  queueBuildings, processBuildQueue, processLibrary, processMageTower, processShrine, processActiveEffects, forgeTools,
   resolveMilitaryAttack, castSpell,
   covertSpy, covertLoot, covertAssassinate,
   resolveAllianceDefence, resolveExpeditions,
