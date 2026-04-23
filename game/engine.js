@@ -1060,13 +1060,191 @@ function resolveAllianceDefence(attackResult, allies) {
   });
 }
 
+// ── Expedition rewards ──────────────────────────────────────────────────────
+function roll(chance) { return Math.random() < chance; }
+function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+const RARITY = {
+  common:    { label: 'Common',    color: '#9a9bb5' },
+  uncommon:  { label: 'Uncommon',  color: '#4caf82' },
+  rare:      { label: 'Rare',      color: '#7c6af5' },
+  epic:      { label: 'Epic',      color: '#e8b84b' },
+  legendary: { label: 'Legendary', color: '#e05c5c' },
+};
+
+function expeditionRewards(type, rangers, fighters, k) {
+  const tacBonus = 1 + ((k.res_military || 0) / 1000);
+  const rewards = [];
+  const events  = [];
+  const updates = {};
+
+  if (type === 'scout') {
+    // Base rewards — always get something
+    const gold = rand(rangers * 8, rangers * 20) * tacBonus | 0;
+    rewards.push({ rarity: 'common', text: `+${gold.toLocaleString()} gold from foraging`, key: 'gold', val: gold });
+    updates.gold = (k.gold || 0) + gold;
+
+    const land = rand(Math.floor(rangers * 0.02), Math.floor(rangers * 0.06)) | 0;
+    if (land > 0) {
+      rewards.push({ rarity: 'common', text: `+${land} acres of unclaimed land`, key: 'land', val: land });
+      updates.land = (k.land || 0) + land;
+    }
+
+    // Uncommon — small mana cache
+    if (roll(0.35)) {
+      const mana = rand(50, 300);
+      rewards.push({ rarity: 'uncommon', text: `+${mana} mana from a hidden shrine`, key: 'mana', val: mana });
+      updates.mana = (k.mana || 0) + mana;
+    }
+    // Rare — wandering troops join you
+    if (roll(0.15)) {
+      const troops = rand(5, 30);
+      rewards.push({ rarity: 'rare', text: `${troops} wandering fighters pledge allegiance to your kingdom`, key: 'fighters', val: troops });
+      updates.fighters = (k.fighters || 0) + troops;
+    }
+    // Epic — ancient map (bonus land)
+    if (roll(0.04)) {
+      const bonus = rand(20, 80);
+      rewards.push({ rarity: 'epic', text: `An ancient map reveals ${bonus} additional acres — scouts claim them!`, key: 'land', val: bonus });
+      updates.land = (updates.land || k.land || 0) + bonus;
+    }
+
+  } else if (type === 'deep') {
+    // Larger base
+    const gold = rand(rangers * 40, rangers * 120) * tacBonus | 0;
+    rewards.push({ rarity: 'common', text: `+${gold.toLocaleString()} gold from deep wilderness caches`, key: 'gold', val: gold });
+    updates.gold = (k.gold || 0) + gold;
+
+    const land = rand(Math.floor(rangers * 0.08), Math.floor(rangers * 0.18)) | 0;
+    rewards.push({ rarity: 'common', text: `+${land} acres of fertile territory`, key: 'land', val: land });
+    updates.land = (k.land || 0) + land;
+
+    // Uncommon — significant mana
+    if (roll(0.6)) {
+      const mana = rand(300, 1500);
+      rewards.push({ rarity: 'uncommon', text: `+${mana} mana from ley lines discovered deep in the wilderness`, key: 'mana', val: mana });
+      updates.mana = (k.mana || 0) + mana;
+    }
+    // Rare — research scroll
+    if (roll(0.4)) {
+      const disc = ['res_economy','res_weapons','res_armor','res_military','res_entertainment'][rand(0,4)];
+      const boost = rand(5, 20);
+      const label = disc.replace('res_','').replace('_',' ');
+      rewards.push({ rarity: 'rare', text: `A research scroll found — ${label} +${boost}%`, key: disc, val: boost });
+      updates[disc] = (k[disc] || 0) + boost;
+    }
+    // Rare — mercenary company
+    if (roll(0.3)) {
+      const troops = rand(50, 200);
+      const type2 = roll(0.5) ? 'fighters' : 'rangers';
+      rewards.push({ rarity: 'rare', text: `A mercenary company of ${troops} ${type2} joins your cause`, key: type2, val: troops });
+      updates[type2] = (k[type2] || 0) + troops;
+    }
+    // Epic — large land grant
+    if (roll(0.12)) {
+      const bonus = rand(100, 400);
+      rewards.push({ rarity: 'epic', text: `Ruins of an abandoned kingdom found — you claim ${bonus} acres of its former territory`, key: 'land', val: bonus });
+      updates.land = (updates.land || k.land || 0) + bonus;
+    }
+    // Legendary — ancient artifact (permanent research boost)
+    if (roll(0.03)) {
+      const disc = ['res_spellbook','res_attack_magic','res_defense_magic','res_war_machines','res_construction'][rand(0,4)];
+      const boost = rand(25, 75);
+      const label = disc.replace('res_','').replace('_',' ');
+      rewards.push({ rarity: 'legendary', text: `⚡ LEGENDARY: An ancient artifact of ${label} — permanent +${boost}% to ${label}`, key: disc, val: boost });
+      updates[disc] = (k[disc] || 0) + boost;
+    }
+
+  } else if (type === 'dungeon') {
+    const power = (rangers + fighters * 2) * tacBonus;
+    const successChance = Math.min(0.9, 0.3 + (power / 50000));
+    const success = roll(successChance);
+
+    if (!success) {
+      // Failed raid — troops lost
+      const lost = rand(Math.floor(fighters * 0.1), Math.floor(fighters * 0.35));
+      updates.fighters = Math.max(0, (k.fighters || 0) + fighters - lost);
+      rewards.push({ rarity: 'common', text: `The dungeon proved too dangerous — ${lost} fighters lost in retreat`, key: 'fighters', val: -lost });
+      events.push({ type: 'attack', message: `💀 Dungeon raid FAILED — your forces were overwhelmed. ${lost.toLocaleString()} fighters lost.` });
+    } else {
+      // Success — return all troops
+      updates.fighters = (k.fighters || 0) + fighters;
+
+      const gold = rand(fighters * 100, fighters * 400) * tacBonus | 0;
+      rewards.push({ rarity: 'uncommon', text: `+${gold.toLocaleString()} gold plundered from the dungeon`, key: 'gold', val: gold });
+      updates.gold = (k.gold || 0) + gold;
+
+      const mana = rand(500, 3000);
+      rewards.push({ rarity: 'rare', text: `+${mana} mana from dungeon ley stones`, key: 'mana', val: mana });
+      updates.mana = (k.mana || 0) + mana;
+
+      // Epic — always get something good on success
+      const disc = ['res_weapons','res_armor','res_military','res_attack_magic','res_spellbook'][rand(0,4)];
+      const boost = rand(15, 50);
+      const label = disc.replace('res_','').replace('_',' ');
+      rewards.push({ rarity: 'epic', text: `Dungeon tome found — ${label} permanently +${boost}%`, key: disc, val: boost });
+      updates[disc] = (k[disc] || 0) + boost;
+
+      // Legendary — rare dungeon artifact
+      if (roll(0.15)) {
+        const wm = rand(5, 25);
+        rewards.push({ rarity: 'legendary', text: `⚡ LEGENDARY: Ancient war machines recovered from the dungeon depths — +${wm} war machines`, key: 'war_machines', val: wm });
+        updates.war_machines = (k.war_machines || 0) + wm;
+      }
+      if (roll(0.08)) {
+        const boost2 = rand(50, 150);
+        rewards.push({ rarity: 'legendary', text: `⚡ LEGENDARY: The dungeon's heart pulsed with ancient magic — spellbook permanently +${boost2}`, key: 'res_spellbook', val: boost2 });
+        updates.res_spellbook = (updates.res_spellbook || k.res_spellbook || 0) + boost2;
+      }
+    }
+  }
+
+  // Return rangers in all cases
+  updates.rangers = (k.rangers || 0) + rangers;
+
+  return { rewards, updates, events };
+}
+
+async function resolveExpeditions(db, k, engine) {
+  const exps = await db.all('SELECT * FROM expeditions WHERE kingdom_id = ? AND turns_left > 0', [k.id]);
+  for (const exp of exps) {
+    const newTurns = exp.turns_left - 1;
+    if (newTurns <= 0) {
+      // Expedition complete
+      const { rewards, updates, events } = expeditionRewards(exp.type, exp.rangers, exp.fighters, k);
+      const label = { scout: '🔭 Scout', deep: '🌲 Deep', dungeon: '⚔️ Dungeon' }[exp.type];
+      const rarityEmoji = { common: '', uncommon: '✨', rare: '💎', epic: '🔥', legendary: '⚡' };
+
+      // Save reward updates
+      if (Object.keys(updates).length > 0) {
+        const cols = Object.keys(updates).map(c => `${c} = ?`).join(', ');
+        await db.run(`UPDATE kingdoms SET ${cols} WHERE id = ?`, [...Object.values(updates), k.id]);
+      }
+
+      // News entry per reward
+      const rewardLines = rewards.map(r => `${rarityEmoji[r.rarity]} [${r.rarity.toUpperCase()}] ${r.text}`).join('\n');
+      await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)',
+        [k.id, 'system', `${label} expedition returned!\n${rewardLines}`, k.turn || 0]);
+
+      for (const ev of events) {
+        await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)',
+          [k.id, ev.type || 'system', ev.message, k.turn || 0]);
+      }
+
+      await db.run('DELETE FROM expeditions WHERE id = ?', [exp.id]);
+    } else {
+      await db.run('UPDATE expeditions SET turns_left = ? WHERE id = ?', [newTurns, exp.id]);
+    }
+  }
+}
+
 module.exports = {
   goldPerTurn, manaPerTurn, foodBalance, popGrowth,
   processTurn, hireUnits, studyDiscipline,
   queueBuildings, processBuildQueue, forgeTools,
   resolveMilitaryAttack, castSpell,
   covertSpy, covertLoot, covertAssassinate,
-  resolveAllianceDefence,
+  resolveAllianceDefence, resolveExpeditions,
   awardXp, xpForLevel, xpToNextLevel, levelFromXp,
   awardTroopXp, troopXpForLevel, effectiveTroopLevel,
   TROOP_RACE_BONUS, RACE_BONUSES, UNIT_COST, BUILDING_COST, BUILDING_GOLD_COST, BUILDING_COL, SPELL_DEFS,
