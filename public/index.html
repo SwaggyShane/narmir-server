@@ -2083,10 +2083,17 @@ function showLoginModal() {
       submitting = false;
       return;
     }
-    // Store token then reload — cleanest way to dismiss modal and load kingdom
-    try { if (result.token) setToken(result.token); } catch(e) {}
-    debugLog('reloading...');
-    window.location.reload();
+    try { setToken(result.token); } catch(e) {}
+    state.username = username;
+    // Hide the overlay directly — no reload needed
+    var ov = document.getElementById('login-overlay');
+    if (ov) {
+      ov.style.display = 'none';
+      ov.style.visibility = 'hidden';
+      ov.style.zIndex = '-1';
+      ov.style.pointerEvents = 'none';
+    }
+    loadKingdom();
   }
 }
 
