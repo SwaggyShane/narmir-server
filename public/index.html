@@ -2064,9 +2064,10 @@ function showLoginModal() {
     }
     if (result.token) localStorage.setItem('narmir_token', result.token);
     state.username = username;
-    overlay.innerHTML = '<div style="color:#e8b84b;font-size:16px;font-weight:600;text-align:center;padding:40px">Loading your kingdom...</div>';
-    overlay.remove();
-    debugLog('overlay removed, loading kingdom...');
+    // Remove ALL login overlays by ID — don't rely on closure variable
+    var ov = document.getElementById('login-overlay');
+    if (ov) ov.remove();
+    debugLog('overlay removed');
     loadKingdom().catch(function(e) { debugLog('loadKingdom err: ' + e.message); });
   }
 }
