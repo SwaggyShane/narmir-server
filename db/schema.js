@@ -117,6 +117,7 @@ async function initDb() {
       turns_left  INTEGER NOT NULL,
       rangers     INTEGER NOT NULL DEFAULT 0,
       fighters    INTEGER NOT NULL DEFAULT 0,
+      rewards     TEXT,
       created_at  INTEGER NOT NULL DEFAULT (unixepoch())
     );
     CREATE INDEX IF NOT EXISTS idx_exp_kingdom ON expeditions(kingdom_id);
@@ -180,6 +181,9 @@ async function initDb() {
 
   const nCols = (await _db.all('PRAGMA table_info(news)')).map(c => c.name);
   if (!nCols.includes('turn_num')) await addColumn('news', 'turn_num', 'INTEGER NOT NULL DEFAULT 0');
+
+  const expCols = (await _db.all('PRAGMA table_info(expeditions)')).map(c => c.name);
+  if (!expCols.includes('rewards')) await addColumn('expeditions', 'rewards', 'TEXT');
 
   // Seed default server_state row for regen tracking
   await _db.run(`
