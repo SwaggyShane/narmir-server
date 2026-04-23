@@ -121,6 +121,9 @@ module.exports = function(db, io) {
     await db.run(`UPDATE kingdoms SET ${cols} WHERE id = ?`, [...Object.values(safe), kingdomId]);
     res.json({ ok: true, updated: Object.keys(safe) });
   });
+
+  // POST /api/admin/announce — broadcast a global message via Socket.io
+  router.post('/announce', async (req, res) => {
     const { message } = req.body;
     if (!message?.trim()) return res.status(400).json({ error: 'message required' });
     io.to('global').emit('chat:message', {
