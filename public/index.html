@@ -36,32 +36,26 @@
     font-size: 14px;
     line-height: 1.5;
     -webkit-text-size-adjust: 100%;
-    /* Prevent body scroll — app container handles it */
-    height: 100%; overflow: hidden;
   }
   html { height: 100%; }
 
-  /* ── Mobile-first layout: single column with bottom nav ── */
-  .app {
-    display: flex; flex-direction: column;
-    height: 100vh; height: 100dvh; /* dvh handles mobile browser chrome */
-    overflow: hidden;
-  }
-  .topbar { display: flex; align-items: center; justify-content: space-between; padding: 0 14px; height: 52px; background: var(--bg2); border-bottom: 1px solid var(--border); gap: 10px; flex-shrink: 0; position: relative; z-index: 50; }
+  /* ── Mobile-first layout ── */
+  .app { display: flex; flex-direction: column; min-height: 100vh; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; padding: 0 14px; height: 52px; background: var(--bg2); border-bottom: 1px solid var(--border); gap: 10px; flex-shrink: 0; position: sticky; top: 0; z-index: 50; }
   .sidebar { display: none; }
-  .main { padding: 14px 14px 14px; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .main { padding: 14px 14px 90px; flex: 1; }
 
-  /* ── Bottom nav (mobile) ── */
+  /* ── Bottom nav — sticky to viewport bottom ── */
   .bottom-nav {
-    /* Static at bottom — flex child, never scrolls away */
-    flex-shrink: 0;
-    position: relative;
-    bottom: auto; left: auto; right: auto;
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
     background: var(--bg2); border-top: 1px solid var(--border);
     display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch;
     scrollbar-width: none; padding: 0 2px;
-    /* Safe area for phones with home indicator */
     padding-bottom: env(safe-area-inset-bottom, 0);
+    /* Force GPU layer for reliable fixed positioning on Android */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    will-change: transform;
   }
   .bottom-nav::-webkit-scrollbar { display: none; }
   .bnav-item {
@@ -248,11 +242,11 @@
      DESKTOP (≥ 700px)
   ════════════════════════════════════ */
   @media (min-width: 700px) {
-    html, body { height: auto; overflow: auto; }
-    .app { display: grid; grid-template-columns: 220px 1fr; grid-template-rows: 56px 1fr; height: auto; min-height: 100vh; overflow: visible; }
+    html, body { height: auto; }
+    .app { display: grid; grid-template-columns: 220px 1fr; grid-template-rows: 56px 1fr; min-height: 100vh; }
     .topbar { grid-column: 1 / -1; padding: 0 20px; height: 56px; position: static; }
     .sidebar { display: flex; flex-direction: column; gap: 4px; background: var(--bg2); border-right: 1px solid var(--border); padding: 16px 12px; overflow-y: auto; }
-    .main { padding: 24px; overflow-y: auto; }
+    .main { padding: 24px; }
     .bottom-nav { display: none; }
     /* Restore two-col grids on desktop */
     .exp-grid,
