@@ -1357,6 +1357,7 @@ function expeditionRewards(type, rangers, fighters, k) {
 
 async function resolveExpeditions(db, k, engine) {
   const exps = await db.all('SELECT * FROM expeditions WHERE kingdom_id = ? AND turns_left > 0', [k.id]);
+  const expeditionEvents = [];
   for (const exp of exps) {
     const newTurns = exp.turns_left - 1;
     console.log(`[expedition] id=${exp.id} turns_left=${exp.turns_left} newTurns=${newTurns} completing=${newTurns <= 0}`);
@@ -1404,11 +1405,14 @@ async function resolveExpeditions(db, k, engine) {
       }
 
       // Single news line — no reward detail in news
+      const completionMsg = `${label} expedition returned — see expedition log for rewards.`;
       await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)',
-        [k.id, 'system', `${label} expedition returned — see expedition log for rewards.`, k.turn || 0]);
+        [k.id, 'system', completionMsg, k.turn || 0]);
+      expeditionEvents.push({ type: 'system', message: completionMsg });
       for (const ev of events) {
         await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)',
           [k.id, ev.type || 'system', ev.message, k.turn || 0]);
+        expeditionEvents.push(ev);
       }
 
       // Store rewards JSON on the row so frontend can show them in the log, then mark completed (turns_left=0)
@@ -1418,10 +1422,13 @@ async function resolveExpeditions(db, k, engine) {
     } catch (err) {
       console.error(`[expedition] reward error for id=${exp.id} type=${exp.type}:`, err.message);
       await db.run('DELETE FROM expeditions WHERE id = ?', [exp.id]);
+      const errMsg = `An expedition returned but the scouts lost their notes.`;
       await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)',
-        [k.id, 'system', `An expedition returned but the scouts lost their notes.`, k.turn || 0]);
+        [k.id, 'system', errMsg, k.turn || 0]);
+      expeditionEvents.push({ type: 'system', message: errMsg });
     }
   }
+  return expeditionEvents;
 }
 
 // ── Mage Tower — research allocation from mages ──────────────────────────────
