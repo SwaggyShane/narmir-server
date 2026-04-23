@@ -120,6 +120,7 @@ async function initDb() {
       created_at  INTEGER NOT NULL DEFAULT (unixepoch())
     );
     CREATE INDEX IF NOT EXISTS idx_exp_kingdom ON expeditions(kingdom_id);
+    CREATE TABLE IF NOT EXISTS combat_log (
       id              INTEGER PRIMARY KEY AUTOINCREMENT,
       attacker_id     INTEGER NOT NULL REFERENCES kingdoms(id),
       defender_id     INTEGER NOT NULL REFERENCES kingdoms(id),
