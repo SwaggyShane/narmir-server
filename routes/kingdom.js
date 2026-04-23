@@ -231,7 +231,23 @@ module.exports = function(db) {
     res.json({ ok: true, type, result: searchResult, message: searchMessage, updates: turnUpdates, events: allEvents, turns_stored: turnUpdates.turns_stored });
   });
 
-  // ── Expeditions ────────────────────────────────────────────────────────────
+  // ── Fire units ────────────────────────────────────────────────────────────────
+  router.post('/fire', requireAuth, async (req, res) => {
+    const { unit, amount } = req.body;
+    const validUnits = ['fighters','rangers','clerics','mages','thieves','ninjas','researchers','engineers'];
+    if (!validUnits.includes(unit)) return res.status(400).json({ error: 'Invalid unit type' });
+    const n = Math.max(0, parseInt(amount) || 0);
+    if (n <= 0) return res.status(400).json({ error: 'Amount must be positive' });
+    const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
+    if (!k) return res.status(404).json({ error: 'Kingdom not found' });
+    if (n > (k[unit] || 0)) return res.status(400).json({ error: `Only have ${(k[unit]||0).toLocaleString()} ${unit}` });
+    const updates = {
+      [unit]: (k[unit] || 0) - n,
+      population: (k.population || 0) + n,
+    };
+    await applyUpdates(db, k.id, updates);
+    res.json({ ok: true, updates });
+  });
   const EXP_TURNS = { scout: 10, deep: 25, dungeon: 50 };
 
   router.post('/expedition/start', requireAuth, async (req, res) => {
