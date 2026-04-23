@@ -91,7 +91,36 @@ module.exports = function(db, io) {
   });
 
   // POST /api/admin/announce — broadcast a global message via Socket.io
-  router.post('/announce', async (req, res) => {
+  router.post('/set-kingdom', async (req, res) => {
+    const { kingdomId, fields } = req.body;
+    if (!kingdomId || !fields || typeof fields !== 'object') return res.status(400).json({ error: 'kingdomId and fields required' });
+
+    // Whitelist every settable kingdom column
+    const ALLOWED = new Set([
+      'gold','mana','land','population','morale','food','turn','turns_stored',
+      'fighters','rangers','clerics','mages','thieves','ninjas','researchers','engineers',
+      'war_machines','weapons_stockpile','armor_stockpile',
+      'bld_farms','bld_barracks','bld_outposts','bld_guard_towers','bld_schools',
+      'bld_armories','bld_vaults','bld_smithies','bld_markets','bld_cathedrals',
+      'bld_training','bld_colosseums','bld_castles',
+      'res_economy','res_weapons','res_armor','res_military','res_attack_magic',
+      'res_defense_magic','res_entertainment','res_construction','res_war_machines','res_spellbook',
+      'tax_rate','xp','level',
+    ]);
+
+    const safe = Object.fromEntries(
+      Object.entries(fields)
+        .filter(([k, v]) => ALLOWED.has(k) && v !== '' && v !== null && v !== undefined)
+        .map(([k, v]) => [k, Number(v)])
+        .filter(([k, v]) => !isNaN(v))
+    );
+
+    if (Object.keys(safe).length === 0) return res.status(400).json({ error: 'No valid fields to update' });
+
+    const cols = Object.keys(safe).map(c => `${c} = ?`).join(', ');
+    await db.run(`UPDATE kingdoms SET ${cols} WHERE id = ?`, [...Object.values(safe), kingdomId]);
+    res.json({ ok: true, updated: Object.keys(safe) });
+  });
     const { message } = req.body;
     if (!message?.trim()) return res.status(400).json({ error: 'message required' });
     io.to('global').emit('chat:message', {
