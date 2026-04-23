@@ -2586,6 +2586,7 @@ function updateBuildDisplay() {
     tu.textContent = fmt(remaining);
     tu.style.color = allocated > total ? 'var(--red)' : 'var(--green)';
   }
+  renderBuildQueue();
 }
 
 function setBuildMax(fieldId, key) {
@@ -2722,38 +2723,76 @@ async function buildAll() {
 function renderBuildQueue() {
   var el = document.getElementById('build-queue-display');
   if (!el) return;
-  var queue = state.build_queue || {};
-  var progress = state.build_progress || {};
-  var keys = Object.keys(queue);
-  if (keys.length === 0) {
-    el.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:8px 0">No buildings queued — add some above.</div>';
-    return;
-  }
+
+  // Match server BUILDING_COST values (100 engineers = N turns per building)
   var BUILDING_COST_JS = {
-    farms:10, barracks:20, outposts:20, guard_towers:20, schools:50, armories:50,
-    vaults:50, smithies:150, markets:300, cathedrals:250, training:500, colosseums:250,
-    castles:5000, war_machines:200, weapons:10, armor:10
+    farms:2500, barracks:5000, outposts:7500, guard_towers:2500,
+    schools:7500, armories:2500, vaults:10000, smithies:10000,
+    markets:10000, cathedrals:15000, training:20000, colosseums:5000,
+    castles:100000, war_machine:200, weapons:10, armor:10
   };
   var labels = {
     farms:'Farms', barracks:'Barracks', outposts:'Outposts', guard_towers:'Guard Towers',
     schools:'Schools', armories:'Armories', vaults:'Vaults', smithies:'Smithies',
     markets:'Market Places', cathedrals:'Cathedrals', training:'Training Fields',
-    colosseums:'Taverns', castles:'Castles', war_machines:'War Machines',
+    colosseums:'Taverns', castles:'Castles', war_machine:'War Machines',
     weapons:'Weapons', armor:'Armor'
   };
-  el.innerHTML = keys.map(function(bld) {
-    var qty  = queue[bld] || 0;
-    var prog = progress[bld] || 0;
-    var cost = BUILDING_COST_JS[bld] || 10;
-    var pct  = Math.min(100, Math.floor((prog / cost) * 100));
-    return '<div style="margin-bottom:10px">'
-      + '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">'
-      + '<span style="color:var(--text)">' + (labels[bld] || bld) + '</span>'
-      + '<span style="color:var(--text3)">×' + qty + ' · ' + pct + '% complete</span>'
+  var icons = {
+    farms:'🌾', barracks:'🏠', outposts:'🏴', guard_towers:'🗼',
+    schools:'📚', armories:'🛡️', vaults:'💰', smithies:'⚒️',
+    markets:'🏪', cathedrals:'⛪', training:'⚔️', colosseums:'🍺',
+    castles:'🏰', war_machine:'🪖', weapons:'🗡️', armor:'🔰'
+  };
+
+  // Build from allocation — map BUILD_FIELDS keys to server keys
+  var keyMap = {
+    farm:'farms', barracks:'barracks', outpost:'outposts', tower:'guard_towers',
+    school:'schools', armory:'armories', vault:'vaults', smithy:'smithies',
+    market:'markets', cathedral:'cathedrals', training:'training',
+    colosseum:'colosseums', castle:'castles', war_machine:'war_machine',
+    weapons:'weapons', armor:'armor'
+  };
+
+  var alloc = state.build_allocation || {};
+  var progress = state.build_progress || {};
+  var engineers = state.engineers || 0;
+
+  // Gather active allocations
+  var active = [];
+  BUILD_FIELDS.forEach(function(f) {
+    var serverKey = keyMap[f.key] || f.key;
+    var eng = parseInt(document.getElementById(f.alloc)?.value) || alloc[serverKey] || 0;
+    if (eng <= 0) return;
+    var cost = BUILDING_COST_JS[serverKey] || BUILDING_COST_JS[f.key] || 100;
+    var prog = progress[serverKey] || progress[f.key] || 0;
+    var workPerTurn = eng; // toolMult applied server-side; show base estimate
+    var turnsRemaining = workPerTurn > 0 ? Math.ceil((cost - (prog % cost)) / workPerTurn) : '∞';
+    var progressPct = Math.min(100, Math.floor((prog % cost) / cost * 100));
+    active.push({ key: serverKey, fkey: f.key, eng: eng, cost: cost, prog: prog, workPerTurn: workPerTurn, turns: turnsRemaining, pct: progressPct });
+  });
+
+  if (active.length === 0) {
+    el.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:8px 0">No engineers allocated — assign engineers above and save to start building.</div>';
+    return;
+  }
+
+  el.innerHTML = active.map(function(b) {
+    var label = labels[b.key] || labels[b.fkey] || b.key;
+    var icon  = icons[b.key]  || icons[b.fkey]  || '🏗️';
+    var turnsStr = typeof b.turns === 'number' ? b.turns.toLocaleString() + ' turn' + (b.turns === 1 ? '' : 's') : '∞';
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">'
+      + '<span style="font-size:18px">' + icon + '</span>'
+      + '<div style="flex:1">'
+      + '<div style="display:flex;justify-content:space-between;margin-bottom:4px">'
+      + '<span style="color:var(--text);font-weight:500">' + label + '</span>'
+      + '<span style="color:var(--text3);font-size:12px">' + fmt(b.eng) + ' engineers · ~' + turnsStr + ' per unit</span>'
       + '</div>'
-      + '<div style="height:6px;background:var(--bg4);border-radius:3px">'
-      + '<div style="height:6px;width:' + pct + '%;background:var(--purple);border-radius:3px;transition:width .3s"></div>'
-      + '</div></div>';
+      + '<div style="height:5px;background:var(--bg4);border-radius:3px">'
+      + '<div style="height:5px;width:' + b.pct + '%;background:var(--amber);border-radius:3px;transition:width .3s"></div>'
+      + '</div>'
+      + '</div>'
+      + '</div>';
   }).join('');
 }
 
