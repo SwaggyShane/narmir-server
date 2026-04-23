@@ -76,7 +76,6 @@ async function initDb() {
       war_machines     INTEGER NOT NULL DEFAULT 0,
       weapons_stockpile INTEGER NOT NULL DEFAULT 0,
       armor_stockpile   INTEGER NOT NULL DEFAULT 0,
-      turns_stored      INTEGER NOT NULL DEFAULT 200,
       research_allocation TEXT NOT NULL DEFAULT '{}',
       build_queue       TEXT NOT NULL DEFAULT '{}',
       build_progress    TEXT NOT NULL DEFAULT '{}',
