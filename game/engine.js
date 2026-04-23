@@ -1249,46 +1249,53 @@ function expeditionRewards(type, rangers, fighters, k) {
 async function resolveExpeditions(db, k, engine) {
   const exps = await db.all('SELECT * FROM expeditions WHERE kingdom_id = ? AND turns_left > 0', [k.id]);
   for (const exp of exps) {
+    const newTurns = exp.turns_left - 1;
+    if (newTurns > 0) {
+      await db.run('UPDATE expeditions SET turns_left = ? WHERE id = ?', [newTurns, exp.id]);
+      continue;
+    }
+
+    // Expedition complete — always delete it first so it never gets stuck
+    await db.run('DELETE FROM expeditions WHERE id = ?', [exp.id]);
+
     try {
-      const newTurns = exp.turns_left - 1;
-      if (newTurns <= 0) {
-        const { rewards, updates, events } = expeditionRewards(exp.type, exp.rangers, exp.fighters, k);
-        const label = { scout: '🔭 Scout', deep: '🌲 Deep', dungeon: '⚔️ Dungeon' }[exp.type];
-        const rarityEmoji = { common: '', uncommon: '✨', rare: '💎', epic: '🔥', legendary: '⚡' };
+      const { rewards, updates, events } = expeditionRewards(exp.type, exp.rangers, exp.fighters, k);
+      const label = { scout: '🔭 Scout', deep: '🌲 Deep', dungeon: '⚔️ Dungeon' }[exp.type];
+      const rarityEmoji = { common: '', uncommon: '✨', rare: '💎', epic: '🔥', legendary: '⚡' };
 
-        // Save reward updates — whitelist valid kingdom columns only
-        const VALID_KINGDOM_COLS = new Set([
-          'gold','mana','land','population','morale','food',
-          'fighters','rangers','clerics','mages','thieves','ninjas','researchers','engineers',
-          'war_machines','weapons_stockpile','armor_stockpile',
-          'res_economy','res_weapons','res_armor','res_military','res_attack_magic',
-          'res_defense_magic','res_entertainment','res_construction','res_war_machines','res_spellbook',
-          'xp','level',
-        ]);
-        const safeUpdates = Object.fromEntries(
-          Object.entries(updates).filter(([k2, v]) => VALID_KINGDOM_COLS.has(k2) && v !== undefined && v !== null && !isNaN(v))
-        );
-        if (Object.keys(safeUpdates).length > 0) {
-          const cols = Object.keys(safeUpdates).map(c => `${c} = ?`).join(', ');
-          await db.run(`UPDATE kingdoms SET ${cols} WHERE id = ?`, [...Object.values(safeUpdates), k.id]);
-        }
+      const VALID_KINGDOM_COLS = new Set([
+        'gold','mana','land','population','morale','food',
+        'fighters','rangers','clerics','mages','thieves','ninjas','researchers','engineers',
+        'war_machines','weapons_stockpile','armor_stockpile',
+        'res_economy','res_weapons','res_armor','res_military','res_attack_magic',
+        'res_defense_magic','res_entertainment','res_construction','res_war_machines','res_spellbook',
+        'xp','level',
+      ]);
+      const safeUpdates = Object.fromEntries(
+        Object.entries(updates).filter(([k2, v]) => VALID_KINGDOM_COLS.has(k2) && v !== undefined && v !== null && !isNaN(v))
+      );
+      if (Object.keys(safeUpdates).length > 0) {
+        const cols = Object.keys(safeUpdates).map(c => `${c} = ?`).join(', ');
+        await db.run(`UPDATE kingdoms SET ${cols} WHERE id = ?`, [...Object.values(safeUpdates), k.id]);
+      }
 
-        const rewardLines = rewards.map(r => `${rarityEmoji[r.rarity] || ''} [${r.rarity.toUpperCase()}] ${r.text}`).join('\n');
+      // Insert one news item per reward (no multiline strings)
+      await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)',
+        [k.id, 'system', `${label} expedition returned!`, k.turn || 0]);
+      for (const r of rewards) {
+        const em = rarityEmoji[r.rarity] || '';
         await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)',
-          [k.id, 'system', `${label} expedition returned!\n${rewardLines}`, k.turn || 0]);
-
-        for (const ev of events) {
-          await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)',
-            [k.id, ev.type || 'system', ev.message, k.turn || 0]);
-        }
-
-        await db.run('DELETE FROM expeditions WHERE id = ?', [exp.id]);
-      } else {
-        await db.run('UPDATE expeditions SET turns_left = ? WHERE id = ?', [newTurns, exp.id]);
+          [k.id, 'system', `${em} [${r.rarity.toUpperCase()}] ${r.text}`, k.turn || 0]);
+      }
+      for (const ev of events) {
+        await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)',
+          [k.id, ev.type || 'system', ev.message, k.turn || 0]);
       }
     } catch (err) {
-      console.error(`[expedition] FAILED to resolve expedition ${exp.id} (type=${exp.type}, turns_left=${exp.turns_left}):`, err.message, err.stack);
-      // Don't delete — leave it so it retries next turn and we can see the error in logs
+      console.error(`[expedition] reward error for id=${exp.id} type=${exp.type}:`, err.message);
+      // Expedition already deleted — just insert a consolation news item
+      await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)',
+        [k.id, 'system', `Your expedition returned but the scouts lost their notes. (reward error)`, k.turn || 0]);
     }
   }
 }
