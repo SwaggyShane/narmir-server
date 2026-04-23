@@ -614,8 +614,14 @@ const BUILDING_GOLD_COST = {
   war_machine: 5000, weapons: 100, armor: 150,
 };
 
-// Gold cost per tool
-const TOOL_GOLD_COST = { hammers: 500, scaffolding: 2000, blueprints: 5000 };
+// Land cost per building unit completed
+const BUILDING_LAND_COST = {
+  farms: 1, barracks: 1, outposts: 1, guard_towers: 1, armories: 1, vaults: 1,
+  schools: 2, smithies: 2, markets: 2, colosseums: 2, shrines: 2, libraries: 2,
+  cathedrals: 5, training: 5,
+  castles: 10,
+  war_machine: 0, weapons: 0, armor: 0,
+};
 const TOOL_COL       = { hammers: 'tools_hammers', scaffolding: 'tools_scaffolding', blueprints: 'tools_blueprints' };
 
 // Add buildings to the queue — charges gold, no turn cost
@@ -704,7 +710,14 @@ function processBuildQueue(k, events) {
         if (canAdd < completed && canAdd === 0) {
           events.push({ type: 'system', message: `⚠️ ${building} cap reached at level ${k.level||1} (max ${cap.toLocaleString()}) — level up to build more.` });
         }
-        if (canAdd > 0) completedItems.push(`${canAdd.toLocaleString()} ${building.replace(/_/g, ' ')}`);
+        if (canAdd > 0) {
+          completedItems.push(`${canAdd.toLocaleString()} ${building.replace(/_/g, ' ')}`);
+          // Deduct land
+          const landCost = (BUILDING_LAND_COST[building] || 0) * canAdd;
+          if (landCost > 0) {
+            updates.land = Math.max(0, (updates.land !== undefined ? updates.land : (k.land || 0)) - landCost);
+          }
+        }
       }
       progress[building] = totalProgress - (completed * cost);
       // Reduce queue count if this was a queued item
@@ -726,7 +739,9 @@ function processBuildQueue(k, events) {
   updates.build_progress = JSON.stringify(progress);
 
   if (completedItems.length > 0) {
-    events.push({ type: 'system', message: `🔨 Construction: ${completedItems.join(', ')} built.` });
+    const landUsed = (updates.land !== undefined) ? (k.land || 0) - updates.land : 0;
+    const landStr = landUsed > 0 ? ` · ${landUsed} land used` : '';
+    events.push({ type: 'system', message: `🔨 Construction: ${completedItems.join(', ')} built${landStr}.` });
     const totalCompleted = completedItems.reduce(function(s, item) {
       const match = item.match(/^(\d[\d,]*)/);
       return s + (match ? parseInt(match[1].replace(/,/g,'')) : 1);
@@ -1525,5 +1540,5 @@ module.exports = {
   resolveAllianceDefence, resolveExpeditions,
   awardXp, xpForLevel, xpToNextLevel, levelFromXp,
   awardTroopXp, troopXpForLevel, effectiveTroopLevel,
-  TROOP_RACE_BONUS, RACE_BONUSES, UNIT_COST, BUILDING_COST, BUILDING_GOLD_COST, BUILDING_COL, SPELL_DEFS, SCROLL_REQUIREMENTS, SCRIBE_ITEMS,
+  TROOP_RACE_BONUS, RACE_BONUSES, UNIT_COST, BUILDING_COST, BUILDING_GOLD_COST, BUILDING_LAND_COST, BUILDING_COL, SPELL_DEFS, SCROLL_REQUIREMENTS, SCRIBE_ITEMS,
 };
