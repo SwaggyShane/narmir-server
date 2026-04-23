@@ -1880,34 +1880,8 @@ function updateTurnsDisplay() {
 }
 </script>
 
-<div id="login-overlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(13,14,20,.97);z-index:9999;align-items:center;justify-content:center;">
-  <div style="background:#13141d;border:1px solid #363a52;border-radius:12px;padding:28px 32px;width:90%;max-width:400px;">
-    <div style="font-size:22px;font-weight:700;color:#e8b84b;margin-bottom:4px">NARMIR</div>
-    <div style="font-size:13px;color:#9a9bb5;margin-bottom:20px">Land of Magic and Conquest</div>
-    <div id="auth-error" style="font-size:13px;color:#e05c5c;margin-bottom:12px;min-height:18px"></div>
-    <input id="auth-user" type="text" placeholder="Username" style="width:100%;margin-bottom:10px;padding:10px 12px;font-size:16px;background:#1a1c27;border:1px solid #363a52;border-radius:8px;color:#e8e9f0;box-sizing:border-box;">
-    <input id="auth-pass" type="password" placeholder="Password" style="width:100%;padding:10px 12px;font-size:16px;background:#1a1c27;border:1px solid #363a52;border-radius:8px;color:#e8e9f0;box-sizing:border-box;">
-    <div id="register-fields" style="display:none;margin-top:10px;">
-      <div style="font-size:11px;color:#5e6080;text-transform:uppercase;letter-spacing:.5px;margin:14px 0 8px;">New kingdom</div>
-      <input id="auth-kingdom" type="text" placeholder="Kingdom name" style="width:100%;margin-bottom:10px;padding:10px 12px;font-size:16px;background:#1a1c27;border:1px solid #363a52;border-radius:8px;color:#e8e9f0;box-sizing:border-box;">
-      <div style="font-size:11px;color:#5e6080;text-transform:uppercase;letter-spacing:.5px;margin:4px 0 8px;">Choose your race <span style="color:#e05c5c">· permanent</span></div>
-      <select id="auth-race" style="width:100%;margin-bottom:10px;padding:10px 12px;font-size:15px;background:#1a1c27;border:1px solid #363a52;border-radius:8px;color:#e8e9f0;box-sizing:border-box;">
-        <option value="high_elf">High Elf — Excellent research · Powerful magic · Poor military</option>
-        <option value="dwarf">Dwarf — Excellent construction · Exceptional war machines · Good economy · Poor magic · Weak research</option>
-        <option value="dire_wolf">Dire Wolf — Exceptional military · Good covert · Terrible research · Terrible magic · Poor economy</option>
-        <option value="dark_elf">Dark Elf — Exceptional covert · Exceptional stealth · Good magic · Poor military · Weak economy</option>
-        <option value="human">Human — No strengths or weaknesses — master of none, threat to all</option>
-        <option value="orc">Orc — Excellent military · Good economy · Poor research · Terrible magic · Weak construction</option>
-      </select>
-      <div id="race-bonus-display" style="font-size:12px;color:#7c6af5;padding:6px 10px;background:rgba(124,106,245,.08);border-radius:6px;margin-bottom:10px;min-height:20px;"></div>
-    </div>
-    <div style="display:flex;gap:10px;margin-top:16px">
-      <button id="btn-login" style="flex:1;padding:10px;font-size:14px;font-weight:600;background:#7c6af5;border:none;border-radius:8px;color:#fff;cursor:pointer;">Login</button>
-      <button id="btn-register" style="flex:1;padding:10px;font-size:14px;font-weight:600;background:#c49535;border:none;border-radius:8px;color:#0d0e14;cursor:pointer;">Register</button>
-    </div>
-    <div id="auth-mode-hint" style="font-size:12px;color:#5e6080;text-align:center;margin-top:12px;">New to Narmir? Click Register to create your kingdom.</div>
-  </div>
-</div>
+
+<nav class="bottom-nav" id="bottom-nav">
   <button class="bnav-item active" onclick="switchTabMobile('status',this)"><span class="bicon">&#9632;</span>Status</button>
   <button class="bnav-item" onclick="switchTabMobile('hire',this)"><span class="bicon">&#9651;</span>Hire</button>
   <button class="bnav-item" onclick="switchTabMobile('research',this)"><span class="bicon">&#9670;</span>Study</button>
@@ -2806,5 +2780,33 @@ apiCall('GET', '/api/auth/me').then(function(me) {
   }
 });
 </script>
+<div id="login-overlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;min-height:100vh;background:rgba(13,14,20,.97);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:#13141d;border:1px solid #363a52;border-radius:12px;padding:28px 32px;width:90%;max-width:400px;">
+    <div style="font-size:22px;font-weight:700;color:#e8b84b;margin-bottom:4px">NARMIR</div>
+    <div style="font-size:13px;color:#9a9bb5;margin-bottom:20px">Land of Magic and Conquest</div>
+    <div id="auth-error" style="font-size:13px;color:#e05c5c;margin-bottom:12px;min-height:18px"></div>
+    <input id="auth-user" type="text" placeholder="Username" style="width:100%;margin-bottom:10px;padding:10px 12px;font-size:16px;background:#1a1c27;border:1px solid #363a52;border-radius:8px;color:#e8e9f0;box-sizing:border-box;">
+    <input id="auth-pass" type="password" placeholder="Password" style="width:100%;padding:10px 12px;font-size:16px;background:#1a1c27;border:1px solid #363a52;border-radius:8px;color:#e8e9f0;box-sizing:border-box;">
+    <div id="register-fields" style="display:none;margin-top:10px;">
+      <div style="font-size:11px;color:#5e6080;text-transform:uppercase;letter-spacing:.5px;margin:14px 0 8px;">New kingdom</div>
+      <input id="auth-kingdom" type="text" placeholder="Kingdom name" style="width:100%;margin-bottom:10px;padding:10px 12px;font-size:16px;background:#1a1c27;border:1px solid #363a52;border-radius:8px;color:#e8e9f0;box-sizing:border-box;">
+      <div style="font-size:11px;color:#5e6080;text-transform:uppercase;letter-spacing:.5px;margin:4px 0 8px;">Choose your race <span style="color:#e05c5c">· permanent</span></div>
+      <select id="auth-race" style="width:100%;margin-bottom:10px;padding:10px 12px;font-size:15px;background:#1a1c27;border:1px solid #363a52;border-radius:8px;color:#e8e9f0;box-sizing:border-box;">
+        <option value="high_elf">High Elf — Excellent research · Powerful magic · Poor military</option>
+        <option value="dwarf">Dwarf — Excellent construction · Exceptional war machines · Good economy · Poor magic · Weak research</option>
+        <option value="dire_wolf">Dire Wolf — Exceptional military · Good covert · Terrible research · Terrible magic · Poor economy</option>
+        <option value="dark_elf">Dark Elf — Exceptional covert · Exceptional stealth · Good magic · Poor military · Weak economy</option>
+        <option value="human">Human — No strengths or weaknesses — master of none, threat to all</option>
+        <option value="orc">Orc — Excellent military · Good economy · Poor research · Terrible magic · Weak construction</option>
+      </select>
+      <div id="race-bonus-display" style="font-size:12px;color:#7c6af5;padding:6px 10px;background:rgba(124,106,245,.08);border-radius:6px;margin-bottom:10px;min-height:20px;"></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button id="btn-login" style="flex:1;padding:10px;font-size:14px;font-weight:600;background:#7c6af5;border:none;border-radius:8px;color:#fff;cursor:pointer;">Login</button>
+      <button id="btn-register" style="flex:1;padding:10px;font-size:14px;font-weight:600;background:#c49535;border:none;border-radius:8px;color:#0d0e14;cursor:pointer;">Register</button>
+    </div>
+    <div id="auth-mode-hint" style="font-size:12px;color:#5e6080;text-align:center;margin-top:12px;">New to Narmir? Click Register to create your kingdom.</div>
+  </div>
+</div>
 </body>
 </html>
