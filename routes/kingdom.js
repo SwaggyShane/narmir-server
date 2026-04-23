@@ -69,7 +69,7 @@ module.exports = function(db) {
     await applyUpdates(db, k.id, updates);
 
     // Tick active expeditions
-    await engine.resolveExpeditions(db, { ...k, ...updates }, engine);
+    const expeditionEvents = await engine.resolveExpeditions(db, { ...k, ...updates }, engine);
 
     // Re-fetch rangers and fighters in case expeditions returned troops via SQL INCREMENT
     const refreshed = await db.get('SELECT rangers, fighters, mana, scrolls, maps, blueprints_stored, library_progress FROM kingdoms WHERE id = ?', [k.id]);
@@ -83,10 +83,13 @@ module.exports = function(db) {
       updates.library_progress   = refreshed.library_progress;
     }
 
+    // Merge expedition events into the response
+    const allEvents = [...events, ...expeditionEvents];
+
     for (const ev of events)
       await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)', [k.id, ev.type || 'system', ev.message, updates.turn || k.turn || 0]);
 
-    res.json({ ok: true, updates, events, turns_stored: updates.turns_stored });
+    res.json({ ok: true, updates, events: allEvents, turns_stored: updates.turns_stored });
   });
 
   // ── Hire units ────────────────────────────────────────────────────────────────
