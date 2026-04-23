@@ -83,6 +83,8 @@ async function initDb() {
       tools_blueprints  INTEGER NOT NULL DEFAULT 0,
       xp                INTEGER NOT NULL DEFAULT 0,
       level             INTEGER NOT NULL DEFAULT 1,
+      troop_levels      TEXT NOT NULL DEFAULT '{}',
+      training_allocation TEXT NOT NULL DEFAULT '{}',
       created_at  INTEGER NOT NULL DEFAULT (unixepoch()),
       updated_at  INTEGER NOT NULL DEFAULT (unixepoch())
     );
@@ -155,7 +157,9 @@ async function initDb() {
   if (!cols.includes('tools_scaffolding'))   await addColumn('kingdoms', 'tools_scaffolding',   'INTEGER NOT NULL DEFAULT 0');
   if (!cols.includes('tools_blueprints'))    await addColumn('kingdoms', 'tools_blueprints',    'INTEGER NOT NULL DEFAULT 0');
   if (!cols.includes('xp'))                  await addColumn('kingdoms', 'xp',                  'INTEGER NOT NULL DEFAULT 0');
-  if (!cols.includes('level'))               await addColumn('kingdoms', 'level',               'INTEGER NOT NULL DEFAULT 1');;
+  if (!cols.includes('level'))               await addColumn('kingdoms', 'level',               'INTEGER NOT NULL DEFAULT 1');
+  if (!cols.includes('troop_levels'))        await addColumn('kingdoms', 'troop_levels',        "TEXT NOT NULL DEFAULT '{}'");
+  if (!cols.includes('training_allocation')) await addColumn('kingdoms', 'training_allocation', "TEXT NOT NULL DEFAULT '{}'"  );;
   if (!cols.includes('weapons_stockpile'))   await addColumn('kingdoms', 'weapons_stockpile',   'INTEGER NOT NULL DEFAULT 0');
   if (!cols.includes('armor_stockpile'))     await addColumn('kingdoms', 'armor_stockpile',     'INTEGER NOT NULL DEFAULT 0');
 
