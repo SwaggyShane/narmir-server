@@ -2070,15 +2070,13 @@ function showLoginModal() {
     }
     try { if (result.token) setToken(result.token); } catch(e) { debugLog('token store err: ' + e.message); }
     state.username = username;
-    // Remove any login overlay - try multiple approaches
-    ['login-overlay'].forEach(function(id) {
-      var el = document.getElementById(id);
-      if (el) el.remove();
-    });
-    // Also remove any fixed full-screen divs with high z-index
-    document.querySelectorAll('div[style*="z-index:9999"]').forEach(function(el) { el.remove(); });
-    document.querySelectorAll('div[style*="z-index: 9999"]').forEach(function(el) { el.remove(); });
-    debugLog('login ok - overlays cleared');
+    debugLog('removing modal...');
+    try {
+      var ov1 = document.getElementById('login-overlay');
+      debugLog('found overlay: ' + (ov1 ? 'yes' : 'no'));
+      if (ov1 && ov1.parentNode) ov1.parentNode.removeChild(ov1);
+      debugLog('modal removed');
+    } catch(e) { debugLog('remove err: ' + e.message); }
     loadKingdom().catch(function(e) { debugLog('loadKingdom err: ' + e.message); });
   }
 }
