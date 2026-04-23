@@ -1911,10 +1911,16 @@ function switchTabMobile(id, btn) {
 
 // ── Server connector ──────────────────────────────────────────────────────────
 
+// Token storage with localStorage fallback to memory
+var _memToken = null;
+function getToken() { try { return localStorage.getItem('narmir_token') || _memToken; } catch(e) { return _memToken; } }
+function setToken(t) { _memToken = t; try { localStorage.setItem('narmir_token', t); } catch(e) {} }
+function clearToken() { _memToken = null; try { localStorage.removeItem('narmir_token'); } catch(e) {} }
+
 async function apiCall(method, path, body) {
   try {
     var headers = { 'Content-Type': 'application/json' };
-    var storedToken = localStorage.getItem('narmir_token');
+    var storedToken = null; try { storedToken = getToken(); } catch(e) {}
     if (storedToken) headers['x-auth-token'] = storedToken;
     var controller = new AbortController();
     var timeout = setTimeout(function() { controller.abort(); }, 10000);
@@ -2062,7 +2068,7 @@ function showLoginModal() {
       submitting = false;
       return;
     }
-    if (result.token) localStorage.setItem('narmir_token', result.token);
+    try { if (result.token) setToken(result.token); } catch(e) { debugLog('token store err: ' + e.message); }
     state.username = username;
     // Remove any login overlay - try multiple approaches
     ['login-overlay'].forEach(function(id) {
@@ -2783,7 +2789,7 @@ function debugLog(msg) {
 // Boot — check auth then show modal or load kingdom
 async function doLogout() {
   await apiCall('POST', '/api/auth/logout');
-  localStorage.removeItem('narmir_token');
+  clearToken();
   location.reload();
 }
 
