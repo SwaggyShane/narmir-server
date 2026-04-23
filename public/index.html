@@ -1570,24 +1570,46 @@ async function loadActiveExpeditions() {
   var bar = document.getElementById('active-expeditions');
   if (!bar) return;
 
-  var activeTypes = {};
-  if (Array.isArray(result)) result.forEach(function(e) { activeTypes[e.type] = e; });
+  // Handle both old array format and new {active, completed} format
+  var active = Array.isArray(result) ? result : (result.active || []);
+  var completed = Array.isArray(result) ? [] : (result.completed || []);
 
-  // Detect completed expeditions — were active, now gone
+  // Process completed expeditions — update their log entries with rewards
+  completed.forEach(function(exp) {
+    var liveSpan = document.getElementById('exp-log-live-' + exp.type);
+    if (liveSpan) {
+      var rewards = [];
+      try { rewards = JSON.parse(exp.rewards || '[]'); } catch(e) {}
+      var entry = liveSpan.closest('.exp-log-entry');
+      if (entry) {
+        var labels = { scout: '🔭 Scout expedition', deep: '🌲 Deep expedition', dungeon: '⚔️ Dungeon raid' };
+        var icons = { scout: '🔭', deep: '🌲', dungeon: '⚔️' };
+        entry.innerHTML = '<span style="font-size:18px;flex-shrink:0">' + (icons[exp.type]||'🧭') + '</span>'
+          + '<div style="flex:1"><div style="color:var(--text);font-weight:600">' + (labels[exp.type]||exp.type) + ' — Returned</div>'
+          + '<div style="font-size:11px;color:var(--text3);margin-top:2px">' + exp.rangers.toLocaleString() + ' rangers' + (exp.fighters > 0 ? ', ' + exp.fighters.toLocaleString() + ' fighters' : '') + '</div>'
+          + (rewards.length ? '<div style="margin-top:6px;font-size:12px;color:var(--text2);line-height:1.7">' + rewards.map(function(r){ return '• ' + r; }).join('<br>') + '</div>' : '')
+          + '</div>';
+      }
+    }
+  });
+
+  // Track active types for completion detection
+  var activeTypes = {};
+  active.forEach(function(e) { activeTypes[e.type] = e; });
+
+  // Detect newly completed (were active, now gone, not in completed list)
   Object.keys(_prevActiveTypes).forEach(function(t) {
-    if (!activeTypes[t]) {
-      // Mark log entry as completed
+    if (!activeTypes[t] && !completed.find(function(e){ return e.type === t; })) {
       var liveSpan = document.getElementById('exp-log-live-' + t);
       if (liveSpan) {
-        liveSpan.textContent = 'Returned — check news for rewards';
+        liveSpan.textContent = 'Returned — see news & check above for rewards';
         liveSpan.style.color = 'var(--green)';
-        liveSpan.style.fontWeight = '600';
       }
     }
   });
   _prevActiveTypes = activeTypes;
 
-  if (!Array.isArray(result) || result.length === 0) {
+  if (active.length === 0) {
     bar.style.display = 'none';
     ['scout','deep','dungeon'].forEach(function(t) {
       var btn = document.getElementById('btn-exp-' + t);
@@ -1596,12 +1618,12 @@ async function loadActiveExpeditions() {
     return;
   }
 
-  var labels = { scout: '🔭 Scout', deep: '🌲 Deep', dungeon: '⚔️ Dungeon' };
+  var labelMap = { scout: '🔭 Scout', deep: '🌲 Deep', dungeon: '⚔️ Dungeon' };
   var colors = { scout: 'var(--green)', deep: 'var(--purple)', dungeon: 'var(--red)' };
   bar.style.cssText = 'display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;align-items:center';
-  bar.innerHTML = result.map(function(exp) {
+  bar.innerHTML = active.map(function(exp) {
     return '<div style="display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border);border-left:3px solid ' + (colors[exp.type]||'var(--text3)') + ';border-radius:var(--radius);padding:8px 12px;font-size:13px">'
-      + '<span style="font-weight:600;color:' + (colors[exp.type]||'var(--text)') + '">' + (labels[exp.type]||exp.type) + '</span>'
+      + '<span style="font-weight:600;color:' + (colors[exp.type]||'var(--text)') + '">' + (labelMap[exp.type]||exp.type) + '</span>'
       + '<span style="color:var(--text3)">·</span>'
       + '<span style="color:var(--text2)">' + exp.turns_left + ' turn' + (exp.turns_left === 1 ? '' : 's') + ' remaining</span>'
       + '<span style="color:var(--text3)">·</span>'
@@ -1610,17 +1632,16 @@ async function loadActiveExpeditions() {
   }).join('');
 
   ['scout','deep','dungeon'].forEach(function(t) {
-    var active = activeTypes[t];
+    var exp = activeTypes[t];
     var btn = document.getElementById('btn-exp-' + t);
     if (btn) {
-      btn.disabled = !!active;
-      btn.textContent = active ? 'Underway — ' + active.turns_left + ' turn' + (active.turns_left === 1 ? '' : 's') + ' left' : (t === 'dungeon' ? 'Launch raid' : 'Launch expedition');
+      btn.disabled = !!exp;
+      btn.textContent = exp ? 'Underway — ' + exp.turns_left + ' turn' + (exp.turns_left === 1 ? '' : 's') + ' left' : (t === 'dungeon' ? 'Launch raid' : 'Launch expedition');
     }
     var liveSpan = document.getElementById('exp-log-live-' + t);
-    if (liveSpan && active) {
-      liveSpan.textContent = active.turns_left + ' turn' + (active.turns_left === 1 ? '' : 's') + ' remaining';
+    if (liveSpan && exp) {
+      liveSpan.textContent = exp.turns_left + ' turn' + (exp.turns_left === 1 ? '' : 's') + ' remaining';
       liveSpan.style.color = '';
-      liveSpan.style.fontWeight = '';
     }
   });
 }
