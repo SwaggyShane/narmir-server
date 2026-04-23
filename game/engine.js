@@ -1248,9 +1248,11 @@ function expeditionRewards(type, rangers, fighters, k) {
 
 async function resolveExpeditions(db, k, engine) {
   const exps = await db.all('SELECT * FROM expeditions WHERE kingdom_id = ? AND turns_left > 0', [k.id]);
+  console.log(`[expedition] kingdom ${k.id} has ${exps.length} active expedition(s)`);
   for (const exp of exps) {
     try {
       const newTurns = exp.turns_left - 1;
+      console.log(`[expedition] ${exp.type} id=${exp.id} turns_left=${exp.turns_left} → ${newTurns}`);
       if (newTurns <= 0) {
         const { rewards, updates, events } = expeditionRewards(exp.type, exp.rangers, exp.fighters, k);
         const label = { scout: '🔭 Scout', deep: '🌲 Deep', dungeon: '⚔️ Dungeon' }[exp.type];
@@ -1287,9 +1289,8 @@ async function resolveExpeditions(db, k, engine) {
         await db.run('UPDATE expeditions SET turns_left = ? WHERE id = ?', [newTurns, exp.id]);
       }
     } catch (err) {
-      console.error(`[expedition] Error resolving expedition ${exp.id}:`, err.message);
-      // Don't let one bad expedition crash the whole turn — just delete it
-      await db.run('DELETE FROM expeditions WHERE id = ?', [exp.id]).catch(() => {});
+      console.error(`[expedition] FAILED to resolve expedition ${exp.id} (type=${exp.type}, turns_left=${exp.turns_left}):`, err.message, err.stack);
+      // Don't delete — leave it so it retries next turn and we can see the error in logs
     }
   }
 }
