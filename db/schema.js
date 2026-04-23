@@ -85,6 +85,14 @@ async function initDb() {
       level             INTEGER NOT NULL DEFAULT 1,
       troop_levels      TEXT NOT NULL DEFAULT '{}',
       training_allocation TEXT NOT NULL DEFAULT '{}',
+      scribes     INTEGER NOT NULL DEFAULT 0,
+      bld_libraries     INTEGER NOT NULL DEFAULT 0,
+      library_allocation TEXT NOT NULL DEFAULT '{}',
+      library_progress   TEXT NOT NULL DEFAULT '{}',
+      scrolls           TEXT NOT NULL DEFAULT '{}',
+      maps              INTEGER NOT NULL DEFAULT 0,
+      blueprints_stored INTEGER NOT NULL DEFAULT 0,
+      active_effects    TEXT NOT NULL DEFAULT '{}',
       created_at  INTEGER NOT NULL DEFAULT (unixepoch()),
       updated_at  INTEGER NOT NULL DEFAULT (unixepoch())
     );
@@ -184,6 +192,15 @@ async function initDb() {
 
   const expCols = (await _db.all('PRAGMA table_info(expeditions)')).map(c => c.name);
   if (!expCols.includes('rewards')) await addColumn('expeditions', 'rewards', 'TEXT');
+
+  if (!cols.includes('scribes'))             await addColumn('kingdoms', 'scribes',             'INTEGER NOT NULL DEFAULT 0');
+  if (!cols.includes('bld_libraries'))       await addColumn('kingdoms', 'bld_libraries',       'INTEGER NOT NULL DEFAULT 0');
+  if (!cols.includes('library_allocation'))  await addColumn('kingdoms', 'library_allocation',  "TEXT NOT NULL DEFAULT '{}'");
+  if (!cols.includes('library_progress'))    await addColumn('kingdoms', 'library_progress',    "TEXT NOT NULL DEFAULT '{}'");
+  if (!cols.includes('scrolls'))             await addColumn('kingdoms', 'scrolls',             "TEXT NOT NULL DEFAULT '{}'");
+  if (!cols.includes('maps'))                await addColumn('kingdoms', 'maps',                'INTEGER NOT NULL DEFAULT 0');
+  if (!cols.includes('blueprints_stored'))   await addColumn('kingdoms', 'blueprints_stored',   'INTEGER NOT NULL DEFAULT 0');
+  if (!cols.includes('active_effects'))      await addColumn('kingdoms', 'active_effects',      "TEXT NOT NULL DEFAULT '{}'");
 
   // Seed default server_state row for regen tracking
   await _db.run(`
