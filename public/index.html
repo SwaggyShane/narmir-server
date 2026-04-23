@@ -1989,7 +1989,7 @@ function hideLoginModal() {
   if (ov) ov.style.display = 'none';
 }
 
-(function initLoginModal() {
+function initLoginModal() {
   var races = [
     { value:'high_elf',  label:'High Elf',  bonus:'Excellent research · Powerful magic · Poor military' },
     { value:'dwarf',     label:'Dwarf',      bonus:'Excellent construction · Exceptional war machines · Good economy · Poor magic · Weak research' },
@@ -2069,7 +2069,7 @@ function hideLoginModal() {
     registerMode = false;
     loadKingdom();
   }
-})();
+}
 
 async function loadKingdom() {
   debugLog('loadKingdom: fetching /api/kingdom/me...');
@@ -2770,14 +2770,17 @@ async function doLogout() {
   location.reload();
 }
 
-apiCall('GET', '/api/auth/me').then(function(me) {
-  if (me.error) {
-    showLoginModal();
-  } else {
-    hideLoginModal();
-    state.username = me.username;
-    loadKingdom();
-  }
+document.addEventListener('DOMContentLoaded', function() {
+  initLoginModal();
+  apiCall('GET', '/api/auth/me').then(function(me) {
+    if (me.error) {
+      showLoginModal();
+    } else {
+      hideLoginModal();
+      state.username = me.username;
+      loadKingdom();
+    }
+  });
 });
 </script>
 <div id="login-overlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;min-height:100vh;background:rgba(13,14,20,.97);z-index:9999;align-items:center;justify-content:center;">
