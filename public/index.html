@@ -2050,21 +2050,20 @@ function showLoginModal() {
     state.username = username;
     overlay.innerHTML = '<div style="color:#e8b84b;font-size:16px;font-weight:600;text-align:center;padding:40px">Loading your kingdom...</div>';
 
-    // Try to load kingdom — retry once after 1s if it fails (cookie timing on Render)
+    // Try to load kingdom — retry up to 3 times (cookie timing on Render)
     var loaded = false;
-    for (var attempt = 0; attempt < 3; attempt++) {
+    for (var retryCount = 0; retryCount < 3; retryCount++) {
       try {
         await loadKingdom();
         loaded = true;
         break;
       } catch(e) {
-        console.warn('[narmir] loadKingdom attempt ' + (attempt+1) + ' failed:', e.message);
-        if (attempt < 2) await new Promise(function(r){ setTimeout(r, 1000); });
+        console.warn('[narmir] loadKingdom retry ' + (retryCount+1) + ' failed:', e.message);
+        if (retryCount < 2) await new Promise(function(r){ setTimeout(r, 1000); });
       }
     }
     overlay.remove();
     if (!loaded) {
-      // Still failed — show error but stay logged in
       toast('Logged in but kingdom failed to load. Try refreshing.', 'warn');
     }
   }
