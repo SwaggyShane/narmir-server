@@ -496,6 +496,9 @@
             <button class="btn btn-gold" onclick="saveResearchAllocation()" style="white-space:nowrap">Save allocation</button>
           </div>
         </div>
+        <div id="research-no-researchers" style="display:none;background:rgba(232,184,75,.08);border:1px solid var(--gold);border-radius:var(--radius);padding:10px 14px;font-size:13px;color:var(--gold);margin-bottom:12px">
+          ⚠️ You have no researchers. Go to <strong>Hire</strong> and hire researchers first — then come back to allocate them.
+        </div>
 
         <div class="trow">
           <span class="name" style="min-width:140px">Economy</span>
@@ -2669,6 +2672,8 @@ function updateAllocationDisplay() {
     tUnassigned.textContent = fmt(unassigned);
     tUnassigned.style.color = unassigned < 0 ? 'var(--red)' : 'var(--green)';
   }
+  var warn = document.getElementById('research-no-researchers');
+  if (warn) warn.style.display = total === 0 ? 'block' : 'none';
 }
 
 function setMax(fieldId) {
