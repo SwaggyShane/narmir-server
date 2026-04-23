@@ -423,11 +423,11 @@
         <div>
           <div class="card">
             <div class="card-title">Research levels</div>
-            <div class="trow"><span class="name">Economy</span><div class="prog-wrap"><div class="prog-bar eco" id="pb-eco" style="width:0%"></div></div></div>
-            <div class="trow"><span class="name">Weapons</span><div class="prog-wrap"><div class="prog-bar wep" id="pb-wep" style="width:0%"></div></div></div>
-            <div class="trow"><span class="name">Armor</span><div class="prog-wrap"><div class="prog-bar arm" id="pb-arm" style="width:0%"></div></div></div>
-            <div class="trow"><span class="name">Military tactics</span><div class="prog-wrap"><div class="prog-bar mil" id="pb-mil" style="width:0%"></div></div></div>
-            <div class="trow"><span class="name">Spellbook</span><div class="prog-wrap"><div class="prog-bar spell" id="pb-spell" style="width:0%"></div></div></div>
+            <div class="trow"><span class="name">Economy</span><div class="prog-wrap"><div class="prog-bar eco" id="pb-eco-st" style="width:0%"></div></div></div>
+            <div class="trow"><span class="name">Weapons</span><div class="prog-wrap"><div class="prog-bar wep" id="pb-wep-st" style="width:0%"></div></div></div>
+            <div class="trow"><span class="name">Armor</span><div class="prog-wrap"><div class="prog-bar arm" id="pb-arm-st" style="width:0%"></div></div></div>
+            <div class="trow"><span class="name">Military tactics</span><div class="prog-wrap"><div class="prog-bar mil" id="pb-mil-st" style="width:0%"></div></div></div>
+            <div class="trow"><span class="name">Spellbook</span><div class="prog-wrap"><div class="prog-bar spell" id="pb-spell-st" style="width:0%"></div></div></div>
             <div class="trow"><span class="name">Mana</span><div class="prog-wrap"><div class="prog-bar mana" id="pb-mana-s" style="width:0%"></div></div></div>
             <div class="trow"><span class="name">Entertainment</span><div class="prog-wrap"><div class="prog-bar" id="pb-ent-s" style="width:0%;background:var(--green)"></div></div></div>
           </div>
@@ -2280,7 +2280,7 @@ function syncUI() {
     var el = document.getElementById('s-' + u);
     if (el) el.textContent = fmt(state[u]||0);
   });
-  // Sync research bar widths only — no percentage text
+  // Sync research bar widths — both status panel (-st) and school panel
   var resDisplay = {
     res_economy:'eco', res_weapons:'wep', res_armor:'arm', res_military:'mil',
     res_spellbook:'spell', res_attack_magic:'atk', res_defense_magic:'def',
@@ -2289,8 +2289,13 @@ function syncUI() {
   Object.keys(resDisplay).forEach(function(key) {
     var id = resDisplay[key];
     var val = state[key] || 0;
+    var pct = Math.min(100, val / 10) + '%';
+    // Status panel bars
+    var stBar = document.getElementById('pb-' + id + '-st');
+    if (stBar) stBar.style.width = pct;
+    // School panel bars (primary — used by updateAllocationDisplay too)
     var bar = document.getElementById('pb-' + id);
-    if (bar) bar.style.width = Math.min(100, val / 10) + '%';
+    if (bar) bar.style.width = pct;
   });
   // Status panel mana bar
   var manaPct = Math.min(100, (state.mana || 0) / 500);
