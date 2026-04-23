@@ -27,7 +27,12 @@ module.exports = function(db) {
         'INSERT INTO players (username, password) VALUES (?, ?)', [username, hash]
       );
       await db.run(
-        'INSERT INTO kingdoms (player_id, name, race, gold, land, population, researchers, turns_stored) VALUES (?, ?, ?, 10000, 500, 50000, 500, 200)',
+        `INSERT INTO kingdoms (
+          player_id, name, race, gold, land, population,
+          researchers, engineers, rangers, turns_stored,
+          res_spellbook,
+          bld_farms, bld_schools, bld_barracks, bld_armories
+        ) VALUES (?, ?, ?, 10000, 404, 50000, 100, 100, 50, 200, 0, 200, 1, 1, 1)`,
         [playerResult.lastID, kingdomName, chosenRace]
       );
       const token = jwt.sign(

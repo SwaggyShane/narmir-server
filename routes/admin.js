@@ -77,17 +77,18 @@ module.exports = function(db, io) {
   // POST /api/admin/reset-all-kingdoms — wipe all kingdoms back to starting stats
   router.post('/reset-all-kingdoms', async (_req, res) => {
     await db.run(`UPDATE kingdoms SET
-      gold = 10000, mana = 500, land = 150, population = 5000, food = 2000, morale = 100,
+      gold = 10000, mana = 0, land = 404, population = 50000, food = 0, morale = 100,
       turn = 0, turns_stored = 200,
-      fighters = 0, rangers = 0, clerics = 0, mages = 0, thieves = 0, ninjas = 0,
-      researchers = 500, engineers = 100,
+      fighters = 0, rangers = 50, clerics = 0, mages = 0, thieves = 0, ninjas = 0,
+      researchers = 100, engineers = 100, scribes = 0,
       war_machines = 0, weapons_stockpile = 0, armor_stockpile = 0,
-      bld_farms = 200, bld_barracks = 0, bld_outposts = 0, bld_guard_towers = 0,
-      bld_schools = 0, bld_armories = 0, bld_vaults = 0, bld_smithies = 0,
-      bld_markets = 0, bld_cathedrals = 0, bld_training = 0, bld_colosseums = 0, bld_castles = 0, bld_shrines = 0,
+      bld_farms = 200, bld_barracks = 1, bld_outposts = 0, bld_guard_towers = 0,
+      bld_schools = 1, bld_armories = 1, bld_vaults = 0, bld_smithies = 0,
+      bld_markets = 0, bld_cathedrals = 0, bld_training = 0, bld_colosseums = 0,
+      bld_castles = 0, bld_shrines = 0, bld_libraries = 0,
       res_economy = 100, res_weapons = 100, res_armor = 100, res_military = 100,
       res_attack_magic = 100, res_defense_magic = 100, res_entertainment = 100,
-      res_construction = 100, res_war_machines = 100, res_spellbook = 500,
+      res_construction = 100, res_war_machines = 100, res_spellbook = 0,
       xp = 0, level = 1,
       research_allocation = '{}', build_allocation = '{}', build_queue = '[]',
       tools_hammers = 0, tools_scaffolding = 0, tools_blueprints = 0
