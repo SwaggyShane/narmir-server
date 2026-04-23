@@ -294,6 +294,7 @@
     <button class="nav-item" onclick="switchTab('hire',this)"><span class="icon">&#9651;</span>Hire</button>
     <button class="nav-item" onclick="switchTab('research',this)"><span class="icon">&#9670;</span>Research</button>
     <button class="nav-item" onclick="switchTab('build',this)"><span class="icon">&#9650;</span>Build</button>
+    <button class="nav-item" onclick="switchTab('training',this)"><span class="icon">&#9876;</span>Training</button>
     <button class="nav-item" onclick="switchTab('exploration',this)"><span class="icon">&#9685;</span>Exploration</button>
 
     <div class="nav-section">Warfare</div>
@@ -1022,6 +1023,81 @@
   </div>
 </div>
 
+<!-- ═══════════════════════════════════════════ TRAINING PANEL ══ -->
+<div id="training" class="panel" style="display:none">
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+      <div>
+        <div class="card-title" style="margin-bottom:2px">Troop Training</div>
+        <div style="font-size:12px;color:var(--text3)">Training fields: <span id="tr-fields" style="color:var(--text)">0</span> · Capacity: <span id="tr-capacity" style="color:var(--gold)">0</span> troops/turn · Weapons: <span id="tr-weapons" style="color:var(--text)">0</span> · Armor: <span id="tr-armor" style="color:var(--text)">0</span></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-purple" onclick="distributeTrainingEvenly()" style="white-space:nowrap">Distribute evenly</button>
+        <button class="btn btn-gold" onclick="saveTrainingAllocation()" style="white-space:nowrap">Save allocation</button>
+      </div>
+    </div>
+
+    <div style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.6">
+      Assign troops to training fields each turn. Troops need weapons and armor equipped to train effectively.
+      Race bonuses apply — troops associated with your race's strengths train faster and can exceed Level 100.
+    </div>
+
+    <div class="trow">
+      <span class="name">Fighters</span>
+      <div class="prog-wrap"><div id="tr-bar-fighters" class="prog-bar mil" style="width:0%"></div></div>
+      <span id="tr-level-fighters" class="count" style="min-width:70px">Lv 1</span>
+      <span id="tr-xp-fighters" style="font-size:11px;color:var(--text3);min-width:80px">0 / 100 XP</span>
+      <input type="number" id="ta-fighters" min="0" value="0" oninput="updateTrainingDisplay()" style="width:90px">
+      <button class="btn" onclick="setTrainingMax('fighters')" style="padding:5px 10px;font-size:11px">Max</button>
+    </div>
+    <div class="trow">
+      <span class="name">Rangers</span>
+      <div class="prog-wrap"><div id="tr-bar-rangers" class="prog-bar" style="width:0%;background:var(--blue)"></div></div>
+      <span id="tr-level-rangers" class="count" style="min-width:70px">Lv 1</span>
+      <span id="tr-xp-rangers" style="font-size:11px;color:var(--text3);min-width:80px">0 / 100 XP</span>
+      <input type="number" id="ta-rangers" min="0" value="0" oninput="updateTrainingDisplay()" style="width:90px">
+      <button class="btn" onclick="setTrainingMax('rangers')" style="padding:5px 10px;font-size:11px">Max</button>
+    </div>
+    <div class="trow">
+      <span class="name">Clerics</span>
+      <div class="prog-wrap"><div id="tr-bar-clerics" class="prog-bar" style="width:0%;background:var(--green)"></div></div>
+      <span id="tr-level-clerics" class="count" style="min-width:70px">Lv 1</span>
+      <span id="tr-xp-clerics" style="font-size:11px;color:var(--text3);min-width:80px">0 / 100 XP</span>
+      <input type="number" id="ta-clerics" min="0" value="0" oninput="updateTrainingDisplay()" style="width:90px">
+      <button class="btn" onclick="setTrainingMax('clerics')" style="padding:5px 10px;font-size:11px">Max</button>
+    </div>
+    <div class="trow">
+      <span class="name">Mages</span>
+      <div class="prog-wrap"><div id="tr-bar-mages" class="prog-bar spell" style="width:0%"></div></div>
+      <span id="tr-level-mages" class="count" style="min-width:70px">Lv 1</span>
+      <span id="tr-xp-mages" style="font-size:11px;color:var(--text3);min-width:80px">0 / 100 XP</span>
+      <input type="number" id="ta-mages" min="0" value="0" oninput="updateTrainingDisplay()" style="width:90px">
+      <button class="btn" onclick="setTrainingMax('mages')" style="padding:5px 10px;font-size:11px">Max</button>
+    </div>
+    <div class="trow">
+      <span class="name">Thieves</span>
+      <div class="prog-wrap"><div id="tr-bar-thieves" class="prog-bar" style="width:0%;background:var(--amber)"></div></div>
+      <span id="tr-level-thieves" class="count" style="min-width:70px">Lv 1</span>
+      <span id="tr-xp-thieves" style="font-size:11px;color:var(--text3);min-width:80px">0 / 100 XP</span>
+      <input type="number" id="ta-thieves" min="0" value="0" oninput="updateTrainingDisplay()" style="width:90px">
+      <button class="btn" onclick="setTrainingMax('thieves')" style="padding:5px 10px;font-size:11px">Max</button>
+    </div>
+    <div class="trow" style="border-bottom:none">
+      <span class="name">Ninjas</span>
+      <div class="prog-wrap"><div id="tr-bar-ninjas" class="prog-bar" style="width:0%;background:var(--red)"></div></div>
+      <span id="tr-level-ninjas" class="count" style="min-width:70px">Lv 1</span>
+      <span id="tr-xp-ninjas" style="font-size:11px;color:var(--text3);min-width:80px">0 / 100 XP</span>
+      <input type="number" id="ta-ninjas" min="0" value="0" oninput="updateTrainingDisplay()" style="width:90px">
+      <button class="btn" onclick="setTrainingMax('ninjas')" style="padding:5px 10px;font-size:11px">Max</button>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:0">
+    <div class="card-title">Race training bonus</div>
+    <div id="tr-race-bonus" style="font-size:13px;color:var(--text2);line-height:1.8">—</div>
+  </div>
+</div>
+
 <!-- ═══════════════════════════════════════════ EXPLORATION PANEL ══ -->
 <div id="exploration" class="panel" style="display:none">
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:stretch">
@@ -1607,7 +1683,9 @@ function switchTab(id, btn) {
     if (nb) nb.remove();
     loadNews();
   }
-  if (id === 'research') {
+  if (id === 'training') {
+    loadTrainingAllocation();
+  }
     updateAllocationDisplay();
     loadAllocationFromState();
   }
@@ -1773,6 +1851,7 @@ function syncUI() {
   if (tb) tb.textContent = fmt(state.tools_blueprints || 0);
   renderBuildQueue();
   updateXpDisplay();
+  updateTroopLevelDisplay();
   populateInputs();
 }
 
@@ -1806,6 +1885,7 @@ function updateTurnsDisplay() {
   <button class="bnav-item" onclick="switchTabMobile('hire',this)"><span class="bicon">&#9651;</span>Hire</button>
   <button class="bnav-item" onclick="switchTabMobile('research',this)"><span class="bicon">&#9670;</span>Study</button>
   <button class="bnav-item" onclick="switchTabMobile('build',this)"><span class="bicon">&#9650;</span>Build</button>
+  <button class="bnav-item" onclick="switchTabMobile('training',this)"><span class="bicon">&#9876;</span>Train</button>
   <button class="bnav-item" onclick="switchTabMobile('exploration',this)"><span class="bicon">&#9685;</span>Explore</button>
   <div class="bnav-sep"></div>
   <button class="bnav-item" onclick="switchTabMobile('attack',this)"><span class="bicon">&#9876;</span>Attack</button>
@@ -2025,6 +2105,9 @@ async function loadKingdom() {
     research_allocation: kingdom.research_allocation || {},
     xp:    kingdom.xp    || 0,
     level: kingdom.level || 1,
+    race:  kingdom.race  || 'human',
+    troop_levels:        (() => { try { return typeof kingdom.troop_levels === 'string' ? JSON.parse(kingdom.troop_levels||'{}') : (kingdom.troop_levels||{}); } catch { return {}; } })(),
+    training_allocation: (() => { try { return typeof kingdom.training_allocation === 'string' ? JSON.parse(kingdom.training_allocation||'{}') : (kingdom.training_allocation||{}); } catch { return {}; } })(),
     tools_hammers:     kingdom.tools_hammers     || 0,
     tools_scaffolding: kingdom.tools_scaffolding || 0,
     tools_blueprints:  kingdom.tools_blueprints  || 0,
@@ -2075,6 +2158,7 @@ async function loadKingdom() {
   loadNews();
   loadAllocationFromState();
   loadBuildAllocation();
+  loadTrainingAllocation();
   renderBuildQueue();
 }
 
@@ -2224,6 +2308,7 @@ function applyServerUpdates(u) {
   ].forEach(function(k) { if (u[k] !== undefined) state[k] = u[k]; });
   if (u.xp    !== undefined) state.xp    = u.xp;
   if (u.level !== undefined) state.level = u.level;
+  if (u.troop_levels !== undefined) { try { state.troop_levels = typeof u.troop_levels === 'string' ? JSON.parse(u.troop_levels) : u.troop_levels; } catch { state.troop_levels = {}; } }
   if (u.tools_hammers     !== undefined) state.tools_hammers     = u.tools_hammers;
   if (u.tools_scaffolding !== undefined) state.tools_scaffolding = u.tools_scaffolding;
   if (u.tools_blueprints  !== undefined) state.tools_blueprints  = u.tools_blueprints;
@@ -2541,6 +2626,135 @@ function updateXpDisplay() {
   if (levelEl) levelEl.textContent = level;
   if (barEl)   barEl.style.width   = pct + '%';
   if (labelEl) labelEl.textContent = fmt(xp - thisLvl) + ' / ' + fmt(nextLvl - thisLvl) + ' XP';
+}
+
+// ── Training panel ────────────────────────────────────────────────────────────
+
+var TROOP_TYPES = ['fighters','rangers','clerics','mages','thieves','ninjas'];
+
+var TROOP_RACE_BONUS_JS = {
+  high_elf:  { clerics: 1.5, mages: 1.5 },
+  dwarf:     { fighters: 1.3 },
+  dire_wolf: { fighters: 1.8, rangers: 1.5 },
+  dark_elf:  { ninjas: 1.8, thieves: 1.5, rangers: 1.3 },
+  human:     { fighters: 1.1, rangers: 1.1, clerics: 1.1, mages: 1.1, thieves: 1.1, ninjas: 1.1 },
+  orc:       { fighters: 1.6, clerics: 1.2 },
+};
+
+function troopXpForLevelJS(level) {
+  if (level <= 1)  return 0;
+  if (level <= 10) return level * 100;
+  if (level <= 25) return level * 300;
+  if (level <= 50) return level * 800;
+  if (level <= 75) return level * 2000;
+  return level * 5000;
+}
+
+function getTroopLevel(unit) {
+  var levels = state.troop_levels || {};
+  return levels[unit] || { level: 1, xp: 0 };
+}
+
+function getAllocatedTraining() {
+  return TROOP_TYPES.reduce(function(sum, u) {
+    return sum + (parseInt(document.getElementById('ta-' + u)?.value) || 0);
+  }, 0);
+}
+
+function updateTrainingDisplay() {
+  var capacity = (state.bld_training || 0) * 50;
+  var allocated = getAllocatedTraining();
+  var trFields = document.getElementById('tr-fields');
+  var trCap    = document.getElementById('tr-capacity');
+  if (trFields) trFields.textContent = fmt(state.bld_training || 0);
+  if (trCap) {
+    trCap.textContent = fmt(capacity);
+    trCap.style.color = allocated > capacity ? 'var(--red)' : 'var(--gold)';
+  }
+  var trW = document.getElementById('tr-weapons');
+  var trA = document.getElementById('tr-armor');
+  if (trW) trW.textContent = fmt(state.weapons_stockpile || 0);
+  if (trA) trA.textContent = fmt(state.armor_stockpile || 0);
+}
+
+function setTrainingMax(unit) {
+  var capacity = (state.bld_training || 0) * 50;
+  var allocated = getAllocatedTraining();
+  var current = parseInt(document.getElementById('ta-' + unit)?.value) || 0;
+  var available = capacity - allocated + current;
+  var el = document.getElementById('ta-' + unit);
+  if (el) el.value = Math.max(0, Math.min(available, state[unit] || 0));
+  updateTrainingDisplay();
+}
+
+function distributeTrainingEvenly() {
+  var capacity = (state.bld_training || 0) * 50;
+  var each = Math.floor(capacity / TROOP_TYPES.length);
+  TROOP_TYPES.forEach(function(u) {
+    var el = document.getElementById('ta-' + u);
+    if (el) el.value = Math.min(each, state[u] || 0);
+  });
+  updateTrainingDisplay();
+}
+
+function loadTrainingAllocation() {
+  var alloc = state.training_allocation || {};
+  TROOP_TYPES.forEach(function(u) {
+    var el = document.getElementById('ta-' + u);
+    if (el) el.value = alloc[u] || 0;
+  });
+  updateTrainingDisplay();
+  updateTroopLevelDisplay();
+  updateRaceBonusDisplay();
+}
+
+function updateTroopLevelDisplay() {
+  TROOP_TYPES.forEach(function(u) {
+    var data = getTroopLevel(u);
+    var level = data.level || 1;
+    var xp = data.xp || 0;
+    var nextXp = troopXpForLevelJS(level + 1) - troopXpForLevelJS(level);
+    var pct = nextXp > 0 ? Math.min(100, Math.floor(xp / nextXp * 100)) : 100;
+
+    var levelEl = document.getElementById('tr-level-' + u);
+    var xpEl    = document.getElementById('tr-xp-' + u);
+    var barEl   = document.getElementById('tr-bar-' + u);
+    if (levelEl) levelEl.textContent = 'Lv ' + level;
+    if (xpEl)    xpEl.textContent    = fmt(xp) + ' / ' + fmt(nextXp) + ' XP';
+    if (barEl)   barEl.style.width   = pct + '%';
+  });
+}
+
+function updateRaceBonusDisplay() {
+  var el = document.getElementById('tr-race-bonus');
+  if (!el) return;
+  var race = state.race || 'human';
+  var bonuses = TROOP_RACE_BONUS_JS[race] || {};
+  var TROOP_LABELS = { fighters:'Fighters', rangers:'Rangers', clerics:'Clerics', mages:'Mages', thieves:'Thieves', ninjas:'Ninjas' };
+  var lines = TROOP_TYPES.map(function(u) {
+    var b = bonuses[u] || 1.0;
+    var bStr = b > 1 ? '<span style="color:var(--green)">+' + Math.round((b-1)*100) + '% training speed</span>' : '<span style="color:var(--text3)">No bonus</span>';
+    var exceedsNote = b >= 1.5 ? ' <span style="color:var(--purple);font-size:11px">(can exceed Level 100)</span>' : '';
+    return '<div style="display:flex;justify-content:space-between;padding:3px 0"><span>' + TROOP_LABELS[u] + '</span><span>' + bStr + exceedsNote + '</span></div>';
+  }).join('');
+  el.innerHTML = lines;
+}
+
+async function saveTrainingAllocation() {
+  var allocation = {};
+  var capacity = (state.bld_training || 0) * 50;
+  var total = 0;
+  TROOP_TYPES.forEach(function(u) {
+    var val = parseInt(document.getElementById('ta-' + u)?.value) || 0;
+    allocation[u] = val;
+    total += val;
+  });
+  if (total > capacity) return toast('Assigned ' + fmt(total) + ' but capacity is only ' + fmt(capacity), 'error');
+  if (capacity === 0) return toast('Build training fields first', 'error');
+  var result = await apiCall('POST', '/api/kingdom/training-allocation', { allocation: allocation });
+  if (result.error) return toast(result.error, 'error');
+  state.training_allocation = allocation;
+  toast('Training allocation saved — troops train each turn', 'success');
 }
 
 // Boot — check auth then show modal or load kingdom
