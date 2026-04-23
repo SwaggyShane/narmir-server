@@ -60,18 +60,20 @@
   .bottom-nav::-webkit-scrollbar { display: none; }
   .bnav-item {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 3px; padding: 8px 12px; flex-shrink: 0; cursor: pointer;
-    font-size: 10px; color: var(--text3); border: none; background: none;
-    transition: color .12s; position: relative; min-width: 56px;
+    gap: 2px; padding: 6px 10px; flex-shrink: 0; cursor: pointer;
+    font-size: 9px; color: var(--text3); border: none; background: none;
+    transition: color .12s; position: relative; min-width: 48px;
   }
-  .bnav-item .bicon { font-size: 18px; line-height: 1; }
+  .bnav-item .bicon { font-size: 16px; line-height: 1; }
   .bnav-item.active { color: var(--purple); }
   .bnav-item .bnav-badge {
     position: absolute; top: 6px; right: 10px;
     background: var(--red); color: #fff; border-radius: 8px;
     font-size: 9px; font-weight: 700; padding: 1px 4px; line-height: 1.4;
   }
-  /* ── Mobile panel overrides ── */
+  /* Compact kingdom header on mobile */
+  .kingdom-header > div:first-child > div { margin-top: 3px !important; }
+  .kingdom-header > div:last-child { display: none; } /* hide turn display on mobile */
   /* Stack two-column grids vertically on mobile */
   .exp-grid,
   #library > div,
@@ -111,8 +113,8 @@
   .panel-title { font-size: 18px; font-weight: 600; color: var(--text); margin-bottom: 16px; }
 
   /* ── Kingdom header ── */
-  .kingdom-header { margin-bottom: 14px; }
-  .kingdom-header h1 { font-size: 20px; }
+  .kingdom-header { margin-bottom: 8px; }
+  .kingdom-header h1, #kingdom-name { font-size: 18px !important; }
 
   /* ── Metric strip — 2 cols on mobile, 5 on desktop ── */
   .metrics { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; margin-bottom: 16px; }
@@ -2400,6 +2402,8 @@ function switchTabMobile(id, btn) {
   switchTab(id, btn);
   document.querySelectorAll('.bnav-item').forEach(function(b){ b.classList.remove('active'); });
   btn.classList.add('active');
+  // Scroll the active button into view in the nav
+  try { btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' }); } catch(e) {}
   if (id === 'news') {
     var bb = document.getElementById('bnav-news-badge');
     if (bb) bb.remove();
