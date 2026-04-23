@@ -59,6 +59,9 @@ async function initDb() {
       bld_smithies      INTEGER NOT NULL DEFAULT 0,
       bld_markets       INTEGER NOT NULL DEFAULT 0,
       bld_cathedrals    INTEGER NOT NULL DEFAULT 0,
+      bld_shrines       INTEGER NOT NULL DEFAULT 0,
+      mage_tower_allocation TEXT NOT NULL DEFAULT '{}',
+      shrine_allocation TEXT NOT NULL DEFAULT '{}'
       bld_training      INTEGER NOT NULL DEFAULT 0,
       bld_colosseums    INTEGER NOT NULL DEFAULT 0,
       bld_castles       INTEGER NOT NULL DEFAULT 0,
@@ -193,6 +196,9 @@ async function initDb() {
   const expCols = (await _db.all('PRAGMA table_info(expeditions)')).map(c => c.name);
   if (!expCols.includes('rewards')) await addColumn('expeditions', 'rewards', 'TEXT');
 
+  if (!cols.includes('bld_shrines'))             await addColumn('kingdoms', 'bld_shrines',             'INTEGER NOT NULL DEFAULT 0');
+  if (!cols.includes('mage_tower_allocation'))   await addColumn('kingdoms', 'mage_tower_allocation',   "TEXT NOT NULL DEFAULT '{}'");
+  if (!cols.includes('shrine_allocation'))       await addColumn('kingdoms', 'shrine_allocation',       "TEXT NOT NULL DEFAULT '{}'");
   if (!cols.includes('scribes'))             await addColumn('kingdoms', 'scribes',             'INTEGER NOT NULL DEFAULT 0');
   if (!cols.includes('bld_libraries'))       await addColumn('kingdoms', 'bld_libraries',       'INTEGER NOT NULL DEFAULT 0');
   if (!cols.includes('library_allocation'))  await addColumn('kingdoms', 'library_allocation',  "TEXT NOT NULL DEFAULT '{}'");
