@@ -42,16 +42,23 @@ function goldPerTurn(k) {
 }
 
 function manaPerTurn(k) {
-  // Base mana from mage towers: each tower = 5 base mana
-  const baseMana = (k.bld_cathedrals || 0) * 5;
-  // Bonus from mages allocated to mage tower: 1 mana per 5 mages
+  // Base mana by race — everyone gets some, magic races get more
+  const raceManaBase = {
+    high_elf: 8, dark_elf: 6, human: 3, dwarf: 2, orc: 2, dire_wolf: 1,
+  }[k.race] || 3;
+
+  // Mage tower base: each tower = 5 base mana
+  const towerMana = (k.bld_cathedrals || 0) * 5;
+
+  // Mages allocated to tower: 1 mana per 5 mages
   let towerAlloc = {};
   try { towerAlloc = JSON.parse(k.mage_tower_allocation || '{}'); } catch { towerAlloc = {}; }
   const magesInTower = Math.min(Number(towerAlloc.mages) || 0, k.mages || 0);
   const capacity = (k.bld_cathedrals || 0) * 20;
   const effectiveMages = Math.min(magesInTower, capacity);
   const mageMana = Math.floor(effectiveMages / 5);
-  return Math.floor((baseMana + mageMana) * raceBonus(k, 'magic'));
+
+  return Math.floor((raceManaBase + towerMana + mageMana) * raceBonus(k, 'magic'));
 }
 
 function foodBalance(k) {
