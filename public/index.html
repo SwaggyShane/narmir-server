@@ -300,6 +300,7 @@
     <button class="nav-item" onclick="switchTab('build',this)"><span class="icon">&#9650;</span>Build</button>
     <button class="nav-item" onclick="switchTab('training',this)"><span class="icon">&#9876;</span>Training</button>
     <button class="nav-item" onclick="switchTab('exploration',this)"><span class="icon">&#9685;</span>Exploration</button>
+    <button class="nav-item" onclick="switchTab('library',this)"><span class="icon">&#128218;</span>Library</button>
 
     <div class="nav-section">Warfare</div>
     <button class="nav-item" onclick="switchTab('attack',this)"><span class="icon">&#9876;</span>Attack</button>
@@ -480,6 +481,13 @@
           <input type="number" id="hire-researchers" min="0" value="0" placeholder="0">
           <button class="btn btn-gold" onclick="hire('researchers')">Hire</button>
           <button class="btn btn-red" onclick="fire('researchers')">Fire</button>
+        </div>
+        <div class="trow">
+          <span class="name">Scribes</span><span class="desc">Craft maps &amp; blueprints in the library</span>
+          <span class="count" id="h-scribes">0</span>
+          <input type="number" id="hire-scribes" min="0" value="0" placeholder="0">
+          <button class="btn btn-gold" onclick="hire('scribes')">Hire</button>
+          <button class="btn btn-red" onclick="fire('scribes')">Fire</button>
         </div>
         <div class="trow">
           <span class="name">Engineers</span><span class="desc">Construct buildings &amp; operate war machines</span>
@@ -695,6 +703,13 @@
           <span class="count" id="bld-colosseums">0</span>
           <input type="number" id="ba-colosseum" min="0" value="0" oninput="updateBuildDisplay()" style="width:80px" placeholder="Eng">
           <button class="btn" onclick="setBuildMax('ba-colosseum','colosseum')" style="padding:5px 10px;font-size:11px">Max</button>
+        </div>
+        <div class="trow">
+          <span class="bld-icon" style="background:#2a3a6a">📖</span>
+          <span class="name">Libraries</span><span class="desc">Houses scribes and mages — needed for scrolls, maps and blueprints</span>
+          <span class="count" id="bld-libraries">0</span>
+          <input type="number" id="ba-library" min="0" value="0" oninput="updateBuildDisplay()" style="width:80px" placeholder="Eng">
+          <button class="btn" onclick="setBuildMax('ba-library','library')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
         <div class="trow">
           <span class="bld-icon" style="background:#5a1a1a">🏰</span>
@@ -1288,15 +1303,109 @@
   </div>
 </div>
 
+<!-- LIBRARY -->
+<div id="library" class="panel" style="display:none">
+
+  <!-- No library warning -->
+  <div id="lib-no-library" style="display:none;background:rgba(232,184,75,.08);border:1px solid var(--gold);border-radius:var(--radius);padding:12px 16px;font-size:13px;color:var(--gold);margin-bottom:16px">
+    📖 You have no libraries. Build one in the <strong>Build</strong> tab — 100 engineers, 100 turns. Libraries are required for scrolls, maps, and blueprints.
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+
+    <!-- Allocation -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="card">
+        <div class="card-title">Library allocation</div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:12px">Each library holds 20 mages or scribes. Mages produce mana and craft scrolls. Scribes craft maps and blueprints.</div>
+
+        <div class="trow" style="margin-bottom:10px">
+          <span class="name">Mages in library</span>
+          <span style="font-size:11px;color:var(--text3)">avail: <span id="lib-mages-avail">0</span></span>
+          <input type="number" id="lib-mages" min="0" value="0" style="width:80px">
+        </div>
+        <div class="trow" style="margin-bottom:14px">
+          <span class="name">Scribes in library</span>
+          <span style="font-size:11px;color:var(--text3)">avail: <span id="lib-scribes-avail">0</span></span>
+          <input type="number" id="lib-scribes" min="0" value="0" style="width:80px">
+        </div>
+
+        <div style="margin-bottom:10px">
+          <div style="font-size:12px;color:var(--text3);margin-bottom:6px">Mages craft scroll</div>
+          <select id="lib-scroll-craft" style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);padding:7px 10px;font-size:13px">
+            <option value="">— none —</option>
+          </select>
+        </div>
+        <div style="margin-bottom:14px">
+          <div style="font-size:12px;color:var(--text3);margin-bottom:6px">Scribes craft</div>
+          <select id="lib-scribe-craft" style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);padding:7px 10px;font-size:13px">
+            <option value="">— none —</option>
+            <option value="map">Map (needed to interact with other kingdoms)</option>
+            <option value="blueprint">Blueprint (+10% construction speed)</option>
+          </select>
+        </div>
+
+        <button class="btn btn-gold" style="width:100%" onclick="saveLibraryAllocation()">Save allocation</button>
+      </div>
+
+      <!-- Mana production -->
+      <div class="card">
+        <div class="card-title">Mana production</div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.7">
+          Mages in the library produce <strong>1 mana per 10 mages</strong> per turn, passively — no action needed.<br>
+          Current production: <span id="lib-mana-rate" style="color:var(--purple);font-weight:600">0</span> mana/turn
+        </div>
+      </div>
+    </div>
+
+    <!-- Scroll inventory & progress -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="card">
+        <div class="card-title">Scroll inventory</div>
+        <div id="lib-scroll-inventory" style="display:flex;flex-direction:column;gap:6px">
+          <div style="font-size:13px;color:var(--text3)">No scrolls in your library.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Crafting progress</div>
+        <div id="lib-craft-progress" style="display:flex;flex-direction:column;gap:8px">
+          <div style="font-size:13px;color:var(--text3)">Nothing being crafted.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Maps &amp; blueprints</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;text-align:center">
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:12px">
+            <div style="font-size:22px;margin-bottom:4px">🗺️</div>
+            <div style="font-size:24px;font-weight:700;color:var(--gold)" id="lib-maps">0</div>
+            <div style="font-size:11px;color:var(--text3)">Maps</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:4px">Required to interact with other kingdoms</div>
+          </div>
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:12px">
+            <div style="font-size:22px;margin-bottom:4px">📐</div>
+            <div style="font-size:24px;font-weight:700;color:var(--amber)" id="lib-blueprints">0</div>
+            <div style="font-size:11px;color:var(--text3)">Blueprints</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:4px">+10% construction speed each</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
   </main>
 </div>
 
 <script>
 /* ── Core state (defined first so all functions below can access it) ── */
 var state = {
-  gold: 10000, pop: 50000, land: 500, morale: 100, tax: 42, turn: 0, mana: 5000,
+  gold: 10000, pop: 50000, land: 500, morale: 100, tax: 42, turn: 0, mana: 5000, food: 0,
   fighters:0, rangers:0, clerics:0, mages:0,
-  thieves:0, ninjas:0, researchers:500, engineers:0
+  thieves:0, ninjas:0, researchers:500, engineers:0, scribes:0,
+  bld_libraries:0, library_allocation:{}, library_progress:{}, scrolls:{},
+  maps:0, blueprints_stored:0, active_effects:{}
 };
 
 function fmt(n) { return Math.round(n).toLocaleString(); }
@@ -1914,6 +2023,9 @@ function switchTab(id, btn) {
     updateExpeditionAvailability();
     loadActiveExpeditions();
   }
+  if (id === 'library') {
+    renderLibraryPanel();
+  }
   if (id === 'research') {
     updateAllocationDisplay();
     loadAllocationFromState();
@@ -2038,7 +2150,7 @@ function syncUI() {
   var atkMagesAvail = document.getElementById('atk-mages-avail');
   if (atkMagesAvail) atkMagesAvail.textContent = fmt(state.mages || 0);
   // Sync status panel unit counts
-  ['fighters','rangers','clerics','mages','thieves','ninjas','researchers','engineers'].forEach(function(u){
+  ['fighters','rangers','clerics','mages','thieves','ninjas','researchers','engineers','scribes'].forEach(function(u){
     var el = document.getElementById('s-' + u);
     if (el) el.textContent = fmt(state[u]||0);
   });
@@ -2074,7 +2186,7 @@ function syncUI() {
     guard_towers:'bld_guard_towers', schools:'bld_schools', armories:'bld_armories',
     vaults:'bld_vaults', smithies:'bld_smithies', markets:'bld_markets',
     cathedrals:'bld_cathedrals', training:'bld_training', colosseums:'bld_colosseums',
-    castles:'bld_castles',
+    castles:'bld_castles', libraries:'bld_libraries',
     weapons_stockpile:'weapons_stockpile', armor_stockpile:'armor_stockpile',
     war_machines:'war_machines'
   };
@@ -2128,6 +2240,7 @@ function updateTurnsDisplay() {
   <button class="bnav-item" onclick="switchTabMobile('build',this)"><span class="bicon">&#9650;</span>Build</button>
   <button class="bnav-item" onclick="switchTabMobile('training',this)"><span class="bicon">&#9876;</span>Train</button>
   <button class="bnav-item" onclick="switchTabMobile('exploration',this)"><span class="bicon">&#9685;</span>Explore</button>
+  <button class="bnav-item" onclick="switchTabMobile('library',this)"><span class="bicon">&#128218;</span>Library</button>
   <div class="bnav-sep"></div>
   <button class="bnav-item" onclick="switchTabMobile('attack',this)"><span class="bicon">&#9876;</span>Attack</button>
   <button class="bnav-item" onclick="switchTabMobile('spells',this)"><span class="bicon">&#10024;</span>Spells</button>
@@ -2302,7 +2415,14 @@ async function loadKingdom() {
     food: kingdom.food || 0,
     fighters: kingdom.fighters, rangers: kingdom.rangers, clerics: kingdom.clerics,
     mages: kingdom.mages, thieves: kingdom.thieves, ninjas: kingdom.ninjas,
-    researchers: kingdom.researchers, engineers: kingdom.engineers,
+    researchers: kingdom.researchers, engineers: kingdom.engineers, scribes: kingdom.scribes || 0,
+    bld_libraries: kingdom.bld_libraries || 0,
+    library_allocation: kingdom.library_allocation || {},
+    library_progress:   kingdom.library_progress   || {},
+    scrolls:            kingdom.scrolls            || {},
+    maps:               kingdom.maps               || 0,
+    blueprints_stored:  kingdom.blueprints_stored  || 0,
+    active_effects:     kingdom.active_effects     || {},
     kingdomId: kingdom.id, kingdomName: kingdom.name,
     turns_stored: kingdom.turns_stored !== undefined ? kingdom.turns_stored : 200,
     // Research
@@ -2382,6 +2502,7 @@ async function loadKingdom() {
   loadTrainingAllocation();
   renderBuildQueue();
   loadActiveExpeditions();
+  renderLibraryPanel();
 }
 
 async function loadNews() {
@@ -2529,8 +2650,14 @@ function applyServerUpdates(u) {
   if (u.mages       !== undefined) state.mages         = u.mages;
   if (u.thieves     !== undefined) state.thieves       = u.thieves;
   if (u.ninjas      !== undefined) state.ninjas        = u.ninjas;
-  if (u.researchers !== undefined) state.researchers   = u.researchers;
-  if (u.engineers   !== undefined) state.engineers     = u.engineers;
+  if (u.researchers  !== undefined) state.researchers   = u.researchers;
+  if (u.engineers    !== undefined) state.engineers     = u.engineers;
+  if (u.scribes      !== undefined) state.scribes       = u.scribes;
+  if (u.bld_libraries!== undefined) state.bld_libraries = u.bld_libraries;
+  if (u.scrolls      !== undefined) { try { state.scrolls = typeof u.scrolls==='string' ? JSON.parse(u.scrolls) : u.scrolls; } catch(e){} }
+  if (u.maps         !== undefined) state.maps          = u.maps;
+  if (u.blueprints_stored !== undefined) state.blueprints_stored = u.blueprints_stored;
+  if (u.library_progress  !== undefined) { try { state.library_progress = typeof u.library_progress==='string' ? JSON.parse(u.library_progress) : u.library_progress; } catch(e){} }
   ['res_economy','res_weapons','res_armor','res_military','res_spellbook',
    'res_attack_magic','res_defense_magic','res_entertainment','res_construction','res_war_machines'
   ].forEach(function(k) { if (u[k] !== undefined) state[k] = u[k]; });
@@ -2564,6 +2691,7 @@ var BUILD_FIELDS = [
   { id:'b-training',  key:'training',    pieces:50,  alloc:'ba-training'  },
   { id:'b-colosseum', key:'colosseum',   pieces:25,  alloc:'ba-colosseum' },
   { id:'b-castle',    key:'castle',      pieces:500, alloc:'ba-castle'    },
+  { id:'b-library',   key:'library',     pieces:100, alloc:'ba-library'   },
   { id:'b-wm',        key:'war_machine', pieces:20,  alloc:'ba-wm'        },
   { id:'b-weapons',   key:'weapons',     pieces:1,   alloc:'ba-weapons'   },
   { id:'b-armor',     key:'armor',       pieces:1,   alloc:'ba-armor'     },
@@ -2617,7 +2745,7 @@ function loadBuildAllocation() {
     farm:'farms', barracks:'barracks', outpost:'outposts', tower:'guard_towers',
     school:'schools', armory:'armories', vault:'vaults', smithy:'smithies',
     market:'markets', cathedral:'cathedrals', training:'training',
-    colosseum:'colosseums', castle:'castles', war_machine:'war_machines',
+    colosseum:'colosseums', castle:'castles', library:'libraries', war_machine:'war_machines',
     weapons:'weapons', armor:'armor'
   };
   BUILD_FIELDS.forEach(function(f) {
@@ -2639,7 +2767,7 @@ async function releaseAllResearchers() {
 
 async function releaseAllEngineers() {
   var BA_FIELDS = ['ba-farm','ba-barracks','ba-outpost','ba-tower','ba-school','ba-armory','ba-vault',
-    'ba-smithy','ba-market','ba-cathedral','ba-training','ba-colosseum','ba-castle','ba-wm','ba-weapons','ba-armor'];
+    'ba-smithy','ba-market','ba-cathedral','ba-training','ba-colosseum','ba-castle','ba-library','ba-wm','ba-weapons','ba-armor'];
   BA_FIELDS.forEach(function(id) { var el = document.getElementById(id); if (el) el.value = 0; });
   updateBuildDisplay();
   var result = await apiCall('POST', '/api/kingdom/build-allocation', { allocation: {} });
@@ -2654,7 +2782,7 @@ async function saveBuildAllocation() {
     farm:'farms', barracks:'barracks', outpost:'outposts', tower:'guard_towers',
     school:'schools', armory:'armories', vault:'vaults', smithy:'smithies',
     market:'markets', cathedral:'cathedrals', training:'training',
-    colosseum:'colosseums', castle:'castles', war_machine:'war_machines',
+    colosseum:'colosseums', castle:'castles', library:'libraries', war_machine:'war_machines',
     weapons:'weapons', armor:'armor'
   };
   var total = 0;
@@ -2689,7 +2817,7 @@ async function buildAll() {
     farm:'farms', barracks:'barracks', outpost:'outposts', tower:'guard_towers',
     school:'schools', armory:'armories', vault:'vaults', smithy:'smithies',
     market:'markets', cathedral:'cathedrals', training:'training',
-    colosseum:'colosseums', castle:'castles', war_machine:'war_machines',
+    colosseum:'colosseums', castle:'castles', library:'libraries', war_machine:'war_machines',
     weapons:'weapons', armor:'armor'
   };
 
@@ -2750,7 +2878,7 @@ function renderBuildQueue() {
     farm:'farms', barracks:'barracks', outpost:'outposts', tower:'guard_towers',
     school:'schools', armory:'armories', vault:'vaults', smithy:'smithies',
     market:'markets', cathedral:'cathedrals', training:'training',
-    colosseum:'colosseums', castle:'castles', war_machine:'war_machine',
+    colosseum:'colosseums', castle:'castles', library:'libraries', war_machine:'war_machine',
     weapons:'weapons', armor:'armor'
   };
 
@@ -3050,6 +3178,161 @@ async function saveTrainingAllocation() {
 
 // Visible debug helper for mobile
 function debugLog(msg) { /* disabled */ }
+
+// ── Library ───────────────────────────────────────────────────────────────────
+
+var SCROLL_DEFS = [
+  { id:'spark',      tier:1, minSB:100,  mages:5,   turns:5,   label:'Spark'      },
+  { id:'fog_of_war', tier:1, minSB:150,  mages:8,   turns:8,   label:'Fog of War' },
+  { id:'mend',       tier:1, minSB:200,  mages:8,   turns:10,  label:'Mend'       },
+  { id:'blight',     tier:1, minSB:250,  mages:10,  turns:12,  label:'Blight'     },
+  { id:'rain',       tier:1, minSB:300,  mages:10,  turns:15,  label:'Rain'       },
+  { id:'dispel',     tier:1, minSB:400,  mages:12,  turns:15,  label:'Dispel'     },
+  { id:'lightning',  tier:2, minSB:500,  mages:15,  turns:20,  label:'Lightning'  },
+  { id:'bless',      tier:2, minSB:600,  mages:15,  turns:20,  label:'Bless'      },
+  { id:'silence',    tier:2, minSB:700,  mages:20,  turns:25,  label:'Silence'    },
+  { id:'amnesia',    tier:2, minSB:800,  mages:20,  turns:30,  label:'Amnesia'    },
+  { id:'drain',      tier:2, minSB:900,  mages:25,  turns:30,  label:'Drain'      },
+  { id:'plague',     tier:3, minSB:1000, mages:30,  turns:40,  label:'Plague'     },
+  { id:'earthquake', tier:3, minSB:1200, mages:35,  turns:50,  label:'Earthquake' },
+  { id:'tempest',    tier:3, minSB:1400, mages:40,  turns:60,  label:'Tempest'    },
+  { id:'shield',     tier:3, minSB:1500, mages:40,  turns:60,  label:'Shield'     },
+  { id:'armageddon', tier:4, minSB:2000, mages:100, turns:200, label:'Armageddon' },
+];
+
+function renderLibraryPanel() {
+  var libs = state.bld_libraries || 0;
+  var noLibWarn = document.getElementById('lib-no-library');
+  if (noLibWarn) noLibWarn.style.display = libs === 0 ? 'block' : 'none';
+
+  // Availability
+  var magesAvail = document.getElementById('lib-mages-avail');
+  var scribesAvail = document.getElementById('lib-scribes-avail');
+  if (magesAvail) magesAvail.textContent = fmt(state.mages || 0);
+  if (scribesAvail) scribesAvail.textContent = fmt(state.scribes || 0);
+
+  // Populate saved allocation
+  var alloc = state.library_allocation || {};
+  var libMages = document.getElementById('lib-mages');
+  var libScribes = document.getElementById('lib-scribes');
+  if (libMages) libMages.value = alloc.mages || 0;
+  if (libScribes) libScribes.value = alloc.scribes || 0;
+
+  // Mana rate
+  var magesInLib = Math.min(Number(alloc.mages) || 0, state.mages || 0);
+  var manaRate = document.getElementById('lib-mana-rate');
+  if (manaRate) manaRate.textContent = fmt(Math.floor(magesInLib / 10));
+
+  // Populate scroll craft dropdown — only show scrolls with enough spellbook
+  var scrollSel = document.getElementById('lib-scroll-craft');
+  if (scrollSel) {
+    var sb = state.res_spellbook || 0;
+    var tierLabels = { 1:'Tier 1', 2:'Tier 2', 3:'Tier 3', 4:'Tier 4' };
+    var currentTier = 0;
+    scrollSel.innerHTML = '<option value="">— none —</option>';
+    SCROLL_DEFS.forEach(function(s) {
+      if (sb < s.minSB) return; // locked
+      if (s.tier !== currentTier) {
+        var og = document.createElement('optgroup');
+        og.label = tierLabels[s.tier] + ' — Spellbook ' + s.minSB + '+';
+        scrollSel.appendChild(og);
+        currentTier = s.tier;
+      }
+      var opt = document.createElement('option');
+      opt.value = s.id;
+      opt.textContent = s.label + ' (' + s.mages + ' mages · ' + s.turns + ' turns)';
+      if (alloc.scroll_craft === s.id) opt.selected = true;
+      scrollSel.appendChild(opt);
+    });
+  }
+
+  var scribeSel = document.getElementById('lib-scribe-craft');
+  if (scribeSel && alloc.scribe_craft) {
+    for (var i = 0; i < scribeSel.options.length; i++) {
+      if (scribeSel.options[i].value === alloc.scribe_craft) { scribeSel.selectedIndex = i; break; }
+    }
+  }
+
+  // Scroll inventory
+  var inv = document.getElementById('lib-scroll-inventory');
+  if (inv) {
+    var scrolls = state.scrolls || {};
+    var scrollKeys = Object.keys(scrolls).filter(function(s) { return scrolls[s] > 0; });
+    if (scrollKeys.length === 0) {
+      inv.innerHTML = '<div style="font-size:13px;color:var(--text3)">No scrolls in your library.</div>';
+    } else {
+      inv.innerHTML = scrollKeys.map(function(s) {
+        var def = SCROLL_DEFS.find(function(d) { return d.id === s; });
+        var label = def ? def.label : s;
+        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">'
+          + '<span style="color:var(--text)">✨ ' + label + '</span>'
+          + '<span style="color:var(--gold);font-weight:600">×' + scrolls[s] + '</span>'
+          + '</div>';
+      }).join('');
+    }
+  }
+
+  // Crafting progress
+  var prog = state.library_progress || {};
+  var craftEl = document.getElementById('lib-craft-progress');
+  if (craftEl) {
+    var items = [];
+    Object.keys(prog).forEach(function(k) {
+      if (!prog[k] || prog[k] <= 0) return;
+      if (k.startsWith('scroll_')) {
+        var spellId = k.replace('scroll_', '');
+        var def = SCROLL_DEFS.find(function(d) { return d.id === spellId; });
+        var label = def ? def.label : spellId;
+        var pct = Math.min(100, Math.floor((prog[k] / (def ? def.turns : 10)) * 100));
+        items.push({ label: '✨ ' + label + ' scroll', pct: pct, color: 'var(--purple)' });
+      } else if (k === 'scribe_map') {
+        var pct2 = Math.min(100, Math.floor((prog[k] / 10) * 100));
+        items.push({ label: '🗺️ Map', pct: pct2, color: 'var(--green)' });
+      } else if (k === 'scribe_blueprint') {
+        var pct3 = Math.min(100, Math.floor((prog[k] / 20) * 100));
+        items.push({ label: '📐 Blueprint', pct: pct3, color: 'var(--amber)' });
+      }
+    });
+    if (items.length === 0) {
+      craftEl.innerHTML = '<div style="font-size:13px;color:var(--text3)">Nothing being crafted.</div>';
+    } else {
+      craftEl.innerHTML = items.map(function(item) {
+        return '<div style="margin-bottom:8px">'
+          + '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">'
+          + '<span style="color:var(--text)">' + item.label + '</span>'
+          + '<span style="color:var(--text3)">' + item.pct + '%</span>'
+          + '</div>'
+          + '<div style="height:5px;background:var(--bg4);border-radius:3px">'
+          + '<div style="height:5px;width:' + item.pct + '%;background:' + item.color + ';border-radius:3px;transition:width .3s"></div>'
+          + '</div></div>';
+      }).join('');
+    }
+  }
+
+  // Maps & blueprints counts
+  var mapsEl = document.getElementById('lib-maps');
+  var bpEl = document.getElementById('lib-blueprints');
+  if (mapsEl) mapsEl.textContent = fmt(state.maps || 0);
+  if (bpEl) bpEl.textContent = fmt(state.blueprints_stored || 0);
+}
+
+async function saveLibraryAllocation() {
+  var libs = state.bld_libraries || 0;
+  if (libs === 0) return toast('Build a library first', 'error');
+  var mages   = parseInt(document.getElementById('lib-mages')?.value)   || 0;
+  var scribes = parseInt(document.getElementById('lib-scribes')?.value) || 0;
+  if (mages   > (state.mages   || 0)) return toast('Not enough mages',   'error');
+  if (scribes > (state.scribes || 0)) return toast('Not enough scribes', 'error');
+  var scrollCraft  = document.getElementById('lib-scroll-craft')?.value  || null;
+  var scribeCraft  = document.getElementById('lib-scribe-craft')?.value  || null;
+  var result = await apiCall('POST', '/api/kingdom/library-allocation', {
+    allocation: { mages, scribes, scroll_craft: scrollCraft || null, scribe_craft: scribeCraft || null }
+  });
+  if (result.error) return toast(result.error, 'error');
+  state.library_allocation = result.allocation;
+  renderLibraryPanel();
+  toast('Library allocation saved', 'success');
+}
 
 // Boot — check auth then show modal or load kingdom
 async function doLogout() {
