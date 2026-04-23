@@ -1983,86 +1983,72 @@ function hideLoginModal() {
   document.getElementById('bottom-nav').style.display = '';
 }
 
+var _registerMode = false;
+
+function doRegister() {
+  if (!_registerMode) {
+    _registerMode = true;
+    document.getElementById('register-fields').style.display = 'block';
+    document.getElementById('btn-register').textContent = 'Create Kingdom';
+    document.getElementById('btn-register').style.background = '#4caf7d';
+    document.getElementById('btn-register').style.color = '#fff';
+    document.getElementById('auth-mode-hint').textContent = 'Choose your race carefully — it cannot be changed later.';
+  } else {
+    doAttempt('/api/auth/register');
+  }
+}
+
+function doLogin() {
+  doAttempt('/api/auth/login');
+}
+
+function doAttempt(endpoint) {
+  var username = document.getElementById('auth-user').value.trim();
+  var password = document.getElementById('auth-pass').value;
+  var errEl = document.getElementById('auth-error');
+  if (!username || !password) { errEl.textContent = 'Username and password required'; return; }
+
+  var body;
+  if (endpoint === '/api/auth/register') {
+    var kingdomName = document.getElementById('auth-kingdom').value.trim();
+    var race = document.getElementById('auth-race').value;
+    if (!kingdomName) { errEl.textContent = 'Kingdom name required'; return; }
+    body = JSON.stringify({ username: username, password: password, kingdomName: kingdomName, race: race });
+  } else {
+    body = JSON.stringify({ username: username, password: password });
+  }
+
+  errEl.textContent = 'Logging in...';
+  document.getElementById('btn-login').disabled = true;
+  document.getElementById('btn-register').disabled = true;
+
+  var headers = { 'Content-Type': 'application/json' };
+  var token = getToken();
+  if (token) headers['x-auth-token'] = token;
+
+  fetch(endpoint, { method: 'POST', headers: headers, credentials: 'include', body: body })
+    .then(function(res) { return res.text(); })
+    .then(function(text) {
+      document.getElementById('btn-login').disabled = false;
+      document.getElementById('btn-register').disabled = false;
+      var result;
+      try { result = JSON.parse(text); } catch(e) { errEl.textContent = 'Server error'; return; }
+      if (result.error) { errEl.textContent = result.error; return; }
+      try { setToken(result.token); } catch(e) {}
+      state.username = username;
+      _registerMode = false;
+      hideLoginModal();
+      loadKingdom();
+    })
+    .catch(function(e) {
+      document.getElementById('btn-login').disabled = false;
+      document.getElementById('btn-register').disabled = false;
+      errEl.textContent = 'Connection error: ' + e.message;
+    });
+}
+
 function initLoginModal() {
-  var races = [
-    { value:'high_elf',  label:'High Elf',  bonus:'Excellent research · Powerful magic · Poor military' },
-    { value:'dwarf',     label:'Dwarf',      bonus:'Excellent construction · Exceptional war machines · Good economy · Poor magic · Weak research' },
-    { value:'dire_wolf', label:'Dire Wolf',  bonus:'Exceptional military · Good covert · Terrible research · Terrible magic · Poor economy' },
-    { value:'dark_elf',  label:'Dark Elf',   bonus:'Exceptional covert · Exceptional stealth · Good magic · Poor military · Weak economy' },
-    { value:'human',     label:'Human',      bonus:'No strengths or weaknesses — master of none, threat to all' },
-    { value:'orc',       label:'Orc',        bonus:'Excellent military · Good economy · Poor research · Terrible magic · Weak construction' },
-  ];
-
-  var registerMode = false;
-
-  function updateRaceBonus() {
-    var sel = document.getElementById('auth-race');
-    if (!sel) return;
-    var race = races.find(function(r) { return r.value === sel.value; });
-    var display = document.getElementById('race-bonus-display');
-    if (race && display) display.textContent = race.bonus;
-  }
-
-  document.getElementById('auth-race').addEventListener('change', updateRaceBonus);
-  updateRaceBonus();
-
-  document.getElementById('btn-register').onclick = function() {
-    if (!registerMode) {
-      registerMode = true;
-      document.getElementById('register-fields').style.display = 'block';
-      document.getElementById('btn-register').textContent = 'Create Kingdom';
-      document.getElementById('btn-register').style.background = '#4caf7d';
-      document.getElementById('btn-register').style.color = '#fff';
-      document.getElementById('auth-mode-hint').textContent = 'Choose your race carefully — it cannot be changed later.';
-      updateRaceBonus();
-    } else {
-      doAttempt('/api/auth/register');
-    }
-  };
-
-  document.getElementById('btn-login').onclick = function() {
-    doAttempt('/api/auth/login');
-  };
-
-  document.getElementById('auth-pass').addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') {
-      doAttempt(registerMode ? '/api/auth/register' : '/api/auth/login');
-    }
-  });
-
-  async function doAttempt(endpoint) {
-    var username = document.getElementById('auth-user').value.trim();
-    var password = document.getElementById('auth-pass').value;
-    var errEl    = document.getElementById('auth-error');
-    if (!username || !password) { errEl.textContent = 'Username and password required'; return; }
-
-    var body;
-    if (endpoint === '/api/auth/register') {
-      var kingdomName = document.getElementById('auth-kingdom').value.trim();
-      var race        = document.getElementById('auth-race').value;
-      if (!kingdomName) { errEl.textContent = 'Kingdom name required'; return; }
-      body = { username: username, password: password, kingdomName: kingdomName, race: race };
-    } else {
-      body = { username: username, password: password };
-    }
-
-    document.getElementById('btn-login').disabled = true;
-    document.getElementById('btn-register').disabled = true;
-    errEl.textContent = '';
-
-    var result = await apiCall('POST', endpoint, body);
-
-    document.getElementById('btn-login').disabled = false;
-    document.getElementById('btn-register').disabled = false;
-
-    if (result.error) { errEl.textContent = result.error; return; }
-
-    try { setToken(result.token); } catch(e) {}
-    state.username = username;
-    hideLoginModal();
-    registerMode = false;
-    loadKingdom();
-  }
+  // handlers now inline — nothing to do
 }
 
 async function loadKingdom() {
@@ -2796,8 +2782,8 @@ document.addEventListener('DOMContentLoaded', function() {
       <div id="race-bonus-display" style="font-size:12px;color:#7c6af5;padding:6px 10px;background:rgba(124,106,245,.08);border-radius:6px;margin-bottom:10px;min-height:20px;"></div>
     </div>
     <div style="display:flex;gap:10px;margin-top:16px">
-      <button id="btn-login" style="flex:1;padding:10px;font-size:14px;font-weight:600;background:#7c6af5;border:none;border-radius:8px;color:#fff;cursor:pointer;">Login</button>
-      <button id="btn-register" style="flex:1;padding:10px;font-size:14px;font-weight:600;background:#c49535;border:none;border-radius:8px;color:#0d0e14;cursor:pointer;">Register</button>
+      <button id="btn-login" onclick="doLogin()" style="flex:1;padding:10px;font-size:14px;font-weight:600;background:#7c6af5;border:none;border-radius:8px;color:#fff;cursor:pointer;">Login</button>
+      <button id="btn-register" onclick="doRegister()" style="flex:1;padding:10px;font-size:14px;font-weight:600;background:#c49535;border:none;border-radius:8px;color:#0d0e14;cursor:pointer;">Register</button>
     </div>
     <div id="auth-mode-hint" style="font-size:12px;color:#5e6080;text-align:center;margin-top:12px;">New to Narmir? Click Register to create your kingdom.</div>
   </div>
