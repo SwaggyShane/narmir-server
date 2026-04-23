@@ -2765,22 +2765,7 @@ async function saveTrainingAllocation() {
 }
 
 // Visible debug helper for mobile
-function debugLog(msg) {
-  try {
-    var d = document.getElementById('debug-banner');
-    if (!d) {
-      d = document.createElement('div');
-      d.id = 'debug-banner';
-      d.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#1a1c27;color:#e8b84b;font-size:11px;padding:6px 10px;z-index:99999;max-height:120px;overflow-y:auto;border-top:1px solid #363a52;';
-      if (document.body) document.body.appendChild(d);
-    }
-    if (d) {
-      var line = document.createElement('div');
-      line.textContent = new Date().toLocaleTimeString() + ' · ' + msg;
-      d.insertBefore(line, d.firstChild);
-    }
-  } catch(e) {}
-}
+function debugLog(msg) { /* disabled */ }
 
 // Boot — check auth then show modal or load kingdom
 async function doLogout() {
