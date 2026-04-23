@@ -104,6 +104,7 @@ textarea{width:100%;resize:vertical;min-height:60px}
     <h2 style="margin:0;flex:1">Kingdoms</h2>
     <input type="text" id="search-input" placeholder="Search by name or username..." style="width:220px" oninput="filterTable(this.value)">
     <button class="btn btn-green" onclick="resetAllTurns()">Reset all turns to 200</button>
+    <button class="btn btn-red" onclick="resetAllKingdoms()" style="margin-left:4px">⚠️ Reset all kingdoms to start</button>
   </div>
 
   <div style="overflow-x:auto">
@@ -316,6 +317,15 @@ async function resetTurns(kingdomId, name) {
   var r = await api('POST','/api/admin/reset-turns',{kingdomId:kingdomId});
   if (r.error) return toast(r.error,'error');
   toast('Turns reset for '+name,'success'); loadData();
+}
+
+async function resetAllKingdoms() {
+  if (!confirm('⚠️ WARNING: This will wipe ALL kingdoms back to starting stats.\n\nAll gold, troops, buildings, research, and news will be lost.\n\nThis cannot be undone. Are you sure?')) return;
+  if (!confirm('FINAL WARNING: Reset every kingdom to zero progress right now?')) return;
+  var r = await api('POST', '/api/admin/reset-all-kingdoms');
+  if (r.error) return toast(r.error, 'error');
+  toast('All kingdoms reset to starting stats', 'success');
+  loadData();
 }
 
 async function resetAllTurns() {
