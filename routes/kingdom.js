@@ -270,6 +270,30 @@ module.exports = function(db) {
     res.json(exps);
   });
 
+  router.post('/expedition/cancel', requireAuth, async (req, res) => {
+    const { id } = req.body;
+    const k = await db.get('SELECT id FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
+    if (!k) return res.status(404).json({ error: 'Kingdom not found' });
+    const exp = await db.get('SELECT * FROM expeditions WHERE id = ? AND kingdom_id = ?', [id, k.id]);
+    if (!exp) return res.status(404).json({ error: 'Expedition not found' });
+    // Return troops
+    await db.run('UPDATE kingdoms SET rangers = rangers + ?, fighters = fighters + ? WHERE id = ?', [exp.rangers, exp.fighters, k.id]);
+    await db.run('DELETE FROM expeditions WHERE id = ?', [id]);
+    res.json({ ok: true });
+  });
+
+  // Admin: clear ALL expeditions for a kingdom (debug tool)
+  router.delete('/expedition/clear-all', requireAuth, async (req, res) => {
+    const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
+    if (!k) return res.status(404).json({ error: 'Kingdom not found' });
+    const exps = await db.all('SELECT * FROM expeditions WHERE kingdom_id = ?', [k.id]);
+    let rangers = 0, fighters = 0;
+    exps.forEach(e => { rangers += e.rangers; fighters += e.fighters; });
+    await db.run('UPDATE kingdoms SET rangers = rangers + ?, fighters = fighters + ? WHERE id = ?', [rangers, fighters, k.id]);
+    await db.run('DELETE FROM expeditions WHERE kingdom_id = ?', [k.id]);
+    res.json({ ok: true, cleared: exps.length });
+  });
+
   // ── Options ───────────────────────────────────────────────────────────────────
   router.post('/options', requireAuth, async (req, res) => {
     const { tax, name } = req.body;
