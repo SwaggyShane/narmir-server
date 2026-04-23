@@ -1201,12 +1201,13 @@ function expeditionRewards(type, rangers, fighters, k) {
   const events  = [];
   const updates = {};
 
-  // Ranger attrition — 1–5% don't return (hazards, desertion, accidents)
-  const attritionPct = type === 'dungeon' ? rand(2, 8) : rand(1, 5);
-  const lost = Math.max(1, Math.floor(rangers * attritionPct / 100));
+  // Ranger attrition — very low: 0–2% scout/deep, 0–3% dungeon
+  const attritionPct = type === 'dungeon' ? rand(0, 3) : rand(0, 2);
+  const lost = Math.floor(rangers * attritionPct / 100);
   const returned = rangers - lost;
   if (lost > 0) rewards.push({ text: `${lost} ranger${lost > 1 ? 's' : ''} did not return from the expedition` });
-  updates.rangers = (k.rangers || 0) + returned;
+  // Rangers returned stored separately so resolveExpeditions can use SQL increment
+  updates._rangers_returned = returned;
 
   if (type === 'scout') {
     // Gold: modest, ranger-scaled
@@ -1303,12 +1304,13 @@ function expeditionRewards(type, rangers, fighters, k) {
     if (!success) {
       // Failed — lose some fighters, all rangers still return (minus attrition already applied)
       const fLost = Math.min(fighters, rand(Math.floor(fighters * 0.15), Math.floor(fighters * 0.40)));
-      updates.fighters = Math.max(0, (k.fighters || 0) + fighters - fLost);
+      const fReturned = fighters - fLost;
+      if (fReturned > 0) updates._fighters_returned = fReturned;
       rewards.push({ text: `The dungeon proved too dangerous — ${fLost} fighters lost in retreat` });
       events.push({ type: 'attack', message: `💀 Dungeon raid FAILED — your forces were overwhelmed. ${fLost.toLocaleString()} fighters lost.` });
     } else {
       // Success — return all fighters
-      updates.fighters = (k.fighters || 0) + fighters;
+      updates._fighters_returned = fighters;
 
       const gold = Math.floor(rand(fighters * 20, fighters * 80) * tacBonus);
       rewards.push({ text: `+${gold.toLocaleString()} gold plundered from the dungeon` });
@@ -1365,7 +1367,12 @@ async function resolveExpeditions(db, k, engine) {
       const { rewards, updates, events } = expeditionRewards(exp.type, exp.rangers, exp.fighters, freshK);
       const label = { scout: '🔭 Scout', deep: '🌲 Deep', dungeon: '⚔️ Dungeon' }[exp.type];
 
-      // Apply kingdom updates
+      // Apply kingdom updates — use SQL INCREMENT for rangers/fighters to avoid race conditions
+      const rangersReturned = updates._rangers_returned !== undefined ? updates._rangers_returned : 0;
+      const fightersReturned = updates._fighters_returned !== undefined ? updates._fighters_returned : 0;
+      delete updates._rangers_returned;
+      delete updates._fighters_returned;
+
       const VALID_KINGDOM_COLS = new Set([
         'gold','mana','land','population','morale','food',
         'fighters','rangers','clerics','mages','thieves','ninjas','researchers','engineers',
@@ -1380,6 +1387,13 @@ async function resolveExpeditions(db, k, engine) {
       if (Object.keys(safeUpdates).length > 0) {
         const cols = Object.keys(safeUpdates).map(c => `${c} = ?`).join(', ');
         await db.run(`UPDATE kingdoms SET ${cols} WHERE id = ?`, [...Object.values(safeUpdates), k.id]);
+      }
+      // Return rangers and fighters using INCREMENT to avoid overwriting concurrent turn updates
+      if (rangersReturned > 0) {
+        await db.run('UPDATE kingdoms SET rangers = rangers + ? WHERE id = ?', [rangersReturned, k.id]);
+      }
+      if (fightersReturned > 0) {
+        await db.run('UPDATE kingdoms SET fighters = fighters + ? WHERE id = ?', [fightersReturned, k.id]);
       }
 
       // Single news line — no reward detail in news
