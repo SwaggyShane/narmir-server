@@ -33,24 +33,35 @@
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
     background: var(--bg);
     color: var(--text);
-    min-height: 100vh;
     font-size: 14px;
     line-height: 1.5;
     -webkit-text-size-adjust: 100%;
+    /* Prevent body scroll — app container handles it */
+    height: 100%; overflow: hidden;
   }
+  html { height: 100%; }
 
   /* ── Mobile-first layout: single column with bottom nav ── */
-  .app { display: flex; flex-direction: column; min-height: 100vh; }
-  .topbar { display: flex; align-items: center; justify-content: space-between; padding: 0 14px; height: 52px; background: var(--bg2); border-bottom: 1px solid var(--border); gap: 10px; flex-shrink: 0; position: sticky; top: 0; z-index: 50; }
+  .app {
+    display: flex; flex-direction: column;
+    height: 100vh; height: 100dvh; /* dvh handles mobile browser chrome */
+    overflow: hidden;
+  }
+  .topbar { display: flex; align-items: center; justify-content: space-between; padding: 0 14px; height: 52px; background: var(--bg2); border-bottom: 1px solid var(--border); gap: 10px; flex-shrink: 0; position: relative; z-index: 50; }
   .sidebar { display: none; }
-  .main { padding: 14px 14px 80px; flex: 1; overflow-y: auto; }
+  .main { padding: 14px 14px 14px; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
   /* ── Bottom nav (mobile) ── */
   .bottom-nav {
-    position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+    /* Static at bottom — flex child, never scrolls away */
+    flex-shrink: 0;
+    position: relative;
+    bottom: auto; left: auto; right: auto;
     background: var(--bg2); border-top: 1px solid var(--border);
     display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch;
     scrollbar-width: none; padding: 0 2px;
+    /* Safe area for phones with home indicator */
+    padding-bottom: env(safe-area-inset-bottom, 0);
   }
   .bottom-nav::-webkit-scrollbar { display: none; }
   .bnav-item {
@@ -66,7 +77,19 @@
     background: var(--red); color: #fff; border-radius: 8px;
     font-size: 9px; font-weight: 700; padding: 1px 4px; line-height: 1.4;
   }
-  .bnav-sep { width: 1px; background: var(--border); margin: 10px 0; flex-shrink: 0; align-self: stretch; }
+  /* ── Mobile panel overrides ── */
+  /* Stack two-column grids vertically on mobile */
+  .exp-grid,
+  #library > div,
+  #shrine > div,
+  #mage_tower > div:first-of-type {
+    grid-template-columns: 1fr !important;
+  }
+  /* Make trow inputs not overflow on small screens */
+  .trow { flex-wrap: wrap; gap: 6px; }
+  .trow .prog-wrap { min-width: 60px; }
+  /* Exploration log full width on mobile */
+  #exploration-log { max-height: 300px; }
 
   /* ── Topbar ── */
   .logo { font-size: 15px; font-weight: 700; letter-spacing: .4px; color: var(--gold); white-space: nowrap; }
@@ -225,11 +248,21 @@
      DESKTOP (≥ 700px)
   ════════════════════════════════════ */
   @media (min-width: 700px) {
-    .app { display: grid; grid-template-columns: 220px 1fr; grid-template-rows: 56px 1fr; }
+    html, body { height: auto; overflow: auto; }
+    .app { display: grid; grid-template-columns: 220px 1fr; grid-template-rows: 56px 1fr; height: auto; min-height: 100vh; overflow: visible; }
     .topbar { grid-column: 1 / -1; padding: 0 20px; height: 56px; position: static; }
     .sidebar { display: flex; flex-direction: column; gap: 4px; background: var(--bg2); border-right: 1px solid var(--border); padding: 16px 12px; overflow-y: auto; }
-    .main { padding: 24px; }
+    .main { padding: 24px; overflow-y: auto; }
     .bottom-nav { display: none; }
+    /* Restore two-col grids on desktop */
+    .exp-grid,
+    #library > div,
+    #shrine > div,
+    #mage_tower > div:first-of-type {
+      grid-template-columns: 1fr 1fr !important;
+    }
+    .trow { flex-wrap: nowrap; }
+    #exploration-log { max-height: 700px; }
     .logo span { display: inline; }
     .tstat.hide-sm { display: block; }
     .topbar-stats { gap: 20px; }
@@ -1189,7 +1222,7 @@
   <!-- Active expeditions bar -->
   <div id="active-expeditions" style="display:none;margin-bottom:12px"></div>
 
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:stretch">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:stretch" class="exp-grid">
 
     <!-- Left col: instant search + three expedition launchers -->
     <div style="display:flex;flex-direction:column;gap:12px">
