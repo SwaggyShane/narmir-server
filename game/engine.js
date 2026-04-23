@@ -1254,12 +1254,14 @@ async function resolveExpeditions(db, k, engine) {
   const exps = await db.all('SELECT * FROM expeditions WHERE kingdom_id = ? AND turns_left > 0', [k.id]);
   for (const exp of exps) {
     const newTurns = exp.turns_left - 1;
+    console.log(`[expedition] id=${exp.id} turns_left=${exp.turns_left} newTurns=${newTurns} completing=${newTurns <= 0}`);
     if (newTurns > 0) {
       await db.run('UPDATE expeditions SET turns_left = ? WHERE id = ?', [newTurns, exp.id]);
       continue;
     }
 
     // Expedition complete — always delete it first so it never gets stuck
+    console.log(`[expedition] COMPLETING id=${exp.id} type=${exp.type}`);
     await db.run('DELETE FROM expeditions WHERE id = ?', [exp.id]);
 
     try {
