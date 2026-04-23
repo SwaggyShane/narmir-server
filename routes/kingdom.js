@@ -137,7 +137,15 @@ module.exports = function(db) {
     res.json({ ok: true, queue: JSON.parse(result.updates.build_queue), gold: result.updates.gold, totalCost: result.totalCost });
   });
 
-  // ── Save build allocation ─────────────────────────────────────────────────────
+  // ── Save training allocation ───────────────────────────────────────────────
+  router.post('/training-allocation', requireAuth, async (req, res) => {
+    const { allocation } = req.body;
+    if (!allocation || typeof allocation !== 'object') return res.status(400).json({ error: 'allocation required' });
+    const k = await db.get('SELECT id FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
+    if (!k) return res.status(404).json({ error: 'Kingdom not found' });
+    await db.run('UPDATE kingdoms SET training_allocation = ? WHERE id = ?', [JSON.stringify(allocation), k.id]);
+    res.json({ ok: true });
+  });
   router.post('/build-allocation', requireAuth, async (req, res) => {
     const { allocation } = req.body;
     if (!allocation || typeof allocation !== 'object') return res.status(400).json({ error: 'allocation required' });
