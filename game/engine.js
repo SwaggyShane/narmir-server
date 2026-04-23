@@ -299,6 +299,14 @@ function processTurn(k) {
   const buildUpdates = processBuildQueue(k, events);
   Object.assign(updates, buildUpdates);
 
+  // ── 8b. Library — mages produce mana, scribes craft maps/blueprints, mages craft scrolls ──
+  const libUpdates = processLibrary({ ...k, ...updates }, events);
+  Object.assign(updates, libUpdates);
+
+  // ── 8c. Active effects — tick down debuffs/buffs ─────────────────────────────
+  const effectUpdates = processActiveEffects({ ...k, ...updates }, events);
+  Object.assign(updates, effectUpdates);
+
   // ── 9. Training fields — passive troop XP each turn ──────────────────────────
   if ((k.bld_training||0) > 0) {
     let troopLevels = {};
@@ -439,12 +447,12 @@ function getCap(field, level) {
 // ── Hire units ────────────────────────────────────────────────────────────────
 
 function hireUnits(k, unit, amount) {
-  const validUnits = ['fighters','rangers','clerics','mages','thieves','ninjas','researchers','engineers'];
+  const validUnits = ['fighters','rangers','clerics','mages','thieves','ninjas','researchers','engineers','scribes'];
   if (!validUnits.includes(unit)) return { error: 'Invalid unit type' };
   if (amount <= 0) return { error: 'Amount must be positive' };
 
   // Level cap check (researchers and engineers have no cap)
-  if (!['researchers','engineers'].includes(unit)) {
+  if (!['researchers','engineers','scribes'].includes(unit)) {
     const cap = getCap(unit, k.level || 1);
     const current = k[unit] || 0;
     if (current >= cap) return { error: `Level ${k.level||1} cap reached for ${unit} (max ${cap.toLocaleString()}) — gain levels to increase` };
@@ -567,19 +575,10 @@ function awardXp(k, activity, amount) {
 
 // Engineer-turns required to complete one unit of each building
 const BUILDING_COST = {
-  farms: 2500,       // 25 turns @ 100 eng
-  barracks: 5000,    // 50 turns
-  outposts: 7500,    // 75 turns
-  guard_towers: 2500,// 25 turns
-  schools: 7500,     // 75 turns
-  armories: 2500,    // 25 turns
-  vaults: 10000,     // 100 turns
-  smithies: 10000,   // 100 turns
-  markets: 10000,    // 100 turns
-  cathedrals: 15000, // 150 turns
-  training: 20000,   // 200 turns
-  colosseums: 5000,  // 50 turns  (taverns)
-  castles: 100000,   // 1000 turns
+  farms: 2500, barracks: 5000, outposts: 7500, guard_towers: 2500,
+  schools: 7500, armories: 2500, vaults: 10000, smithies: 10000,
+  markets: 10000, cathedrals: 15000, training: 20000, colosseums: 5000,
+  castles: 100000, libraries: 10000,
   war_machine: 200, weapons: 10, armor: 10,
 };
 
@@ -588,7 +587,7 @@ const BUILDING_COL = {
   guard_towers: 'bld_guard_towers', schools: 'bld_schools', armories: 'bld_armories',
   vaults: 'bld_vaults', smithies: 'bld_smithies', markets: 'bld_markets',
   cathedrals: 'bld_cathedrals', training: 'bld_training', colosseums: 'bld_colosseums',
-  castles: 'bld_castles',
+  castles: 'bld_castles', libraries: 'bld_libraries',
   war_machine: 'war_machines', weapons: 'weapons_stockpile', armor: 'armor_stockpile',
 };
 
@@ -597,6 +596,7 @@ const BUILDING_GOLD_COST = {
   farms: 50, barracks: 200, outposts: 150, guard_towers: 150,
   schools: 500, armories: 400, vaults: 400, smithies: 800,
   markets: 2000, cathedrals: 1500, training: 10000, colosseums: 1500, castles: 25000,
+  libraries: 2000,
   war_machine: 5000, weapons: 100, armor: 150,
 };
 
@@ -854,15 +854,52 @@ function resolveMilitaryAttack(attacker, defender, fightersSent, magesSent) {
 // ── Magic ─────────────────────────────────────────────────────────────────────
 
 const SPELL_DEFS = {
-  fire:       { minSB: 200,  effect: 'buildings', damageType: 'warm' },
-  rain:       { minSB: 300,  effect: 'buildings', damageType: 'cool' },
-  lightning:  { minSB: 500,  effect: 'troops',    damageType: 'strike' },
-  amnesia:    { minSB: 800,  effect: 'research',  damageType: 'mental' },
-  plague:     { minSB: 1000, effect: 'population',damageType: 'disease' },
-  dispel:     { minSB: 400,  effect: 'friendly',  damageType: 'none' },
-  bless:      { minSB: 600,  effect: 'friendly',  damageType: 'none' },
-  earthquake: { minSB: 1200, effect: 'buildings', damageType: 'force' },
-  shield:     { minSB: 1500, effect: 'friendly',  damageType: 'none' },
+  // Tier 1 — Spellbook 100–400
+  spark:      { minSB: 100,  tier: 1, effect: 'buildings',   damageType: 'fire',    desc: 'Burns a small number of enemy farms' },
+  fog_of_war: { minSB: 150,  tier: 1, effect: 'debuff',      damageType: 'illusion',desc: 'Blinds enemy rangers for 3 turns', duration: 3 },
+  mend:       { minSB: 200,  tier: 1, effect: 'friendly',    damageType: 'none',    desc: 'Heals your own troop casualties from last battle' },
+  blight:     { minSB: 250,  tier: 1, effect: 'debuff',      damageType: 'poison',  desc: 'Poisons enemy food supply for 5 turns', duration: 5 },
+  rain:       { minSB: 300,  tier: 1, effect: 'buildings',   damageType: 'cool',    desc: 'Floods enemy farms — more damage than Spark' },
+  dispel:     { minSB: 400,  tier: 1, effect: 'friendly',    damageType: 'none',    desc: 'Removes all active curses and debuffs from your kingdom' },
+  // Tier 2 — Spellbook 500–900
+  lightning:  { minSB: 500,  tier: 2, effect: 'troops',      damageType: 'strike',  desc: 'Strikes down enemy fighters' },
+  bless:      { minSB: 600,  tier: 2, effect: 'friendly',    damageType: 'none',    desc: 'Boosts morale and population growth for 5 turns', duration: 5 },
+  silence:    { minSB: 700,  tier: 2, effect: 'debuff',      damageType: 'mental',  desc: 'Suppresses enemy research progress for 3 turns', duration: 3 },
+  amnesia:    { minSB: 800,  tier: 2, effect: 'research',    damageType: 'mental',  desc: 'Permanently wipes a chunk of enemy economy research' },
+  drain:      { minSB: 900,  tier: 2, effect: 'mana',        damageType: 'arcane',  desc: 'Siphons mana from enemy kingdom to yours' },
+  // Tier 3 — Spellbook 1000–1500
+  plague:     { minSB: 1000, tier: 3, effect: 'population',  damageType: 'disease', desc: 'Kills enemy population over 5 turns', duration: 5 },
+  earthquake: { minSB: 1200, tier: 3, effect: 'buildings',   damageType: 'force',   desc: 'Destroys buildings across all types' },
+  tempest:    { minSB: 1400, tier: 3, effect: 'troops',      damageType: 'storm',   desc: 'Kills all troop types simultaneously' },
+  shield:     { minSB: 1500, tier: 3, effect: 'friendly',    damageType: 'none',    desc: 'Reduces incoming spell damage by 50% for 5 turns', duration: 5 },
+  // Tier 4 — Spellbook 2000+
+  armageddon: { minSB: 2000, tier: 4, effect: 'catastrophic',damageType: 'void',    desc: 'Destroys land, buildings, and population simultaneously. One cast, total devastation.' },
+};
+
+// Scroll crafting requirements: { mages needed, turns to complete }
+const SCROLL_REQUIREMENTS = {
+  spark:      { mages: 5,   turns: 5  },
+  fog_of_war: { mages: 8,   turns: 8  },
+  mend:       { mages: 8,   turns: 10 },
+  blight:     { mages: 10,  turns: 12 },
+  rain:       { mages: 10,  turns: 15 },
+  dispel:     { mages: 12,  turns: 15 },
+  lightning:  { mages: 15,  turns: 20 },
+  bless:      { mages: 15,  turns: 20 },
+  silence:    { mages: 20,  turns: 25 },
+  amnesia:    { mages: 20,  turns: 30 },
+  drain:      { mages: 25,  turns: 30 },
+  plague:     { mages: 30,  turns: 40 },
+  earthquake: { mages: 35,  turns: 50 },
+  tempest:    { mages: 40,  turns: 60 },
+  shield:     { mages: 40,  turns: 60 },
+  armageddon: { mages: 100, turns: 200 },
+};
+
+// Map/blueprint crafting requirements (scribes)
+const SCRIBE_ITEMS = {
+  map:       { scribes: 3,  turns: 10, desc: 'Required to interact with another kingdom' },
+  blueprint: { scribes: 5,  turns: 20, desc: 'Boosts construction speed by 10% when used' },
 };
 
 function castSpell(caster, target, spellId, power, duration, obscure) {
@@ -1318,14 +1355,122 @@ async function resolveExpeditions(db, k, engine) {
   }
 }
 
+// ── Library processing — runs each turn ──────────────────────────────────────
+function processLibrary(k, events) {
+  const updates = {};
+  const libs = k.bld_libraries || 0;
+  if (libs === 0) return updates;
+
+  let alloc = {};
+  try { alloc = JSON.parse(k.library_allocation || '{}'); } catch { alloc = {}; }
+  let progress = {};
+  try { progress = JSON.parse(k.library_progress || '{}'); } catch { progress = {}; }
+  let scrolls = {};
+  try { scrolls = JSON.parse(k.scrolls || '{}'); } catch { scrolls = {}; }
+
+  const magesInLib   = Math.min(k.mages   || 0, Number(alloc.mages)   || 0);
+  const scribesInLib = Math.min(k.scribes || 0, Number(alloc.scribes) || 0);
+
+  // Library capacity: each library holds 20 mages or scribes
+  const capacity = libs * 20;
+  const effectiveMages   = Math.min(magesInLib,   capacity);
+  const effectiveScribes = Math.min(scribesInLib, capacity);
+
+  // Mages produce mana: 1 mana per 10 mages per turn
+  if (effectiveMages > 0) {
+    const manaGain = Math.floor(effectiveMages / 10);
+    if (manaGain > 0) {
+      updates.mana = (k.mana || 0) + manaGain;
+    }
+  }
+
+  // Scribes work on queued item (map or blueprint)
+  const scribeQueue = alloc.scribe_craft || null; // 'map' or 'blueprint'
+  if (effectiveScribes > 0 && scribeQueue && SCRIBE_ITEMS[scribeQueue]) {
+    const req = SCRIBE_ITEMS[scribeQueue];
+    const effective = Math.min(effectiveScribes, req.scribes);
+    const progressKey = 'scribe_' + scribeQueue;
+    const workDone = effective >= req.scribes ? 1 : effective / req.scribes;
+    const newProg = (progress[progressKey] || 0) + workDone;
+    if (newProg >= req.turns) {
+      // Item completed
+      progress[progressKey] = 0;
+      if (scribeQueue === 'map') {
+        updates.maps = (k.maps || 0) + 1;
+        events.push({ type: 'system', message: `📜 Your scribes completed a map — you can now interact with other kingdoms.` });
+      } else {
+        updates.blueprints_stored = (k.blueprints_stored || 0) + 1;
+        events.push({ type: 'system', message: `📐 Your scribes completed a blueprint — construction speed bonus applied.` });
+      }
+    } else {
+      progress[progressKey] = newProg;
+    }
+  }
+
+  // Mages work on queued scroll
+  const scrollCraft = alloc.scroll_craft || null;
+  if (effectiveMages > 0 && scrollCraft && SCROLL_REQUIREMENTS[scrollCraft]) {
+    const req = SCROLL_REQUIREMENTS[scrollCraft];
+    const effectiveMagesForScroll = Math.min(effectiveMages, req.mages);
+    const workDone = effectiveMagesForScroll >= req.mages ? 1 : effectiveMagesForScroll / req.mages;
+    const progKey = 'scroll_' + scrollCraft;
+    const newProg = (progress[progKey] || 0) + workDone;
+    if (newProg >= req.turns) {
+      progress[progKey] = 0;
+      scrolls[scrollCraft] = (scrolls[scrollCraft] || 0) + 1;
+      updates.scrolls = JSON.stringify(scrolls);
+      events.push({ type: 'system', message: `✨ A ${scrollCraft.replace('_',' ')} scroll has been completed and stored in your library.` });
+    } else {
+      progress[progKey] = newProg;
+    }
+  }
+
+  updates.library_progress = JSON.stringify(progress);
+  return updates;
+}
+
+// ── Active effects processing — runs each turn ────────────────────────────────
+function processActiveEffects(k, events) {
+  let effects = {};
+  try { effects = JSON.parse(k.active_effects || '{}'); } catch { effects = {}; }
+  if (Object.keys(effects).length === 0) return {};
+
+  const updates = {};
+  const expired = [];
+
+  for (const [effect, data] of Object.entries(effects)) {
+    const remaining = (data.turns_left || 1) - 1;
+    if (remaining <= 0) {
+      expired.push(effect);
+      events.push({ type: 'system', message: `The ${effect.replace('_',' ')} effect on your kingdom has expired.` });
+    } else {
+      // Apply ongoing effect
+      if (effect === 'blight') {
+        updates.food = Math.max(0, (updates.food !== undefined ? updates.food : k.food || 0) - (data.damage || 500));
+      } else if (effect === 'plague') {
+        const lost = Math.floor((k.population || 0) * 0.02);
+        updates.population = Math.max(0, (k.population || 0) - lost);
+        events.push({ type: 'attack', message: `☠️ Plague ravages your kingdom — ${lost.toLocaleString()} citizens have perished.` });
+      } else if (effect === 'silence') {
+        // Research suppressed — handled in processTurn by checking for silence
+      }
+      effects[effect] = { ...data, turns_left: remaining };
+    }
+  }
+
+  expired.forEach(e => delete effects[e]);
+  updates.active_effects = JSON.stringify(effects);
+  return updates;
+}
+
 module.exports = {
   goldPerTurn, manaPerTurn, foodBalance, popGrowth,
   processTurn, hireUnits, studyDiscipline,
-  queueBuildings, processBuildQueue, forgeTools,
+  queueBuildings, processBuildQueue, processLibrary, processActiveEffects, forgeTools,
   resolveMilitaryAttack, castSpell,
   covertSpy, covertLoot, covertAssassinate,
   resolveAllianceDefence, resolveExpeditions,
   awardXp, xpForLevel, xpToNextLevel, levelFromXp,
   awardTroopXp, troopXpForLevel, effectiveTroopLevel,
-  TROOP_RACE_BONUS, RACE_BONUSES, UNIT_COST, BUILDING_COST, BUILDING_GOLD_COST, BUILDING_COL, SPELL_DEFS,
+  TROOP_RACE_BONUS, RACE_BONUSES, UNIT_COST, BUILDING_COST, BUILDING_GOLD_COST, BUILDING_COL, SPELL_DEFS, SCROLL_REQUIREMENTS, SCRIBE_ITEMS,
 };
