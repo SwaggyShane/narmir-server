@@ -1375,45 +1375,9 @@ function processMageTower(k, events) {
   const towers = k.bld_cathedrals || 0;
   if (towers === 0) return updates;
 
-  let towerAlloc = {};
-  try { towerAlloc = JSON.parse(k.mage_tower_allocation || '{}'); } catch { towerAlloc = {}; }
-
-  // Mages assigned to research in towers
-  const magesForResearch = Math.min(Number(towerAlloc.research_mages) || 0, k.mages || 0);
-  const capacity = towers * 20;
-  const effectiveMages = Math.min(magesForResearch, capacity);
-  if (effectiveMages <= 0) return updates;
-
-  // Each mage in tower contributes to the research_allocation discipline chosen
-  const discipline = towerAlloc.research_discipline || null;
-  if (!discipline) return updates;
-
-  const DISC_COL = {
-    economy:'res_economy', weapons:'res_weapons', armor:'res_armor', military:'res_military',
-    attack_magic:'res_attack_magic', defense_magic:'res_defense_magic',
-    entertainment:'res_entertainment', construction:'res_construction',
-    war_machines:'res_war_machines', spellbook:'res_spellbook',
-  };
-  const col = DISC_COL[discipline];
-  if (!col) return updates;
-
-  const schoolBonus = 1 + (Math.floor((k.bld_schools||0) / 5) * 0.02);
-  const isMagic = ['attack_magic','defense_magic','spellbook'].includes(discipline);
-  const raceMulti = isMagic ? raceBonus(k, 'magic') : raceBonus(k, 'research');
-  const effective = Math.floor(effectiveMages * schoolBonus * raceMulti);
-
-  let inc = 0;
-  if (effective >= 2000) inc = 5;
-  else if (effective >= 1200) inc = 3;
-  else if (effective >= 600)  inc = 2;
-  else if (effective >= 100)  inc = 1;
-
-  if (inc > 0) {
-    const current = updates[col] !== undefined ? updates[col] : (k[col] || 0);
-    updates[col] = Math.min(10000, current + inc);
-    events.push({ type: 'system', message: `🗼 Mage Tower: ${discipline.replace('_',' ')} advanced by ${inc} (${effectiveMages.toLocaleString()} mages studying).` });
-  }
-
+  // Mage towers are for mana production only — research is done by researchers
+  // manaPerTurn() already handles the mage allocation mana bonus
+  // Nothing additional to do here — mana is added in processTurn step 2
   return updates;
 }
 
