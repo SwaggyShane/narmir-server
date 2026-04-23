@@ -1542,23 +1542,39 @@ async function loadActiveExpeditions() {
   var labels = { scout: '🔭 Scout', deep: '🌲 Deep', dungeon: '⚔️ Dungeon' };
   var colors = { scout: 'var(--green)', deep: 'var(--purple)', dungeon: 'var(--red)' };
   bar.style.display = 'flex';
-  bar.style.cssText = 'display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px';
+  bar.style.cssText = 'display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;align-items:center';
   bar.innerHTML = result.map(function(exp) {
     return '<div style="display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border);border-left:3px solid ' + (colors[exp.type]||'var(--text3)') + ';border-radius:var(--radius);padding:8px 12px;font-size:13px">'
       + '<span style="font-weight:600;color:' + (colors[exp.type]||'var(--text)') + '">' + (labels[exp.type]||exp.type) + '</span>'
       + '<span style="color:var(--text3)">·</span>'
       + '<span style="color:var(--text2)">' + exp.turns_left + ' turns remaining</span>'
       + '<span style="color:var(--text3)">·</span>'
-      + '<span style="color:var(--text3)">' + exp.rangers + ' rangers' + (exp.fighters > 0 ? ', ' + exp.fighters + ' fighters' : '') + '</span>'
+      + '<span style="color:var(--text3)">' + exp.rangers.toLocaleString() + ' rangers' + (exp.fighters > 0 ? ', ' + exp.fighters.toLocaleString() + ' fighters' : '') + '</span>'
+      + '<button onclick="cancelExpedition(' + exp.id + ')" style="margin-left:6px;padding:2px 8px;font-size:11px;background:transparent;border:1px solid var(--border2);border-radius:4px;color:var(--text3);cursor:pointer">Cancel</button>'
       + '</div>';
-  }).join('');
+  }).join('') + '<button onclick="clearAllExpeditions()" style="padding:4px 10px;font-size:11px;background:transparent;border:1px solid var(--red);border-radius:4px;color:var(--red);cursor:pointer">Clear all stuck</button>';
 
-  // Disable buttons for active types
   ['scout','deep','dungeon'].forEach(function(t) {
     var active = result.find(function(e) { return e.type === t; });
     var btn = document.getElementById('btn-exp-' + t);
     if (btn) { btn.disabled = !!active; btn.textContent = active ? 'Underway — ' + active.turns_left + ' turns left' : (t === 'dungeon' ? 'Launch raid' : 'Launch expedition'); }
   });
+}
+
+async function cancelExpedition(id) {
+  var result = await apiCall('POST', '/api/kingdom/expedition/cancel', { id: id });
+  if (result.error) return toast(result.error, 'error');
+  toast('Expedition cancelled — troops returned', 'success');
+  await loadActiveExpeditions();
+  syncUI();
+}
+
+async function clearAllExpeditions() {
+  var result = await apiCall('DELETE', '/api/kingdom/expedition/clear-all');
+  if (result.error) return toast(result.error, 'error');
+  toast('Cleared ' + (result.cleared || 0) + ' stuck expeditions — troops returned', 'success');
+  await loadActiveExpeditions();
+  loadKingdom();
 }
 
 function updateExpeditionAvailability() {
