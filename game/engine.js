@@ -80,6 +80,66 @@ function researchIncrement(k, discipline, researchersAssigned) {
   return 0;
 }
 
+// ── Troop levelling ───────────────────────────────────────────────────────────
+
+// XP needed to reach each troop level (1-100)
+// Early levels fast, late levels very slow
+function troopXpForLevel(level) {
+  if (level <= 1)  return 0;
+  if (level <= 10) return level * 100;
+  if (level <= 25) return level * 300;
+  if (level <= 50) return level * 800;
+  if (level <= 75) return level * 2000;
+  return level * 5000;
+}
+
+// Race training bonuses — which races train which troop types faster
+// These can push effective level beyond 100 in combat calculations
+const TROOP_RACE_BONUS = {
+  high_elf:  { clerics: 1.5, mages: 1.5, researchers: 1.3 },
+  dwarf:     { fighters: 1.3, engineers: 1.5 },
+  dire_wolf: { fighters: 1.8, rangers: 1.5 },
+  dark_elf:  { ninjas: 1.8, thieves: 1.5, rangers: 1.3 },
+  human:     { fighters: 1.1, rangers: 1.1, clerics: 1.1, mages: 1.1, thieves: 1.1, ninjas: 1.1 },
+  orc:       { fighters: 1.6, clerics: 1.2 },
+};
+
+// Get effective troop level including invisible race bonus (used in combat)
+function effectiveTroopLevel(k, unit) {
+  let troopLevels = {};
+  try { troopLevels = JSON.parse(k.troop_levels || '{}'); } catch { troopLevels = {}; }
+  const data = troopLevels[unit] || { level: 1 };
+  const raceBonus = TROOP_RACE_BONUS[k.race]?.[unit] || 1.0;
+  // Race bonus multiplies above level 100 — a Dark Elf ninja at level 100 acts as level 180
+  const effectiveLevel = data.level < 100
+    ? data.level
+    : Math.floor(100 + (data.level - 100) * raceBonus);
+  return Math.max(1, Math.floor(data.level * (data.level >= 100 ? raceBonus : 1 + (raceBonus - 1) * data.level / 100)));
+}
+
+// Award XP to a specific troop type — returns updated troop_levels JSON and any level-ups
+function awardTroopXp(k, unit, xpAmount) {
+  let troopLevels = {};
+  try { troopLevels = JSON.parse(k.troop_levels || '{}'); } catch { troopLevels = {}; }
+  const current = troopLevels[unit] || { level: 1, xp: 0, count: 0 };
+  const cap = 100;
+  if (current.level >= cap) return { troop_levels: JSON.stringify(troopLevels), levelUps: [] };
+
+  const raceBonus = TROOP_RACE_BONUS[k.race]?.[unit] || 1.0;
+  const earned = Math.floor(xpAmount * raceBonus);
+  const newXp = current.xp + earned;
+  const xpNeeded = troopXpForLevel(current.level + 1);
+  const levelUps = [];
+
+  if (newXp >= xpNeeded && current.level < cap) {
+    troopLevels[unit] = { level: current.level + 1, xp: newXp - xpNeeded, count: current.count };
+    levelUps.push(`${unit} reached Level ${current.level + 1}`);
+  } else {
+    troopLevels[unit] = { ...current, xp: newXp };
+  }
+  return { troop_levels: JSON.stringify(troopLevels), levelUps };
+}
+
 // ── Turn processor ────────────────────────────────────────────────────────────
 
 function processTurn(k) {
@@ -239,14 +299,49 @@ function processTurn(k) {
   const buildUpdates = processBuildQueue(k, events);
   Object.assign(updates, buildUpdates);
 
-  // ── 9. Training fields ────────────────────────────────────────────────────────
+  // ── 9. Training fields — passive troop XP each turn ──────────────────────────
   if ((k.bld_training||0) > 0) {
-    const trainingGain = Math.floor(k.bld_training / 50);
-    if (trainingGain > 0) {
-      const current = updates.res_military !== undefined ? updates.res_military : (k.res_military||0);
-      const newVal = Math.min(MAX_RESEARCH, current + trainingGain);
-      updates.res_military = newVal;
-      events.push({ type: 'system', message: `🏋️ Training fields advanced Military Tactics by ${trainingGain} to ${newVal}%.` });
+    let troopLevels = {};
+    try { troopLevels = JSON.parse(k.troop_levels || '{}'); } catch { troopLevels = {}; }
+    let allocation = {};
+    try { allocation = JSON.parse(k.training_allocation || '{}'); } catch { allocation = {}; }
+
+    const TROOP_TYPES = ['fighters','rangers','clerics','mages','thieves','ninjas'];
+    const trainingFields = k.bld_training || 0;
+    const trainingCapacity = trainingFields * 50; // each field trains 50 units per turn
+    let advancedTroops = [];
+
+    TROOP_TYPES.forEach(function(unit) {
+      const assigned = Number(allocation[unit]) || 0;
+      if (assigned <= 0) return;
+
+      const currentData = troopLevels[unit] || { level: 1, xp: 0, count: 0 };
+      const capLevel = 100;
+      if (currentData.level >= capLevel) return; // at visible cap
+
+      // XP gain per turn based on training fields, weapons/armor equipped
+      const weaponsEquipped = Math.min(assigned, k.weapons_stockpile || 0);
+      const armorEquipped   = Math.min(assigned, k.armor_stockpile   || 0);
+      const equipBonus = 1 + (weaponsEquipped / Math.max(assigned, 1)) * 0.5
+                           + (armorEquipped   / Math.max(assigned, 1)) * 0.5;
+      const raceTrainBonus = TROOP_RACE_BONUS[k.race]?.[unit] || 1.0;
+      const xpGain = Math.floor(trainingCapacity * equipBonus * raceTrainBonus / TROOP_TYPES.length);
+
+      const newXp = currentData.xp + xpGain;
+      const xpNeeded = troopXpForLevel(currentData.level + 1);
+      if (newXp >= xpNeeded) {
+        troopLevels[unit] = { level: currentData.level + 1, xp: newXp - xpNeeded, count: assigned };
+        advancedTroops.push(`${unit} → Level ${currentData.level + 1}`);
+      } else {
+        troopLevels[unit] = { ...currentData, xp: newXp, count: assigned };
+      }
+    });
+
+    updates.troop_levels = JSON.stringify(troopLevels);
+    if (advancedTroops.length > 0) {
+      events.push({ type: 'system', message: `⚔️ Troop training advanced: ${advancedTroops.join(', ')}.` });
+    } else if (trainingFields > 0 && Object.keys(allocation).length > 0) {
+      events.push({ type: 'system', message: `⚔️ ${trainingFields} training field(s) active — troops gaining experience.` });
     }
   }
 
@@ -474,7 +569,7 @@ function awardXp(k, activity, amount) {
 const BUILDING_COST = {
   farms: 10, barracks: 20, outposts: 20, guard_towers: 20,
   schools: 50, armories: 50, vaults: 50, smithies: 150,
-  markets: 300, cathedrals: 250, training: 500, colosseums: 250, castles: 5000,
+  markets: 300, cathedrals: 250, training: 800, colosseums: 250, castles: 5000,
   war_machine: 200, weapons: 10, armor: 10,
 };
 
@@ -491,7 +586,7 @@ const BUILDING_COL = {
 const BUILDING_GOLD_COST = {
   farms: 50, barracks: 200, outposts: 150, guard_towers: 150,
   schools: 500, armories: 400, vaults: 400, smithies: 800,
-  markets: 2000, cathedrals: 1500, training: 3000, colosseums: 1500, castles: 25000,
+  markets: 2000, cathedrals: 1500, training: 10000, colosseums: 1500, castles: 25000,
   war_machine: 5000, weapons: 100, armor: 150,
 };
 
@@ -651,30 +746,34 @@ function resolveMilitaryAttack(attacker, defender, fightersSent, magesSent) {
   if (fightersSent > attacker.fighters) return { error: 'Not enough fighters' };
   if (magesSent > attacker.mages)       return { error: 'Not enough mages' };
 
-  // Attack power — race military and magic bonuses applied
+  // Attack power — race military and magic bonuses + troop level bonus
   // Weapons stockpile: each weapon equips one fighter, up to fighters sent
-  const weaponsEquipped = Math.min(fightersSent, k.weapons_stockpile || 0);
-  const weaponBonus     = 1 + (weaponsEquipped / Math.max(fightersSent, 1)) * 0.25; // up to +25%
+  const weaponsEquipped = Math.min(fightersSent, attacker.weapons_stockpile || 0);
+  const weaponBonus     = 1 + (weaponsEquipped / Math.max(fightersSent, 1)) * 0.25;
+  const atkTroopLvl  = Math.max(1, effectiveTroopLevel(attacker, 'fighters')) / 50; // level 50 = 1.0x, 100 = 2.0x
+  const atkMageLvl   = Math.max(1, effectiveTroopLevel(attacker, 'mages')) / 50;
   const atkWeapon  = (attacker.res_weapons / 100) * weaponBonus;
   const atkTactics = attacker.res_military / 100;
   const atkRace    = raceBonus(attacker, 'military');
   const atkMagic   = raceBonus(attacker, 'magic');
-  const atkFighterPower = fightersSent * atkWeapon * atkTactics * atkRace;
-  const atkMagePower    = magesSent * 2.5 * (attacker.res_attack_magic / 100) * atkMagic;
+  const atkFighterPower = fightersSent * atkWeapon * atkTactics * atkRace * atkTroopLvl;
+  const atkMagePower    = magesSent * 2.5 * (attacker.res_attack_magic / 100) * atkMagic * atkMageLvl;
   // War machines: each adds 500 attack power, scaled by war machines research and race
-  const wmCount    = Math.min(attacker.war_machines || 0, attacker.engineers || 0); // need engineers to operate
+  const wmCount    = Math.min(attacker.war_machines || 0, attacker.engineers || 0);
   const wmBonus    = wmCount * 500 * (attacker.res_war_machines / 100) * raceBonus(attacker, 'war_machines');
   const atkPower = atkFighterPower + atkMagePower + wmBonus;
 
-  // Defence power — armor stockpile reduces casualties taken
+  // Defence power — armor stockpile + troop level bonus
   const armorEquipped = Math.min(defender.fighters, defender.armor_stockpile || 0);
-  const armorBonus    = 1 + (armorEquipped / Math.max(defender.fighters, 1)) * 0.25; // up to +25%
+  const armorBonus    = 1 + (armorEquipped / Math.max(defender.fighters, 1)) * 0.25;
+  const defTroopLvl  = Math.max(1, effectiveTroopLevel(defender, 'fighters')) / 50;
+  const defMageLvl   = Math.max(1, effectiveTroopLevel(defender, 'mages')) / 50;
   const defArmor   = (defender.res_armor / 100) * armorBonus;
   const defTactics = defender.res_military / 100;
   const defRace    = raceBonus(defender, 'military');
   const defMagic   = raceBonus(defender, 'magic');
-  const defFighterPower = defender.fighters * defArmor * defTactics * defRace;
-  const defMagePower    = (defender.mages||0) * 1.5 * (defender.res_defense_magic / 100) * defMagic;
+  const defFighterPower = defender.fighters * defArmor * defTactics * defRace * defTroopLvl;
+  const defMagePower    = (defender.mages||0) * 1.5 * (defender.res_defense_magic / 100) * defMagic * defMageLvl;
   const defStructures   = (Math.floor((defender.bld_guard_towers||0) / 2) * 200)
                         + (Math.floor((defender.bld_castles||0) / 500) * 5000);
   const defPower = defFighterPower + defMagePower + defStructures;
@@ -712,6 +811,14 @@ function resolveMilitaryAttack(attacker, defender, fightersSent, magesSent) {
     land:     defender.land     - landTransferred,
     updated_at: Math.floor(Date.now() / 1000),
   };
+
+  // Award troop XP from combat
+  const atkTroopXp = awardTroopXp(attacker, 'fighters', win ? 30 : 10);
+  const defTroopXp = awardTroopXp(defender, 'fighters', win ? 10 : 20); // defenders learn more from repelling
+  attackerUpdates.troop_levels = atkTroopXp.troop_levels;
+  defenderUpdates.troop_levels = defTroopXp.troop_levels;
+  if (atkTroopXp.levelUps.length) attackerUpdates.troop_levels = atkTroopXp.troop_levels;
+  if (defTroopXp.levelUps.length) defenderUpdates.troop_levels = defTroopXp.troop_levels;
 
   const atkXp = awardXp(attacker, win ? 'combat_win' : 'combat_loss', 1);
   const defXp = awardXp(defender, win ? 'combat_loss' : 'combat_win', 1);
@@ -961,5 +1068,6 @@ module.exports = {
   covertSpy, covertLoot, covertAssassinate,
   resolveAllianceDefence,
   awardXp, xpForLevel, xpToNextLevel, levelFromXp,
-  RACE_BONUSES, UNIT_COST, BUILDING_COST, BUILDING_GOLD_COST, BUILDING_COL, SPELL_DEFS,
+  awardTroopXp, troopXpForLevel, effectiveTroopLevel,
+  TROOP_RACE_BONUS, RACE_BONUSES, UNIT_COST, BUILDING_COST, BUILDING_GOLD_COST, BUILDING_COL, SPELL_DEFS,
 };
