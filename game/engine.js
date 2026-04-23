@@ -1262,13 +1262,12 @@ async function resolveExpeditions(db, k, engine) {
 
     // Expedition complete — always delete it first so it never gets stuck
     console.log(`[expedition] COMPLETING id=${exp.id} type=${exp.type}`);
-    await db.run('DELETE FROM expeditions WHERE id = ?', [exp.id]);
 
     try {
       const { rewards, updates, events } = expeditionRewards(exp.type, exp.rangers, exp.fighters, k);
       const label = { scout: '🔭 Scout', deep: '🌲 Deep', dungeon: '⚔️ Dungeon' }[exp.type];
-      const rarityEmoji = { common: '', uncommon: '✨', rare: '💎', epic: '🔥', legendary: '⚡' };
 
+      // Apply kingdom updates
       const VALID_KINGDOM_COLS = new Set([
         'gold','mana','land','population','morale','food',
         'fighters','rangers','clerics','mages','thieves','ninjas','researchers','engineers',
@@ -1285,22 +1284,23 @@ async function resolveExpeditions(db, k, engine) {
         await db.run(`UPDATE kingdoms SET ${cols} WHERE id = ?`, [...Object.values(safeUpdates), k.id]);
       }
 
-      // Insert one news item per reward (no multiline strings)
+      // Single news line — no reward detail in news
       await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)',
-        [k.id, 'system', `${label} expedition returned! Check the expedition log for your rewards.`, k.turn || 0]);
-      for (const r of rewards) {
-        await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)',
-          [k.id, 'system', `• ${r.text}`, k.turn || 0]);
-      }
+        [k.id, 'system', `${label} expedition returned — see expedition log for rewards.`, k.turn || 0]);
       for (const ev of events) {
         await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)',
           [k.id, ev.type || 'system', ev.message, k.turn || 0]);
       }
+
+      // Store rewards JSON on the row so frontend can show them in the log, then mark completed (turns_left=0)
+      const rewardJson = JSON.stringify(rewards.map(r => r.text));
+      await db.run('UPDATE expeditions SET turns_left = 0, rewards = ? WHERE id = ?', [rewardJson, exp.id]);
+
     } catch (err) {
       console.error(`[expedition] reward error for id=${exp.id} type=${exp.type}:`, err.message);
-      // Expedition already deleted — just insert a consolation news item
+      await db.run('DELETE FROM expeditions WHERE id = ?', [exp.id]);
       await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)',
-        [k.id, 'system', `Your expedition returned but the scouts lost their notes. (reward error)`, k.turn || 0]);
+        [k.id, 'system', `An expedition returned but the scouts lost their notes.`, k.turn || 0]);
     }
   }
 }
