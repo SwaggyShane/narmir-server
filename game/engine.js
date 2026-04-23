@@ -1106,146 +1106,152 @@ const RARITY = {
 };
 
 function expeditionRewards(type, rangers, fighters, k) {
-  const tacBonus = 1 + ((k.res_military || 0) / 1000);
+  const tacBonus = 1 + ((k.res_military || 0) / 2000); // softer bonus
   const rewards = [];
   const events  = [];
   const updates = {};
 
+  // Ranger attrition — 1–5% don't return (hazards, desertion, accidents)
+  const attritionPct = type === 'dungeon' ? rand(2, 8) : rand(1, 5);
+  const lost = Math.max(1, Math.floor(rangers * attritionPct / 100));
+  const returned = rangers - lost;
+  if (lost > 0) rewards.push({ text: `${lost} ranger${lost > 1 ? 's' : ''} did not return from the expedition` });
+  updates.rangers = (k.rangers || 0) + returned;
+
   if (type === 'scout') {
-    // Base rewards — always get something
-    const gold = rand(rangers * 8, rangers * 20) * tacBonus | 0;
-    rewards.push({ rarity: 'common', text: `+${gold.toLocaleString()} gold from foraging`, key: 'gold', val: gold });
+    // Gold: modest, ranger-scaled
+    const gold = Math.floor(rand(rangers * 3, rangers * 8) * tacBonus);
+    rewards.push({ text: `+${gold.toLocaleString()} gold from foraging` });
     updates.gold = (k.gold || 0) + gold;
 
-    const land = rand(Math.floor(rangers * 0.02), Math.floor(rangers * 0.06)) | 0;
-    if (land > 0) {
-      rewards.push({ rarity: 'common', text: `+${land} acres of unclaimed land`, key: 'land', val: land });
-      updates.land = (k.land || 0) + land;
-    }
+    // Land: small find
+    const land = Math.max(1, Math.floor(rand(rangers * 0.01, rangers * 0.03)));
+    rewards.push({ text: `+${land} acre${land > 1 ? 's' : ''} of unclaimed land` });
+    updates.land = (k.land || 0) + land;
 
-    // Uncommon — small mana cache
-    if (roll(0.35)) {
-      const mana = rand(50, 300);
-      rewards.push({ rarity: 'uncommon', text: `+${mana} mana from a hidden shrine`, key: 'mana', val: mana });
+    // Mana cache — 30% chance
+    if (roll(0.30)) {
+      const mana = rand(Math.floor(rangers * 0.2), Math.floor(rangers * 0.8));
+      rewards.push({ text: `+${mana} mana from a hidden shrine` });
       updates.mana = (k.mana || 0) + mana;
     }
-    // Rare — wandering troops join you
-    if (roll(0.15)) {
-      const troops = rand(5, 30);
-      rewards.push({ rarity: 'rare', text: `${troops} wandering fighters pledge allegiance to your kingdom`, key: 'fighters', val: troops });
+    // Wandering fighters — 10% chance, small group
+    if (roll(0.10)) {
+      const troops = rand(2, Math.max(3, Math.floor(rangers * 0.02)));
+      rewards.push({ text: `${troops} wandering fighter${troops > 1 ? 's' : ''} pledge allegiance to your kingdom` });
       updates.fighters = (k.fighters || 0) + troops;
     }
-    // Epic — ancient map (bonus land)
-    if (roll(0.04)) {
-      const bonus = rand(20, 80);
-      rewards.push({ rarity: 'epic', text: `An ancient map reveals ${bonus} additional acres — scouts claim them!`, key: 'land', val: bonus });
+    // Ancient map — 3% chance
+    if (roll(0.03)) {
+      const bonus = rand(Math.floor(rangers * 0.03), Math.floor(rangers * 0.08));
+      rewards.push({ text: `An ancient map reveals ${bonus} additional acres — scouts claim them!` });
       updates.land = (updates.land || k.land || 0) + bonus;
     }
-    // Junk — always a chance of useless nonsense
-    if (roll(0.40)) {
-      rewards.push({ rarity: 'common', text: `Your rangers also found ${junkPrize()}` });
+    // Junk
+    if (roll(0.45)) {
+      rewards.push({ text: `Your rangers also found ${junkPrize()}` });
     }
 
   } else if (type === 'deep') {
-    // Larger base
-    const gold = rand(rangers * 40, rangers * 120) * tacBonus | 0;
-    rewards.push({ rarity: 'common', text: `+${gold.toLocaleString()} gold from deep wilderness caches`, key: 'gold', val: gold });
+    // Gold: better, still ranger-scaled
+    const gold = Math.floor(rand(rangers * 10, rangers * 30) * tacBonus);
+    rewards.push({ text: `+${gold.toLocaleString()} gold from deep wilderness caches` });
     updates.gold = (k.gold || 0) + gold;
 
-    const land = rand(Math.floor(rangers * 0.08), Math.floor(rangers * 0.18)) | 0;
-    rewards.push({ rarity: 'common', text: `+${land} acres of fertile territory`, key: 'land', val: land });
+    // Land: meaningful
+    const land = Math.max(2, Math.floor(rand(rangers * 0.04, rangers * 0.10)));
+    rewards.push({ text: `+${land} acres of fertile territory` });
     updates.land = (k.land || 0) + land;
 
-    // Uncommon — significant mana
-    if (roll(0.6)) {
-      const mana = rand(300, 1500);
-      rewards.push({ rarity: 'uncommon', text: `+${mana} mana from ley lines discovered deep in the wilderness`, key: 'mana', val: mana });
+    // Mana — 55% chance
+    if (roll(0.55)) {
+      const mana = rand(Math.floor(rangers * 0.5), Math.floor(rangers * 2));
+      rewards.push({ text: `+${mana} mana from ley lines discovered deep in the wilderness` });
       updates.mana = (k.mana || 0) + mana;
     }
-    // Rare — research scroll
-    if (roll(0.4)) {
+    // Research scroll — 25% chance, modest boost
+    if (roll(0.25)) {
       const disc = ['res_economy','res_weapons','res_armor','res_military','res_entertainment'][rand(0,4)];
-      const boost = rand(5, 20);
-      const label = disc.replace('res_','').replace('_',' ');
-      rewards.push({ rarity: 'rare', text: `A research scroll found — ${label} +${boost}%`, key: disc, val: boost });
+      const boost = rand(1, 5);
+      const discLabel = disc.replace('res_','').replace('_',' ');
+      rewards.push({ text: `A research scroll found — ${discLabel} +${boost}%` });
       updates[disc] = (k[disc] || 0) + boost;
     }
-    // Rare — mercenary company
-    if (roll(0.3)) {
-      const troops = rand(50, 200);
-      const type2 = roll(0.5) ? 'fighters' : 'rangers';
-      rewards.push({ rarity: 'rare', text: `A mercenary company of ${troops} ${type2} joins your cause`, key: type2, val: troops });
-      updates[type2] = (k[type2] || 0) + troops;
+    // Mercenaries — 20% chance
+    if (roll(0.20)) {
+      const troops = rand(Math.floor(rangers * 0.03), Math.floor(rangers * 0.08));
+      const ttype = roll(0.5) ? 'fighters' : 'rangers';
+      if (troops > 0) {
+        rewards.push({ text: `${troops} mercenary ${ttype} join your cause` });
+        updates[ttype] = (k[ttype] || 0) + troops;
+      }
     }
-    // Epic — large land grant
-    if (roll(0.12)) {
-      const bonus = rand(100, 400);
-      rewards.push({ rarity: 'epic', text: `Ruins of an abandoned kingdom found — you claim ${bonus} acres of its former territory`, key: 'land', val: bonus });
+    // Ruins land — 8% chance
+    if (roll(0.08)) {
+      const bonus = rand(Math.floor(rangers * 0.05), Math.floor(rangers * 0.15));
+      rewards.push({ text: `Ruins of an abandoned kingdom found — you claim ${bonus} acres of its former territory` });
       updates.land = (updates.land || k.land || 0) + bonus;
     }
-    // Legendary — ancient artifact (permanent research boost)
-    if (roll(0.03)) {
+    // Legendary artifact — 2% chance
+    if (roll(0.02)) {
       const disc = ['res_spellbook','res_attack_magic','res_defense_magic','res_war_machines','res_construction'][rand(0,4)];
-      const boost = rand(25, 75);
-      const label = disc.replace('res_','').replace('_',' ');
-      rewards.push({ rarity: 'legendary', text: `⚡ LEGENDARY: An ancient artifact of ${label} — permanent +${boost}% to ${label}`, key: disc, val: boost });
+      const boost = rand(5, 15);
+      const discLabel = disc.replace('res_','').replace('_',' ');
+      rewards.push({ text: `⚡ An ancient artifact of ${discLabel} — permanent +${boost}%` });
       updates[disc] = (k[disc] || 0) + boost;
     }
-    // Junk — the deep wilderness is full of weird stuff
+    // Junk
     if (roll(0.60)) {
-      rewards.push({ rarity: 'common', text: `Hidden deep in the wilderness, your rangers also discovered ${junkPrize()}` });
+      rewards.push({ text: `Hidden deep in the wilderness, your rangers also discovered ${junkPrize()}` });
     }
 
   } else if (type === 'dungeon') {
     const power = (rangers + fighters * 2) * tacBonus;
-    const successChance = Math.min(0.9, 0.3 + (power / 50000));
+    const successChance = Math.min(0.85, 0.25 + (power / 80000));
     const success = roll(successChance);
 
     if (!success) {
-      // Failed raid — troops lost
-      const lost = rand(Math.floor(fighters * 0.1), Math.floor(fighters * 0.35));
-      updates.fighters = Math.max(0, (k.fighters || 0) + fighters - lost);
-      rewards.push({ rarity: 'common', text: `The dungeon proved too dangerous — ${lost} fighters lost in retreat`, key: 'fighters', val: -lost });
-      events.push({ type: 'attack', message: `💀 Dungeon raid FAILED — your forces were overwhelmed. ${lost.toLocaleString()} fighters lost.` });
+      // Failed — lose some fighters, all rangers still return (minus attrition already applied)
+      const fLost = Math.min(fighters, rand(Math.floor(fighters * 0.15), Math.floor(fighters * 0.40)));
+      updates.fighters = Math.max(0, (k.fighters || 0) + fighters - fLost);
+      rewards.push({ text: `The dungeon proved too dangerous — ${fLost} fighters lost in retreat` });
+      events.push({ type: 'attack', message: `💀 Dungeon raid FAILED — your forces were overwhelmed. ${fLost.toLocaleString()} fighters lost.` });
     } else {
-      // Success — return all troops
+      // Success — return all fighters
       updates.fighters = (k.fighters || 0) + fighters;
 
-      const gold = rand(fighters * 100, fighters * 400) * tacBonus | 0;
-      rewards.push({ rarity: 'uncommon', text: `+${gold.toLocaleString()} gold plundered from the dungeon`, key: 'gold', val: gold });
+      const gold = Math.floor(rand(fighters * 20, fighters * 80) * tacBonus);
+      rewards.push({ text: `+${gold.toLocaleString()} gold plundered from the dungeon` });
       updates.gold = (k.gold || 0) + gold;
 
-      const mana = rand(500, 3000);
-      rewards.push({ rarity: 'rare', text: `+${mana} mana from dungeon ley stones`, key: 'mana', val: mana });
+      const mana = rand(Math.floor(rangers * 1), Math.floor(rangers * 4));
+      rewards.push({ text: `+${mana} mana from dungeon ley stones` });
       updates.mana = (k.mana || 0) + mana;
 
-      // Epic — always get something good on success
+      // Research boost — always on success
       const disc = ['res_weapons','res_armor','res_military','res_attack_magic','res_spellbook'][rand(0,4)];
-      const boost = rand(15, 50);
-      const label = disc.replace('res_','').replace('_',' ');
-      rewards.push({ rarity: 'epic', text: `Dungeon tome found — ${label} permanently +${boost}%`, key: disc, val: boost });
+      const boost = rand(3, 12);
+      const discLabel = disc.replace('res_','').replace('_',' ');
+      rewards.push({ text: `Dungeon tome found — ${discLabel} permanently +${boost}%` });
       updates[disc] = (k[disc] || 0) + boost;
 
-      // Legendary — rare dungeon artifact
-      if (roll(0.15)) {
-        const wm = rand(5, 25);
-        rewards.push({ rarity: 'legendary', text: `⚡ LEGENDARY: Ancient war machines recovered from the dungeon depths — +${wm} war machines`, key: 'war_machines', val: wm });
+      // War machines — 12% chance
+      if (roll(0.12)) {
+        const wm = rand(1, Math.max(2, Math.floor(fighters / 500)));
+        rewards.push({ text: `⚡ Ancient war machine${wm > 1 ? 's' : ''} recovered from the dungeon depths — +${wm}` });
         updates.war_machines = (k.war_machines || 0) + wm;
       }
-      if (roll(0.08)) {
-        const boost2 = rand(50, 150);
-        rewards.push({ rarity: 'legendary', text: `⚡ LEGENDARY: The dungeon's heart pulsed with ancient magic — spellbook permanently +${boost2}`, key: 'res_spellbook', val: boost2 });
+      // Spellbook legendary — 6% chance
+      if (roll(0.06)) {
+        const boost2 = rand(10, 40);
+        rewards.push({ text: `⚡ The dungeon's heart pulsed with ancient magic — spellbook permanently +${boost2}` });
         updates.res_spellbook = (updates.res_spellbook || k.res_spellbook || 0) + boost2;
       }
-      // Even dungeon raiders find junk
       if (roll(0.5)) {
-        rewards.push({ rarity: 'common', text: `Amid the carnage, someone pocketed ${junkPrize()}` });
+        rewards.push({ text: `Amid the carnage, someone pocketed ${junkPrize()}` });
       }
     }
   }
-
-  // Return rangers in all cases
-  updates.rangers = (k.rangers || 0) + rangers;
 
   return { rewards, updates, events };
 }
@@ -1264,7 +1270,9 @@ async function resolveExpeditions(db, k, engine) {
     console.log(`[expedition] COMPLETING id=${exp.id} type=${exp.type}`);
 
     try {
-      const { rewards, updates, events } = expeditionRewards(exp.type, exp.rangers, exp.fighters, k);
+      // Fetch fresh kingdom state to avoid stale merged values
+      const freshK = await db.get('SELECT * FROM kingdoms WHERE id = ?', [k.id]) || k;
+      const { rewards, updates, events } = expeditionRewards(exp.type, exp.rangers, exp.fighters, freshK);
       const label = { scout: '🔭 Scout', deep: '🌲 Deep', dungeon: '⚔️ Dungeon' }[exp.type];
 
       // Apply kingdom updates
