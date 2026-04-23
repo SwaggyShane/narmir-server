@@ -1899,6 +1899,8 @@ async function takeTurn() {
   }
   if (btn) btn.style.opacity = (state.turns_stored || 0) > 0 ? '1' : '0.4';
   toast('Turn ' + state.turn + ' · ' + (state.turns_stored || 0) + ' turns left', 'success');
+  // Refresh expedition display after tick
+  loadActiveExpeditions();
 }
 
 function syncUI() {
