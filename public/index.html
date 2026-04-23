@@ -1916,21 +1916,25 @@ async function apiCall(method, path, body) {
     var headers = { 'Content-Type': 'application/json' };
     var storedToken = localStorage.getItem('narmir_token');
     if (storedToken) headers['x-auth-token'] = storedToken;
+    var controller = new AbortController();
+    var timeout = setTimeout(function() { controller.abort(); }, 10000);
     var res = await fetch(path, {
       method: method,
       headers: headers,
       credentials: 'include',
+      signal: controller.signal,
       body: body ? JSON.stringify(body) : undefined,
     });
+    clearTimeout(timeout);
     var text = await res.text();
     try {
       return JSON.parse(text);
     } catch {
-      console.error('[api] non-JSON response (' + res.status + '):', text.slice(0, 200));
-      return { error: 'Server error ' + res.status + ' — check Render logs' };
+      debugLog('non-JSON ' + res.status + ' from ' + path + ': ' + text.slice(0,80));
+      return { error: 'Server error ' + res.status };
     }
   } catch (err) {
-    console.error('[api] fetch error:', method, path, err);
+    debugLog('fetch error ' + path + ': ' + err.message);
     return { error: err.message };
   }
 }
@@ -1984,8 +1988,10 @@ function showLoginModal() {
   document.body.appendChild(overlay);
 
   var registerMode = false;
+  var submitting = false;
 
   document.getElementById('btn-register').onclick = function() {
+    if (submitting) return;
     if (!registerMode) {
       // Switch to register mode — show extra fields
       registerMode = true;
@@ -2000,10 +2006,14 @@ function showLoginModal() {
     }
   };
 
-  document.getElementById('btn-login').onclick = function() { attempt('/api/auth/login'); };
+  document.getElementById('btn-login').onclick = function() {
+    if (submitting) return;
+    attempt('/api/auth/login');
+  };
 
   document.getElementById('auth-pass').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') {
+      if (submitting) return;
       if (registerMode) attempt('/api/auth/register');
       else attempt('/api/auth/login');
     }
@@ -2021,16 +2031,18 @@ function showLoginModal() {
   updateRaceBonus();
 
   async function attempt(endpoint) {
+    if (submitting) return;
+    submitting = true;
     var username    = document.getElementById('auth-user').value.trim();
     var password    = document.getElementById('auth-pass').value;
     var errEl       = document.getElementById('auth-error');
-    if (!username || !password) { errEl.textContent = 'Username and password required'; return; }
+    if (!username || !password) { errEl.textContent = 'Username and password required'; submitting = false; return; }
 
     var body;
     if (endpoint === '/api/auth/register') {
       var kingdomName = document.getElementById('auth-kingdom').value.trim();
       var race        = document.getElementById('auth-race').value;
-      if (!kingdomName) { errEl.textContent = 'Kingdom name required'; return; }
+      if (!kingdomName) { errEl.textContent = 'Kingdom name required'; submitting = false; return; }
       body = { username: username, password: password, kingdomName: kingdomName, race: race };
     } else {
       body = { username: username, password: password };
@@ -2043,10 +2055,13 @@ function showLoginModal() {
     var result = await apiCall('POST', endpoint, body);
     debugLog('auth result: ' + (result.error ? 'error: ' + result.error : 'ok, token=' + !!result.token));
 
-    document.getElementById('btn-login').disabled = false;
-    document.getElementById('btn-register').disabled = false;
-
-    if (result.error) { errEl.textContent = result.error; return; }
+    if (result.error) {
+      errEl.textContent = result.error;
+      document.getElementById('btn-login').disabled = false;
+      document.getElementById('btn-register').disabled = false;
+      submitting = false;
+      return;
+    }
     if (result.token) localStorage.setItem('narmir_token', result.token);
     state.username = username;
     overlay.innerHTML = '<div style="color:#e8b84b;font-size:16px;font-weight:600;text-align:center;padding:40px">Loading your kingdom...</div>';
