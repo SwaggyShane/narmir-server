@@ -1961,6 +1961,9 @@ async function apiCall(method, path, body) {
 }
 
 function showLoginModal() {
+  // Remove any existing modal first
+  var existing = document.getElementById('login-overlay');
+  if (existing) existing.parentNode && existing.parentNode.removeChild(existing);
   var overlay = document.createElement('div');
   overlay.id = 'login-overlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(13,14,20,.97);z-index:9999;display:flex;align-items:center;justify-content:center;';
