@@ -512,40 +512,19 @@
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
         <!-- Mage allocation -->
         <div class="card">
-          <div class="card-title">Mage allocation — <span style="font-size:12px;color:var(--text3);font-weight:400">capacity: <span id="tower-capacity">0</span> mages per tower × <span id="tower-count">0</span> towers</span></div>
-          <div style="font-size:12px;color:var(--text3);margin-bottom:12px">Mages in towers produce mana and research a chosen discipline each turn.</div>
-          <div class="trow" style="margin-bottom:10px">
+          <div class="card-title">Mage allocation — <span style="font-size:12px;color:var(--text3);font-weight:400">20 mages per tower · <span id="tower-count">0</span> towers · capacity: <span id="tower-capacity">0</span></span></div>
+          <div style="font-size:12px;color:var(--text3);margin-bottom:12px">Mages in towers produce mana each turn. 1 mana per 5 mages. Research is done by <strong>Researchers</strong> via the allocation panel below.</div>
+          <div class="trow" style="margin-bottom:14px">
             <span class="name">Mages for mana</span>
             <span style="font-size:11px;color:var(--text3)">avail: <span id="tower-mages-avail">0</span></span>
             <input type="number" id="tower-mages" min="0" value="0" style="width:80px">
-          </div>
-          <div class="trow" style="margin-bottom:10px">
-            <span class="name">Mages for research</span>
-            <input type="number" id="tower-research-mages" min="0" value="0" style="width:80px">
-          </div>
-          <div style="margin-bottom:14px">
-            <div style="font-size:12px;color:var(--text3);margin-bottom:6px">Research discipline</div>
-            <select id="tower-discipline" style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);padding:7px 10px;font-size:13px">
-              <option value="">— none —</option>
-              <option value="economy">Economy</option>
-              <option value="weapons">Weapons</option>
-              <option value="armor">Armor</option>
-              <option value="military">Military tactics</option>
-              <option value="attack_magic">Attack magic</option>
-              <option value="defense_magic">Defense magic</option>
-              <option value="entertainment">Entertainment</option>
-              <option value="construction">Construction</option>
-              <option value="war_machines">War machines</option>
-              <option value="spellbook">Spellbook</option>
-            </select>
           </div>
           <div style="display:flex;gap:8px">
             <button class="btn btn-gold" style="flex:1" onclick="saveMageTowerAllocation()">Save allocation</button>
             <button class="btn btn-red" onclick="releaseAllTowerMages()">Release all</button>
           </div>
           <div style="margin-top:10px;font-size:12px;color:var(--text3)">
-            Mana production: <span id="tower-mana-rate" style="color:var(--purple);font-weight:600">0</span>/turn &nbsp;·&nbsp;
-            Research mages: <span id="tower-research-rate" style="color:var(--green);font-weight:600">0</span> allocated
+            Mana production: <span id="tower-mana-rate" style="color:var(--purple);font-weight:600">0</span>/turn
           </div>
         </div>
 
@@ -3295,30 +3274,19 @@ function renderMageTowerPanel() {
   if (warn) warn.style.display = towers === 0 ? 'block' : 'none';
 
   var cap = towers * 20;
-  var capEl = document.getElementById('tower-capacity'); if (capEl) capEl.textContent = 20;
+  var capEl = document.getElementById('tower-capacity'); if (capEl) capEl.textContent = fmt(cap);
   var cntEl = document.getElementById('tower-count');    if (cntEl) cntEl.textContent = towers;
   var availEl = document.getElementById('tower-mages-avail'); if (availEl) availEl.textContent = fmt(state.mages || 0);
 
   var alloc = state.mage_tower_allocation || {};
   var tmEl = document.getElementById('tower-mages');
-  var trEl = document.getElementById('tower-research-mages');
   if (tmEl) tmEl.value = alloc.mages || 0;
-  if (trEl) trEl.value = alloc.research_mages || 0;
-
-  var discEl = document.getElementById('tower-discipline');
-  if (discEl && alloc.research_discipline) {
-    for (var i = 0; i < discEl.options.length; i++) {
-      if (discEl.options[i].value === alloc.research_discipline) { discEl.selectedIndex = i; break; }
-    }
-  }
 
   var magesInTower = Math.min(Number(alloc.mages) || 0, state.mages || 0);
   var effectiveMages = Math.min(magesInTower, cap);
   var manaRate = Math.floor(effectiveMages / 5);
   var manaRateEl = document.getElementById('tower-mana-rate');
   if (manaRateEl) manaRateEl.textContent = fmt(manaRate);
-  var researchEl = document.getElementById('tower-research-rate');
-  if (researchEl) researchEl.textContent = fmt(Math.min(Number(alloc.research_mages) || 0, state.mages || 0));
 
   updateAllocationDisplay();
   loadAllocationFromState();
@@ -3327,12 +3295,10 @@ function renderMageTowerPanel() {
 async function saveMageTowerAllocation() {
   var towers = state.bld_cathedrals || 0;
   if (towers === 0) return toast('Build a Mage Tower first', 'error');
-  var mages    = parseInt(document.getElementById('tower-mages')?.value) || 0;
-  var resMages = parseInt(document.getElementById('tower-research-mages')?.value) || 0;
-  if (mages + resMages > (state.mages || 0)) return toast('Total mages allocated exceeds available mages', 'error');
-  var disc = document.getElementById('tower-discipline')?.value || null;
+  var mages = parseInt(document.getElementById('tower-mages')?.value) || 0;
+  if (mages > (state.mages || 0)) return toast('Not enough mages', 'error');
   var result = await apiCall('POST', '/api/kingdom/mage-tower-allocation', {
-    allocation: { mages, research_mages: resMages, research_discipline: disc || null }
+    allocation: { mages, research_mages: 0, research_discipline: null }
   });
   if (result.error) return toast(result.error, 'error');
   state.mage_tower_allocation = result.allocation;
@@ -3342,9 +3308,7 @@ async function saveMageTowerAllocation() {
 
 async function releaseAllTowerMages() {
   var tmEl = document.getElementById('tower-mages');
-  var trEl = document.getElementById('tower-research-mages');
   if (tmEl) tmEl.value = 0;
-  if (trEl) trEl.value = 0;
   var result = await apiCall('POST', '/api/kingdom/mage-tower-allocation', {
     allocation: { mages: 0, research_mages: 0, research_discipline: null }
   });
