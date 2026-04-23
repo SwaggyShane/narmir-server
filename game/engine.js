@@ -1248,11 +1248,9 @@ function expeditionRewards(type, rangers, fighters, k) {
 
 async function resolveExpeditions(db, k, engine) {
   const exps = await db.all('SELECT * FROM expeditions WHERE kingdom_id = ? AND turns_left > 0', [k.id]);
-  console.log(`[expedition] kingdom ${k.id} has ${exps.length} active expedition(s)`);
   for (const exp of exps) {
     try {
       const newTurns = exp.turns_left - 1;
-      console.log(`[expedition] ${exp.type} id=${exp.id} turns_left=${exp.turns_left} → ${newTurns}`);
       if (newTurns <= 0) {
         const { rewards, updates, events } = expeditionRewards(exp.type, exp.rangers, exp.fighters, k);
         const label = { scout: '🔭 Scout', deep: '🌲 Deep', dungeon: '⚔️ Dungeon' }[exp.type];
