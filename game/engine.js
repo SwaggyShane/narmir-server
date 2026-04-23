@@ -628,15 +628,11 @@ function queueBuildings(k, orders) {
   };
 }
 
-// Process build queue each turn — engineers work on queued buildings
+// Process build queue each turn — engineers work on allocated buildings continuously
 function processBuildQueue(k, events) {
   const updates = {};
-  let queue    = {};
   let progress = {};
-  try { queue    = JSON.parse(k.build_queue    || '{}'); } catch { queue = {}; }
   try { progress = JSON.parse(k.build_progress || '{}'); } catch { progress = {}; }
-
-  if (Object.keys(queue).length === 0) return updates;
 
   // Tool bonuses
   const hammerBonus     = 1 + (k.tools_hammers     || 0) * 0.05;
@@ -646,68 +642,67 @@ function processBuildQueue(k, events) {
   const raceConstr      = raceBonus(k, 'construction');
   const toolMult        = hammerBonus * scaffoldBonus * blueprintBonus * smithyBonus * raceConstr;
 
-  // Allocated engineers per building from build_allocation JSON
+  // Get engineer allocation — keys are building types like 'farm', 'barracks', etc.
   let allocation = {};
   try { allocation = JSON.parse(k.build_allocation || '{}'); } catch { allocation = {}; }
 
-  const totalEngineers = k.engineers || 0;
-  const totalAllocated = Object.values(allocation).reduce((s,v) => s + (Number(v)||0), 0);
-  // If no allocation set, spread evenly across queued buildings
-  const queueKeys = Object.keys(queue);
-  const defaultPer = queueKeys.length > 0 ? Math.floor(totalEngineers / queueKeys.length) : 0;
+  // Also check legacy build_queue for any manually queued items
+  let queue = {};
+  try { queue = JSON.parse(k.build_queue || '{}'); } catch { queue = {}; }
+
+  // Merge: allocation drives continuous building, queue adds on top
+  const activeBuildings = new Set([...Object.keys(allocation).filter(b => Number(allocation[b]) > 0), ...Object.keys(queue).filter(b => (queue[b]||0) > 0)]);
+  if (activeBuildings.size === 0) return updates;
 
   const completedItems = [];
 
-  for (const building of queueKeys) {
-    const qty = queue[building];
-    if (!qty || qty <= 0) continue;
+  for (const building of activeBuildings) {
+    const engAssigned = Number(allocation[building]) || 0;
+    if (engAssigned <= 0 && !(queue[building] > 0)) continue;
+
     const cost = BUILDING_COST[building];
     if (!cost) continue;
 
-    const engAssigned = totalAllocated > 0 ? (Number(allocation[building]) || 0) : defaultPer;
-    const workDone    = Math.floor(engAssigned * toolMult);
+    const workDone = Math.floor(engAssigned * toolMult);
+    if (workDone <= 0) continue;
 
     const prevProgress = progress[building] || 0;
     const totalProgress = prevProgress + workDone;
-    const costPerUnit   = cost;
-    const completed     = Math.floor(totalProgress / costPerUnit);
-    const actualCompleted = Math.min(completed, qty);
-    const remainder     = totalProgress - (actualCompleted * costPerUnit);
+    const completed = Math.floor(totalProgress / cost);
 
-    if (actualCompleted > 0) {
+    if (completed > 0) {
       const col = BUILDING_COL[building];
       if (col) {
         const current = updates[col] !== undefined ? updates[col] : (k[col] || 0);
         const cap = getCap(col, k.level || 1);
-        const canAdd = Math.max(0, Math.min(actualCompleted, cap - current));
+        const canAdd = Math.max(0, Math.min(completed, cap - current));
         updates[col] = current + canAdd;
-        if (canAdd < actualCompleted) {
+        if (canAdd < completed && canAdd === 0) {
           events.push({ type: 'system', message: `⚠️ ${building} cap reached at level ${k.level||1} (max ${cap.toLocaleString()}) — level up to build more.` });
         }
+        if (canAdd > 0) completedItems.push(`${canAdd.toLocaleString()} ${building.replace(/_/g, ' ')}`);
       }
-      queue[building] = qty - actualCompleted;
-      if (queue[building] <= 0) delete queue[building];
-      progress[building] = queue[building] > 0 ? remainder : 0;
-      completedItems.push(`${actualCompleted.toLocaleString()} ${building.replace('_', ' ')}`);
+      progress[building] = totalProgress - (completed * cost);
+      // Reduce queue count if this was a queued item
+      if (queue[building] > 0) {
+        queue[building] = Math.max(0, queue[building] - completed);
+        if (queue[building] <= 0) delete queue[building];
+      }
     } else {
       progress[building] = totalProgress;
     }
   }
 
-  // Clean up zero entries
-  for (const k2 of Object.keys(queue)) {
-    if ((queue[k2] || 0) <= 0) delete queue[k2];
-  }
-  for (const k2 of Object.keys(progress)) {
-    if (!queue[k2]) delete progress[k2];
+  // Clean up zero progress entries for inactive buildings
+  for (const b of Object.keys(progress)) {
+    if (!allocation[b] && !queue[b]) delete progress[b];
   }
 
   updates.build_queue    = JSON.stringify(queue);
   updates.build_progress = JSON.stringify(progress);
 
   if (completedItems.length > 0) {
-    events.push({ type: 'system', message: `🔨 Construction completed: ${completedItems.join(', ')}.` });
-    // XP for completed buildings
+    events.push({ type: 'system', message: `🔨 Construction: ${completedItems.join(', ')} built.` });
     const totalCompleted = completedItems.reduce(function(s, item) {
       const match = item.match(/^(\d[\d,]*)/);
       return s + (match ? parseInt(match[1].replace(/,/g,'')) : 1);
@@ -716,8 +711,8 @@ function processBuildQueue(k, events) {
     updates.xp    = conXp.xp;
     updates.level = conXp.level;
     if (conXp.levelled) events.push(...conXp.events);
-  } else if (Object.keys(queue).length > 0) {
-    events.push({ type: 'system', message: `🔨 Engineers making progress on ${Object.keys(queue).length} project(s) in queue.` });
+  } else if (activeBuildings.size > 0) {
+    events.push({ type: 'system', message: `🔨 Engineers making progress on ${activeBuildings.size} building type${activeBuildings.size > 1 ? 's' : ''}.` });
   }
 
   return updates;
