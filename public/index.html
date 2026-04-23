@@ -391,13 +391,13 @@
         <div>
           <div class="card">
             <div class="card-title">Research levels</div>
-            <div class="trow"><span class="name">Economy</span><div class="prog-wrap"><div class="prog-bar eco" id="pb-eco" style="width:0%"></div></div><span class="count" id="rv-eco-s">0%</span></div>
-            <div class="trow"><span class="name">Weapons</span><div class="prog-wrap"><div class="prog-bar wep" id="pb-wep" style="width:0%"></div></div><span class="count" id="rv-wep-s">0%</span></div>
-            <div class="trow"><span class="name">Armor</span><div class="prog-wrap"><div class="prog-bar arm" id="pb-arm" style="width:0%"></div></div><span class="count" id="rv-arm-s">0%</span></div>
-            <div class="trow"><span class="name">Military tactics</span><div class="prog-wrap"><div class="prog-bar mil" id="pb-mil" style="width:0%"></div></div><span class="count" id="rv-mil-s">0%</span></div>
-            <div class="trow"><span class="name">Spellbook</span><div class="prog-wrap"><div class="prog-bar spell" id="pb-spell" style="width:0%"></div></div><span class="count" id="rv-spell-s">0</span></div>
-            <div class="trow"><span class="name">Mana</span><div class="prog-wrap"><div class="prog-bar mana" id="pb-mana-s" style="width:0%"></div></div><span class="count" id="rv-mana-s">0</span></div>
-            <div class="trow"><span class="name">Entertainment</span><div class="prog-wrap"><div class="prog-bar" id="pb-ent-s" style="width:0%;background:var(--green)"></div></div><span class="count" id="rv-ent-s">0%</span></div>
+            <div class="trow"><span class="name">Economy</span><div class="prog-wrap"><div class="prog-bar eco" id="pb-eco" style="width:0%"></div></div></div>
+            <div class="trow"><span class="name">Weapons</span><div class="prog-wrap"><div class="prog-bar wep" id="pb-wep" style="width:0%"></div></div></div>
+            <div class="trow"><span class="name">Armor</span><div class="prog-wrap"><div class="prog-bar arm" id="pb-arm" style="width:0%"></div></div></div>
+            <div class="trow"><span class="name">Military tactics</span><div class="prog-wrap"><div class="prog-bar mil" id="pb-mil" style="width:0%"></div></div></div>
+            <div class="trow"><span class="name">Spellbook</span><div class="prog-wrap"><div class="prog-bar spell" id="pb-spell" style="width:0%"></div></div></div>
+            <div class="trow"><span class="name">Mana</span><div class="prog-wrap"><div class="prog-bar mana" id="pb-mana-s" style="width:0%"></div></div></div>
+            <div class="trow"><span class="name">Entertainment</span><div class="prog-wrap"><div class="prog-bar" id="pb-ent-s" style="width:0%;background:var(--green)"></div></div></div>
           </div>
           <div class="card">
             <div class="card-title">Key buildings</div>
@@ -513,7 +513,7 @@
           <span class="name" style="min-width:140px">Economy</span>
           <span class="desc">Gold per turn</span>
           <div class="prog-wrap"><div class="prog-bar eco" id="pb-eco" style="width:0%"></div></div>
-          <span class="count" id="rv-eco" style="min-width:50px">0%</span>
+          
           <input type="number" id="ra-economy" min="0" value="0" oninput="updateAllocationDisplay()" style="width:90px">
           <button class="btn" onclick="setMax('ra-economy')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
@@ -521,7 +521,7 @@
           <span class="name" style="min-width:140px">Weapons</span>
           <span class="desc">Attack damage</span>
           <div class="prog-wrap"><div class="prog-bar wep" id="pb-wep" style="width:0%"></div></div>
-          <span class="count" id="rv-wep" style="min-width:50px">0%</span>
+          
           <input type="number" id="ra-weapons" min="0" value="0" oninput="updateAllocationDisplay()" style="width:90px">
           <button class="btn" onclick="setMax('ra-weapons')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
@@ -529,7 +529,7 @@
           <span class="name" style="min-width:140px">Armor</span>
           <span class="desc">Defense rating</span>
           <div class="prog-wrap"><div class="prog-bar arm" id="pb-arm" style="width:0%"></div></div>
-          <span class="count" id="rv-arm" style="min-width:50px">0%</span>
+          
           <input type="number" id="ra-armor" min="0" value="0" oninput="updateAllocationDisplay()" style="width:90px">
           <button class="btn" onclick="setMax('ra-armor')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
@@ -537,7 +537,7 @@
           <span class="name" style="min-width:140px">Military tactics</span>
           <span class="desc">Troop effectiveness</span>
           <div class="prog-wrap"><div class="prog-bar mil" id="pb-mil" style="width:0%"></div></div>
-          <span class="count" id="rv-mil" style="min-width:50px">0%</span>
+          
           <input type="number" id="ra-military" min="0" value="0" oninput="updateAllocationDisplay()" style="width:90px">
           <button class="btn" onclick="setMax('ra-military')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
@@ -545,7 +545,7 @@
           <span class="name" style="min-width:140px">Spellbook</span>
           <span class="desc">Spell power</span>
           <div class="prog-wrap"><div class="prog-bar spell" id="pb-spell" style="width:0%"></div></div>
-          <span class="count" id="rv-spell" style="min-width:50px">0</span>
+          
           <input type="number" id="ra-spellbook" min="0" value="0" oninput="updateAllocationDisplay()" style="width:90px">
           <button class="btn" onclick="setMax('ra-spellbook')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
@@ -553,7 +553,7 @@
           <span class="name" style="min-width:140px">Attack magic</span>
           <span class="desc">Spell damage</span>
           <div class="prog-wrap"><div class="prog-bar" style="width:0%;background:var(--red)" id="pb-atk"></div></div>
-          <span class="count" id="rv-atk" style="min-width:50px">0%</span>
+          
           <input type="number" id="ra-attack_magic" min="0" value="0" oninput="updateAllocationDisplay()" style="width:90px">
           <button class="btn" onclick="setMax('ra-attack_magic')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
@@ -561,7 +561,7 @@
           <span class="name" style="min-width:140px">Defense magic</span>
           <span class="desc">Spell protection</span>
           <div class="prog-wrap"><div class="prog-bar arm" id="pb-def" style="width:0%"></div></div>
-          <span class="count" id="rv-def" style="min-width:50px">0%</span>
+          
           <input type="number" id="ra-defense_magic" min="0" value="0" oninput="updateAllocationDisplay()" style="width:90px">
           <button class="btn" onclick="setMax('ra-defense_magic')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
@@ -569,7 +569,7 @@
           <span class="name" style="min-width:140px">Entertainment</span>
           <span class="desc">Morale &amp; pop</span>
           <div class="prog-wrap"><div class="prog-bar" style="width:0%;background:var(--green)" id="pb-ent"></div></div>
-          <span class="count" id="rv-ent" style="min-width:50px">0%</span>
+          
           <input type="number" id="ra-entertainment" min="0" value="0" oninput="updateAllocationDisplay()" style="width:90px">
           <button class="btn" onclick="setMax('ra-entertainment')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
@@ -577,7 +577,7 @@
           <span class="name" style="min-width:140px">Construction</span>
           <span class="desc">Build speed</span>
           <div class="prog-wrap"><div class="prog-bar" style="width:0%;background:var(--amber)" id="pb-con"></div></div>
-          <span class="count" id="rv-con" style="min-width:50px">0%</span>
+          
           <input type="number" id="ra-construction" min="0" value="0" oninput="updateAllocationDisplay()" style="width:90px">
           <button class="btn" onclick="setMax('ra-construction')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
@@ -585,7 +585,7 @@
           <span class="name" style="min-width:140px">War machines</span>
           <span class="desc">WM power</span>
           <div class="prog-wrap"><div class="prog-bar" style="width:0%;background:var(--text3)" id="pb-wm"></div></div>
-          <span class="count" id="rv-wm" style="min-width:50px">0%</span>
+          
           <input type="number" id="ra-war_machines" min="0" value="0" oninput="updateAllocationDisplay()" style="width:90px">
           <button class="btn" onclick="setMax('ra-war_machines')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
@@ -2041,7 +2041,7 @@ function syncUI() {
     var el = document.getElementById('s-' + u);
     if (el) el.textContent = fmt(state[u]||0);
   });
-  // Sync research levels display
+  // Sync research bar widths only — no percentage text
   var resDisplay = {
     res_economy:'eco', res_weapons:'wep', res_armor:'arm', res_military:'mil',
     res_spellbook:'spell', res_attack_magic:'atk', res_defense_magic:'def',
@@ -2052,19 +2052,11 @@ function syncUI() {
     var val = state[key] || 0;
     var bar = document.getElementById('pb-' + id);
     if (bar) bar.style.width = Math.min(100, val / 10) + '%';
-    // Research panel counts
-    var count = document.getElementById('rv-' + id);
-    if (count) count.textContent = fmt(val) + (key !== 'res_spellbook' ? '%' : '');
-    // Status panel counts (different IDs)
-    var scount = document.getElementById('rv-' + id + '-s');
-    if (scount) scount.textContent = fmt(val) + (key !== 'res_spellbook' ? '%' : '');
   });
   // Status panel mana bar
   var manaPct = Math.min(100, (state.mana || 0) / 500);
   var manaBar = document.getElementById('pb-mana-s');
   if (manaBar) manaBar.style.width = manaPct + '%';
-  var manaCount = document.getElementById('rv-mana-s');
-  if (manaCount) manaCount.textContent = trunc(state.mana || 0);
   // Key buildings in status panel
   var kbMap = { farms:'bld_farms', barracks:'bld_barracks', smithies:'bld_smithies', cathedrals:'bld_cathedrals', castles:'bld_castles', guard_towers:'bld_guard_towers' };
   Object.keys(kbMap).forEach(function(bld) {
