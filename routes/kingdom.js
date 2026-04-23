@@ -280,10 +280,13 @@ module.exports = function(db) {
   router.get('/expedition/list', requireAuth, async (req, res) => {
     const k = await db.get('SELECT id FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
     if (!k) return res.status(404).json({ error: 'Kingdom not found' });
-    // Clean up any stuck zero-turn expeditions
-    await db.run('DELETE FROM expeditions WHERE kingdom_id = ? AND turns_left <= 0', [k.id]);
-    const exps = await db.all('SELECT * FROM expeditions WHERE kingdom_id = ? AND turns_left > 0 ORDER BY created_at DESC', [k.id]);
-    res.json(exps);
+    // Fetch completed ones (turns_left=0 with rewards) to return to frontend, then delete them
+    const completed = await db.all('SELECT * FROM expeditions WHERE kingdom_id = ? AND turns_left = 0 AND rewards IS NOT NULL', [k.id]);
+    if (completed.length > 0) {
+      await db.run('DELETE FROM expeditions WHERE kingdom_id = ? AND turns_left = 0', [k.id]);
+    }
+    const active = await db.all('SELECT * FROM expeditions WHERE kingdom_id = ? AND turns_left > 0 ORDER BY created_at DESC', [k.id]);
+    res.json({ active, completed });
   });
 
   router.post('/expedition/cancel', requireAuth, async (req, res) => {
