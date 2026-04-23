@@ -567,9 +567,19 @@ function awardXp(k, activity, amount) {
 
 // Engineer-turns required to complete one unit of each building
 const BUILDING_COST = {
-  farms: 10, barracks: 20, outposts: 20, guard_towers: 20,
-  schools: 50, armories: 50, vaults: 50, smithies: 150,
-  markets: 300, cathedrals: 250, training: 800, colosseums: 250, castles: 5000,
+  farms: 2500,       // 25 turns @ 100 eng
+  barracks: 5000,    // 50 turns
+  outposts: 7500,    // 75 turns
+  guard_towers: 2500,// 25 turns
+  schools: 7500,     // 75 turns
+  armories: 2500,    // 25 turns
+  vaults: 10000,     // 100 turns
+  smithies: 10000,   // 100 turns
+  markets: 10000,    // 100 turns
+  cathedrals: 15000, // 150 turns
+  training: 20000,   // 200 turns
+  colosseums: 5000,  // 50 turns  (taverns)
+  castles: 100000,   // 1000 turns
   war_machine: 200, weapons: 10, armor: 10,
 };
 
