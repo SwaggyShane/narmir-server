@@ -2064,10 +2064,15 @@ function showLoginModal() {
     }
     if (result.token) localStorage.setItem('narmir_token', result.token);
     state.username = username;
-    // Remove ALL login overlays by ID — don't rely on closure variable
-    var ov = document.getElementById('login-overlay');
-    if (ov) ov.remove();
-    debugLog('overlay removed');
+    // Remove any login overlay - try multiple approaches
+    ['login-overlay'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.remove();
+    });
+    // Also remove any fixed full-screen divs with high z-index
+    document.querySelectorAll('div[style*="z-index:9999"]').forEach(function(el) { el.remove(); });
+    document.querySelectorAll('div[style*="z-index: 9999"]').forEach(function(el) { el.remove(); });
+    debugLog('login ok - overlays cleared');
     loadKingdom().catch(function(e) { debugLog('loadKingdom err: ' + e.message); });
   }
 }
