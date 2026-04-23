@@ -1289,9 +1289,8 @@ async function resolveExpeditions(db, k, engine) {
       await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)',
         [k.id, 'system', `${label} expedition returned!`, k.turn || 0]);
       for (const r of rewards) {
-        const em = rarityEmoji[r.rarity] || '';
         await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)',
-          [k.id, 'system', `${em} [${r.rarity.toUpperCase()}] ${r.text}`, k.turn || 0]);
+          [k.id, 'system', `• ${r.text}`, k.turn || 0]);
       }
       for (const ev of events) {
         await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)',
