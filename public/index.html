@@ -296,7 +296,8 @@
     <div class="nav-section">Kingdom</div>
     <button class="nav-item active" onclick="switchTab('status',this)"><span class="icon">&#9632;</span>Status</button>
     <button class="nav-item" onclick="switchTab('hire',this)"><span class="icon">&#9651;</span>Hire</button>
-    <button class="nav-item" onclick="switchTab('research',this)"><span class="icon">&#9670;</span>Research</button>
+    <button class="nav-item" onclick="switchTab('mage_tower',this)"><span class="icon">🗼</span>Mage Tower</button>
+    <button class="nav-item" onclick="switchTab('shrine',this)"><span class="icon">⛩️</span>Shrine</button>
     <button class="nav-item" onclick="switchTab('build',this)"><span class="icon">&#9650;</span>Build</button>
     <button class="nav-item" onclick="switchTab('training',this)"><span class="icon">&#9876;</span>Training</button>
     <button class="nav-item" onclick="switchTab('exploration',this)"><span class="icon">&#9685;</span>Exploration</button>
@@ -405,7 +406,7 @@
             <div class="trow"><span class="name">Farms</span><span class="count" id="kb-farms">0</span></div>
             <div class="trow"><span class="name">Barracks</span><span class="count" id="kb-barracks">0</span></div>
             <div class="trow"><span class="name">Smithies</span><span class="count" id="kb-smithies">0</span></div>
-            <div class="trow"><span class="name">Cathedrals</span><span class="count" id="kb-cathedrals">0</span></div>
+            <div class="trow"><span class="name">Mage Towers</span><span class="count" id="kb-cathedrals">0</span></div>
             <div class="trow"><span class="name">Castles</span><span class="count" id="kb-castles">0</span></div>
             <div class="trow"><span class="name">Guard towers</span><span class="count" id="kb-guard_towers">0</span></div>
           </div>
@@ -501,11 +502,75 @@
     </div>
 
     <!-- RESEARCH -->
-    <div id="research" class="panel">
+    <div id="mage_tower" class="panel">
+
+      <!-- No mage tower warning -->
+      <div id="tower-no-tower" style="display:none;background:rgba(124,106,245,.08);border:1px solid var(--purple);border-radius:var(--radius);padding:12px 16px;font-size:13px;color:var(--purple);margin-bottom:16px">
+        🗼 You have no Mage Towers. Build one in the <strong>Build</strong> tab — 100 engineers, 150 turns. Mage Towers unlock mana production and research via mages.
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+        <!-- Mage allocation -->
+        <div class="card">
+          <div class="card-title">Mage allocation — <span style="font-size:12px;color:var(--text3);font-weight:400">capacity: <span id="tower-capacity">0</span> mages per tower × <span id="tower-count">0</span> towers</span></div>
+          <div style="font-size:12px;color:var(--text3);margin-bottom:12px">Mages in towers produce mana and research a chosen discipline each turn.</div>
+          <div class="trow" style="margin-bottom:10px">
+            <span class="name">Mages for mana</span>
+            <span style="font-size:11px;color:var(--text3)">avail: <span id="tower-mages-avail">0</span></span>
+            <input type="number" id="tower-mages" min="0" value="0" style="width:80px">
+          </div>
+          <div class="trow" style="margin-bottom:10px">
+            <span class="name">Mages for research</span>
+            <input type="number" id="tower-research-mages" min="0" value="0" style="width:80px">
+          </div>
+          <div style="margin-bottom:14px">
+            <div style="font-size:12px;color:var(--text3);margin-bottom:6px">Research discipline</div>
+            <select id="tower-discipline" style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);padding:7px 10px;font-size:13px">
+              <option value="">— none —</option>
+              <option value="economy">Economy</option>
+              <option value="weapons">Weapons</option>
+              <option value="armor">Armor</option>
+              <option value="military">Military tactics</option>
+              <option value="attack_magic">Attack magic</option>
+              <option value="defense_magic">Defense magic</option>
+              <option value="entertainment">Entertainment</option>
+              <option value="construction">Construction</option>
+              <option value="war_machines">War machines</option>
+              <option value="spellbook">Spellbook</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-gold" style="flex:1" onclick="saveMageTowerAllocation()">Save allocation</button>
+            <button class="btn btn-red" onclick="releaseAllTowerMages()">Release all</button>
+          </div>
+          <div style="margin-top:10px;font-size:12px;color:var(--text3)">
+            Mana production: <span id="tower-mana-rate" style="color:var(--purple);font-weight:600">0</span>/turn &nbsp;·&nbsp;
+            Research mages: <span id="tower-research-rate" style="color:var(--green);font-weight:600">0</span> allocated
+          </div>
+        </div>
+
+        <!-- Research bars -->
+        <div class="card">
+          <div class="card-title">Research levels</div>
+          <div style="font-size:12px;color:var(--text3);margin-bottom:10px">Levels advance passively via researcher allocation (Research tab) and mages in towers. Bars show progress toward max.</div>
+          <div class="trow"><span class="name">Economy</span><div class="prog-wrap"><div class="prog-bar eco" id="pb-eco" style="width:0%"></div></div></div>
+          <div class="trow"><span class="name">Weapons</span><div class="prog-wrap"><div class="prog-bar wep" id="pb-wep" style="width:0%"></div></div></div>
+          <div class="trow"><span class="name">Armor</span><div class="prog-wrap"><div class="prog-bar arm" id="pb-arm" style="width:0%"></div></div></div>
+          <div class="trow"><span class="name">Military tactics</span><div class="prog-wrap"><div class="prog-bar mil" id="pb-mil" style="width:0%"></div></div></div>
+          <div class="trow"><span class="name">Spellbook</span><div class="prog-wrap"><div class="prog-bar spell" id="pb-spell" style="width:0%"></div></div></div>
+          <div class="trow"><span class="name">Attack magic</span><div class="prog-wrap"><div class="prog-bar" style="width:0%;background:var(--red)" id="pb-atk"></div></div></div>
+          <div class="trow"><span class="name">Defense magic</span><div class="prog-wrap"><div class="prog-bar arm" id="pb-def" style="width:0%"></div></div></div>
+          <div class="trow"><span class="name">Entertainment</span><div class="prog-wrap"><div class="prog-bar" style="width:0%;background:var(--green)" id="pb-ent"></div></div></div>
+          <div class="trow"><span class="name">Construction</span><div class="prog-wrap"><div class="prog-bar" style="width:0%;background:var(--amber)" id="pb-con"></div></div></div>
+          <div class="trow"><span class="name">War machines</span><div class="prog-wrap"><div class="prog-bar" style="width:0%;background:var(--text3)" id="pb-wm"></div></div></div>
+        </div>
+      </div>
+
+      <!-- Researcher allocation (nested) -->
       <div class="card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
           <div>
-            <div class="card-title" style="margin-bottom:2px">Research Allocation</div>
+            <div class="card-title" style="margin-bottom:2px">Researcher Allocation</div>
             <div style="font-size:12px;color:var(--text3)">Researchers: <span id="r-total-avail" style="color:var(--text)">0</span> available · <span id="r-total-assigned" style="color:var(--gold)">0</span> assigned · <span id="r-total-unassigned" style="color:var(--green)">0</span> unassigned</div>
           </div>
           <div style="display:flex;gap:8px">
@@ -517,84 +582,73 @@
         <div id="research-no-researchers" style="display:none;background:rgba(232,184,75,.08);border:1px solid var(--gold);border-radius:var(--radius);padding:10px 14px;font-size:13px;color:var(--gold);margin-bottom:12px">
           ⚠️ You have no researchers. Go to <strong>Hire</strong> and hire researchers first — then come back to allocate them.
         </div>
-
         <div class="trow">
           <span class="name" style="min-width:140px">Economy</span>
           <span class="desc">Gold per turn</span>
-          <div class="prog-wrap"><div class="prog-bar eco" id="pb-eco" style="width:0%"></div></div>
-          
+          <div class="prog-wrap"><div class="prog-bar eco" style="width:0%"></div></div>
           <input type="number" id="ra-economy" min="0" value="0" oninput="updateAllocationDisplay()" style="width:90px">
           <button class="btn" onclick="setMax('ra-economy')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
         <div class="trow">
           <span class="name" style="min-width:140px">Weapons</span>
           <span class="desc">Attack damage</span>
-          <div class="prog-wrap"><div class="prog-bar wep" id="pb-wep" style="width:0%"></div></div>
-          
+          <div class="prog-wrap"><div class="prog-bar wep" style="width:0%"></div></div>
           <input type="number" id="ra-weapons" min="0" value="0" oninput="updateAllocationDisplay()" style="width:90px">
           <button class="btn" onclick="setMax('ra-weapons')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
         <div class="trow">
           <span class="name" style="min-width:140px">Armor</span>
           <span class="desc">Defense rating</span>
-          <div class="prog-wrap"><div class="prog-bar arm" id="pb-arm" style="width:0%"></div></div>
-          
+          <div class="prog-wrap"><div class="prog-bar arm" style="width:0%"></div></div>
           <input type="number" id="ra-armor" min="0" value="0" oninput="updateAllocationDisplay()" style="width:90px">
           <button class="btn" onclick="setMax('ra-armor')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
         <div class="trow">
           <span class="name" style="min-width:140px">Military tactics</span>
           <span class="desc">Troop effectiveness</span>
-          <div class="prog-wrap"><div class="prog-bar mil" id="pb-mil" style="width:0%"></div></div>
-          
+          <div class="prog-wrap"><div class="prog-bar mil" style="width:0%"></div></div>
           <input type="number" id="ra-military" min="0" value="0" oninput="updateAllocationDisplay()" style="width:90px">
           <button class="btn" onclick="setMax('ra-military')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
         <div class="trow">
           <span class="name" style="min-width:140px">Spellbook</span>
           <span class="desc">Spell power</span>
-          <div class="prog-wrap"><div class="prog-bar spell" id="pb-spell" style="width:0%"></div></div>
-          
+          <div class="prog-wrap"><div class="prog-bar spell" style="width:0%"></div></div>
           <input type="number" id="ra-spellbook" min="0" value="0" oninput="updateAllocationDisplay()" style="width:90px">
           <button class="btn" onclick="setMax('ra-spellbook')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
         <div class="trow">
           <span class="name" style="min-width:140px">Attack magic</span>
           <span class="desc">Spell damage</span>
-          <div class="prog-wrap"><div class="prog-bar" style="width:0%;background:var(--red)" id="pb-atk"></div></div>
-          
+          <div class="prog-wrap"><div class="prog-bar" style="width:0%;background:var(--red)"></div></div>
           <input type="number" id="ra-attack_magic" min="0" value="0" oninput="updateAllocationDisplay()" style="width:90px">
           <button class="btn" onclick="setMax('ra-attack_magic')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
         <div class="trow">
           <span class="name" style="min-width:140px">Defense magic</span>
           <span class="desc">Spell protection</span>
-          <div class="prog-wrap"><div class="prog-bar arm" id="pb-def" style="width:0%"></div></div>
-          
+          <div class="prog-wrap"><div class="prog-bar arm" style="width:0%"></div></div>
           <input type="number" id="ra-defense_magic" min="0" value="0" oninput="updateAllocationDisplay()" style="width:90px">
           <button class="btn" onclick="setMax('ra-defense_magic')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
         <div class="trow">
           <span class="name" style="min-width:140px">Entertainment</span>
           <span class="desc">Morale &amp; pop</span>
-          <div class="prog-wrap"><div class="prog-bar" style="width:0%;background:var(--green)" id="pb-ent"></div></div>
-          
+          <div class="prog-wrap"><div class="prog-bar" style="width:0%;background:var(--green)"></div></div>
           <input type="number" id="ra-entertainment" min="0" value="0" oninput="updateAllocationDisplay()" style="width:90px">
           <button class="btn" onclick="setMax('ra-entertainment')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
         <div class="trow">
           <span class="name" style="min-width:140px">Construction</span>
           <span class="desc">Build speed</span>
-          <div class="prog-wrap"><div class="prog-bar" style="width:0%;background:var(--amber)" id="pb-con"></div></div>
-          
+          <div class="prog-wrap"><div class="prog-bar" style="width:0%;background:var(--amber)"></div></div>
           <input type="number" id="ra-construction" min="0" value="0" oninput="updateAllocationDisplay()" style="width:90px">
           <button class="btn" onclick="setMax('ra-construction')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
         <div class="trow" style="border-bottom:none">
           <span class="name" style="min-width:140px">War machines</span>
           <span class="desc">WM power</span>
-          <div class="prog-wrap"><div class="prog-bar" style="width:0%;background:var(--text3)" id="pb-wm"></div></div>
-          
+          <div class="prog-wrap"><div class="prog-bar" style="width:0%;background:var(--text3)"></div></div>
           <input type="number" id="ra-war_machines" min="0" value="0" oninput="updateAllocationDisplay()" style="width:90px">
           <button class="btn" onclick="setMax('ra-war_machines')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
@@ -685,7 +739,7 @@
         </div>
         <div class="trow">
           <span class="bld-icon" style="background:#4a2a7a">⛪</span>
-          <span class="name">Cathedrals</span><span class="desc">Regenerates mana and attracts population</span>
+          <span class="name">Mage Towers</span><span class="desc">Houses mages for mana production and research</span>
           <span class="count" id="bld-cathedrals">0</span>
           <input type="number" id="ba-cathedral" min="0" value="0" oninput="updateBuildDisplay()" style="width:80px" placeholder="Eng">
           <button class="btn" onclick="setBuildMax('ba-cathedral','cathedral')" style="padding:5px 10px;font-size:11px">Max</button>
@@ -703,6 +757,13 @@
           <span class="count" id="bld-colosseums">0</span>
           <input type="number" id="ba-colosseum" min="0" value="0" oninput="updateBuildDisplay()" style="width:80px" placeholder="Eng">
           <button class="btn" onclick="setBuildMax('ba-colosseum','colosseum')" style="padding:5px 10px;font-size:11px">Max</button>
+        </div>
+        <div class="trow">
+          <span class="bld-icon" style="background:#3a6a4a">⛩️</span>
+          <span class="name">Shrines</span><span class="desc">Houses clerics to boost morale and heal troops after battle</span>
+          <span class="count" id="bld-shrines">0</span>
+          <input type="number" id="ba-shrine" min="0" value="0" oninput="updateBuildDisplay()" style="width:80px" placeholder="Eng">
+          <button class="btn" onclick="setBuildMax('ba-shrine','shrine')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
         <div class="trow">
           <span class="bld-icon" style="background:#2a3a6a">📖</span>
@@ -1043,12 +1104,12 @@
 
       <div class="covert-op">
         <div class="op-title">Sabotage</div>
-        <div class="op-desc">Destroy buildings — farms, smithies, cathedrals. Highly effective before a large military attack. Requires: Ninjas.</div>
+        <div class="op-desc">Destroy buildings — farms, smithies, mage towers. Highly effective before a large military attack. Requires: Ninjas.</div>
         <div class="op-row">
           <select id="sab-target-type" style="flex:1;background:var(--bg4);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);padding:6px 8px;font-size:12px">
             <option value="farms">Farms</option>
             <option value="smithies">Smithies</option>
-            <option value="cathedrals">Cathedrals</option>
+            <option value="cathedrals">Mage Towers</option>
             <option value="barracks">Barracks</option>
           </select>
           <input type="number" id="sab-ninjas" min="0" value="100" style="width:80px">
@@ -1303,6 +1364,39 @@
   </div>
 </div>
 
+<!-- SHRINE -->
+<div id="shrine" class="panel" style="display:none">
+  <div id="shrine-no-shrine" style="display:none;background:rgba(76,175,130,.08);border:1px solid var(--green);border-radius:var(--radius);padding:12px 16px;font-size:13px;color:var(--green);margin-bottom:16px">
+    ⛩️ You have no Shrines. Build one in the <strong>Build</strong> tab — 50 turns @ 100 engineers. Shrines let clerics boost morale and heal injured troops.
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="card">
+      <div class="card-title">Cleric allocation — <span style="font-size:12px;color:var(--text3);font-weight:400">15 clerics per shrine · <span id="shrine-count">0</span> shrines</span></div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:12px">Clerics in shrines boost morale each turn (+1 per 10 clerics) and heal troops returning from battle.</div>
+      <div class="trow" style="margin-bottom:14px">
+        <span class="name">Clerics in shrine</span>
+        <span style="font-size:11px;color:var(--text3)">avail: <span id="shrine-clerics-avail">0</span></span>
+        <input type="number" id="shrine-clerics" min="0" value="0" style="width:80px">
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-gold" style="flex:1" onclick="saveShrineAllocation()">Save allocation</button>
+        <button class="btn btn-red" onclick="releaseAllShrineClericsFn()">Release all</button>
+      </div>
+      <div style="margin-top:10px;font-size:12px;color:var(--text3)">
+        Morale boost: +<span id="shrine-morale-rate" style="color:var(--green);font-weight:600">0</span>/turn
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Shrine effects</div>
+      <div style="display:flex;flex-direction:column;gap:10px;font-size:13px;color:var(--text2);line-height:1.7">
+        <div>🙏 <strong style="color:var(--text)">Morale boost</strong> — each 10 clerics adds +1 morale per turn, stacking with entertainment research and taverns.</div>
+        <div>💊 <strong style="color:var(--text)">Battle healing</strong> — after any combat, clerics in shrines automatically restore a portion of injured troops before the next turn.</div>
+        <div>✨ <strong style="color:var(--text)">Blessing passive</strong> — high cleric counts (100+) grant a small permanent morale floor, preventing morale from dropping below 50.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- LIBRARY -->
 <div id="library" class="panel" style="display:none">
 
@@ -1405,7 +1499,8 @@ var state = {
   fighters:0, rangers:0, clerics:0, mages:0,
   thieves:0, ninjas:0, researchers:500, engineers:0, scribes:0,
   bld_libraries:0, library_allocation:{}, library_progress:{}, scrolls:{},
-  maps:0, blueprints_stored:0, active_effects:{}
+  maps:0, blueprints_stored:0, active_effects:{},
+  bld_shrines:0, mage_tower_allocation:{}, shrine_allocation:{}
 };
 
 function fmt(n) { return Math.round(n).toLocaleString(); }
@@ -2026,9 +2121,13 @@ function switchTab(id, btn) {
   if (id === 'library') {
     renderLibraryPanel();
   }
-  if (id === 'research') {
+  if (id === 'research' || id === 'mage_tower') {
     updateAllocationDisplay();
     loadAllocationFromState();
+    renderMageTowerPanel();
+  }
+  if (id === 'shrine') {
+    renderShrinePanel();
   }
   if (id === 'build') {
     loadBuildAllocation();
@@ -2186,7 +2285,7 @@ function syncUI() {
     guard_towers:'bld_guard_towers', schools:'bld_schools', armories:'bld_armories',
     vaults:'bld_vaults', smithies:'bld_smithies', markets:'bld_markets',
     cathedrals:'bld_cathedrals', training:'bld_training', colosseums:'bld_colosseums',
-    castles:'bld_castles', libraries:'bld_libraries',
+    castles:'bld_castles', libraries:'bld_libraries', shrines:'bld_shrines',
     weapons_stockpile:'weapons_stockpile', armor_stockpile:'armor_stockpile',
     war_machines:'war_machines'
   };
@@ -2236,7 +2335,8 @@ function updateTurnsDisplay() {
 <nav class="bottom-nav" id="bottom-nav">
   <button class="bnav-item active" onclick="switchTabMobile('status',this)"><span class="bicon">&#9632;</span>Status</button>
   <button class="bnav-item" onclick="switchTabMobile('hire',this)"><span class="bicon">&#9651;</span>Hire</button>
-  <button class="bnav-item" onclick="switchTabMobile('research',this)"><span class="bicon">&#9670;</span>Study</button>
+  <button class="bnav-item" onclick="switchTabMobile('mage_tower',this)"><span class="bicon">🗼</span>Tower</button>
+  <button class="bnav-item" onclick="switchTabMobile('shrine',this)"><span class="bicon">⛩️</span>Shrine</button>
   <button class="bnav-item" onclick="switchTabMobile('build',this)"><span class="bicon">&#9650;</span>Build</button>
   <button class="bnav-item" onclick="switchTabMobile('training',this)"><span class="bicon">&#9876;</span>Train</button>
   <button class="bnav-item" onclick="switchTabMobile('exploration',this)"><span class="bicon">&#9685;</span>Explore</button>
@@ -2416,7 +2516,9 @@ async function loadKingdom() {
     fighters: kingdom.fighters, rangers: kingdom.rangers, clerics: kingdom.clerics,
     mages: kingdom.mages, thieves: kingdom.thieves, ninjas: kingdom.ninjas,
     researchers: kingdom.researchers, engineers: kingdom.engineers, scribes: kingdom.scribes || 0,
-    bld_libraries: kingdom.bld_libraries || 0,
+    bld_shrines: kingdom.bld_shrines || 0,
+    mage_tower_allocation: kingdom.mage_tower_allocation || {},
+    shrine_allocation:     kingdom.shrine_allocation     || {},
     library_allocation: kingdom.library_allocation || {},
     library_progress:   kingdom.library_progress   || {},
     scrolls:            kingdom.scrolls            || {},
@@ -2503,6 +2605,8 @@ async function loadKingdom() {
   renderBuildQueue();
   loadActiveExpeditions();
   renderLibraryPanel();
+  renderMageTowerPanel();
+  renderShrinePanel();
 }
 
 async function loadNews() {
@@ -2654,6 +2758,9 @@ function applyServerUpdates(u) {
   if (u.engineers    !== undefined) state.engineers     = u.engineers;
   if (u.scribes      !== undefined) state.scribes       = u.scribes;
   if (u.bld_libraries!== undefined) state.bld_libraries = u.bld_libraries;
+  if (u.bld_shrines  !== undefined) state.bld_shrines   = u.bld_shrines;
+  if (u.mage_tower_allocation !== undefined) { try { state.mage_tower_allocation = typeof u.mage_tower_allocation==='string' ? JSON.parse(u.mage_tower_allocation) : u.mage_tower_allocation; } catch(e){} }
+  if (u.shrine_allocation     !== undefined) { try { state.shrine_allocation     = typeof u.shrine_allocation    ==='string' ? JSON.parse(u.shrine_allocation)     : u.shrine_allocation;     } catch(e){} }
   if (u.scrolls      !== undefined) { try { state.scrolls = typeof u.scrolls==='string' ? JSON.parse(u.scrolls) : u.scrolls; } catch(e){} }
   if (u.maps         !== undefined) state.maps          = u.maps;
   if (u.blueprints_stored !== undefined) state.blueprints_stored = u.blueprints_stored;
@@ -2690,6 +2797,7 @@ var BUILD_FIELDS = [
   { id:'b-cathedral', key:'cathedral',   pieces:25,  alloc:'ba-cathedral' },
   { id:'b-training',  key:'training',    pieces:50,  alloc:'ba-training'  },
   { id:'b-colosseum', key:'colosseum',   pieces:25,  alloc:'ba-colosseum' },
+  { id:'b-shrine',    key:'shrine',      pieces:50,  alloc:'ba-shrine'    },
   { id:'b-castle',    key:'castle',      pieces:500, alloc:'ba-castle'    },
   { id:'b-library',   key:'library',     pieces:100, alloc:'ba-library'   },
   { id:'b-wm',        key:'war_machine', pieces:20,  alloc:'ba-wm'        },
@@ -2745,7 +2853,7 @@ function loadBuildAllocation() {
     farm:'farms', barracks:'barracks', outpost:'outposts', tower:'guard_towers',
     school:'schools', armory:'armories', vault:'vaults', smithy:'smithies',
     market:'markets', cathedral:'cathedrals', training:'training',
-    colosseum:'colosseums', castle:'castles', library:'libraries', war_machine:'war_machines',
+    colosseum:'colosseums', shrine:'shrines', castle:'castles', library:'libraries', war_machine:'war_machines',
     weapons:'weapons', armor:'armor'
   };
   BUILD_FIELDS.forEach(function(f) {
@@ -2767,7 +2875,7 @@ async function releaseAllResearchers() {
 
 async function releaseAllEngineers() {
   var BA_FIELDS = ['ba-farm','ba-barracks','ba-outpost','ba-tower','ba-school','ba-armory','ba-vault',
-    'ba-smithy','ba-market','ba-cathedral','ba-training','ba-colosseum','ba-castle','ba-library','ba-wm','ba-weapons','ba-armor'];
+    'ba-smithy','ba-market','ba-cathedral','ba-training','ba-colosseum','ba-shrine','ba-castle','ba-library','ba-wm','ba-weapons','ba-armor'];
   BA_FIELDS.forEach(function(id) { var el = document.getElementById(id); if (el) el.value = 0; });
   updateBuildDisplay();
   var result = await apiCall('POST', '/api/kingdom/build-allocation', { allocation: {} });
@@ -2782,7 +2890,7 @@ async function saveBuildAllocation() {
     farm:'farms', barracks:'barracks', outpost:'outposts', tower:'guard_towers',
     school:'schools', armory:'armories', vault:'vaults', smithy:'smithies',
     market:'markets', cathedral:'cathedrals', training:'training',
-    colosseum:'colosseums', castle:'castles', library:'libraries', war_machine:'war_machines',
+    colosseum:'colosseums', shrine:'shrines', castle:'castles', library:'libraries', war_machine:'war_machines',
     weapons:'weapons', armor:'armor'
   };
   var total = 0;
@@ -2817,7 +2925,7 @@ async function buildAll() {
     farm:'farms', barracks:'barracks', outpost:'outposts', tower:'guard_towers',
     school:'schools', armory:'armories', vault:'vaults', smithy:'smithies',
     market:'markets', cathedral:'cathedrals', training:'training',
-    colosseum:'colosseums', castle:'castles', library:'libraries', war_machine:'war_machines',
+    colosseum:'colosseums', shrine:'shrines', castle:'castles', library:'libraries', war_machine:'war_machines',
     weapons:'weapons', armor:'armor'
   };
 
@@ -2856,20 +2964,20 @@ function renderBuildQueue() {
   var BUILDING_COST_JS = {
     farms:2500, barracks:5000, outposts:7500, guard_towers:2500,
     schools:7500, armories:2500, vaults:10000, smithies:10000,
-    markets:10000, cathedrals:15000, training:20000, colosseums:5000,
+    markets:10000, cathedrals:15000, training:20000, colosseums:5000, shrines:5000,
     castles:100000, war_machine:200, weapons:10, armor:10
   };
   var labels = {
     farms:'Farms', barracks:'Barracks', outposts:'Outposts', guard_towers:'Guard Towers',
     schools:'Schools', armories:'Armories', vaults:'Vaults', smithies:'Smithies',
-    markets:'Market Places', cathedrals:'Cathedrals', training:'Training Fields',
-    colosseums:'Taverns', castles:'Castles', war_machine:'War Machines',
+    markets:'Market Places', cathedrals:'Mage Towers', training:'Training Fields',
+    colosseums:'Taverns', shrines:'Shrines', castles:'Castles', war_machine:'War Machines',
     weapons:'Weapons', armor:'Armor'
   };
   var icons = {
     farms:'🌾', barracks:'🏠', outposts:'🏴', guard_towers:'🗼',
     schools:'📚', armories:'🛡️', vaults:'💰', smithies:'⚒️',
-    markets:'🏪', cathedrals:'⛪', training:'⚔️', colosseums:'🍺',
+    markets:'🏪', cathedrals:'🗼', training:'⚔️', colosseums:'🍺', shrines:'⛩️',
     castles:'🏰', war_machine:'🪖', weapons:'🗡️', armor:'🔰'
   };
 
@@ -2878,7 +2986,7 @@ function renderBuildQueue() {
     farm:'farms', barracks:'barracks', outpost:'outposts', tower:'guard_towers',
     school:'schools', armory:'armories', vault:'vaults', smithy:'smithies',
     market:'markets', cathedral:'cathedrals', training:'training',
-    colosseum:'colosseums', castle:'castles', library:'libraries', war_machine:'war_machine',
+    colosseum:'colosseums', shrine:'shrines', castle:'castles', library:'libraries', war_machine:'war_machine',
     weapons:'weapons', armor:'armor'
   };
 
@@ -3178,6 +3286,113 @@ async function saveTrainingAllocation() {
 
 // Visible debug helper for mobile
 function debugLog(msg) { /* disabled */ }
+
+// ── Mage Tower ────────────────────────────────────────────────────────────────
+
+function renderMageTowerPanel() {
+  var towers = state.bld_cathedrals || 0;
+  var warn = document.getElementById('tower-no-tower');
+  if (warn) warn.style.display = towers === 0 ? 'block' : 'none';
+
+  var cap = towers * 20;
+  var capEl = document.getElementById('tower-capacity'); if (capEl) capEl.textContent = 20;
+  var cntEl = document.getElementById('tower-count');    if (cntEl) cntEl.textContent = towers;
+  var availEl = document.getElementById('tower-mages-avail'); if (availEl) availEl.textContent = fmt(state.mages || 0);
+
+  var alloc = state.mage_tower_allocation || {};
+  var tmEl = document.getElementById('tower-mages');
+  var trEl = document.getElementById('tower-research-mages');
+  if (tmEl) tmEl.value = alloc.mages || 0;
+  if (trEl) trEl.value = alloc.research_mages || 0;
+
+  var discEl = document.getElementById('tower-discipline');
+  if (discEl && alloc.research_discipline) {
+    for (var i = 0; i < discEl.options.length; i++) {
+      if (discEl.options[i].value === alloc.research_discipline) { discEl.selectedIndex = i; break; }
+    }
+  }
+
+  var magesInTower = Math.min(Number(alloc.mages) || 0, state.mages || 0);
+  var effectiveMages = Math.min(magesInTower, cap);
+  var manaRate = Math.floor(effectiveMages / 5);
+  var manaRateEl = document.getElementById('tower-mana-rate');
+  if (manaRateEl) manaRateEl.textContent = fmt(manaRate);
+  var researchEl = document.getElementById('tower-research-rate');
+  if (researchEl) researchEl.textContent = fmt(Math.min(Number(alloc.research_mages) || 0, state.mages || 0));
+
+  updateAllocationDisplay();
+  loadAllocationFromState();
+}
+
+async function saveMageTowerAllocation() {
+  var towers = state.bld_cathedrals || 0;
+  if (towers === 0) return toast('Build a Mage Tower first', 'error');
+  var mages    = parseInt(document.getElementById('tower-mages')?.value) || 0;
+  var resMages = parseInt(document.getElementById('tower-research-mages')?.value) || 0;
+  if (mages + resMages > (state.mages || 0)) return toast('Total mages allocated exceeds available mages', 'error');
+  var disc = document.getElementById('tower-discipline')?.value || null;
+  var result = await apiCall('POST', '/api/kingdom/mage-tower-allocation', {
+    allocation: { mages, research_mages: resMages, research_discipline: disc || null }
+  });
+  if (result.error) return toast(result.error, 'error');
+  state.mage_tower_allocation = result.allocation;
+  renderMageTowerPanel();
+  toast('Mage Tower allocation saved', 'success');
+}
+
+async function releaseAllTowerMages() {
+  var tmEl = document.getElementById('tower-mages');
+  var trEl = document.getElementById('tower-research-mages');
+  if (tmEl) tmEl.value = 0;
+  if (trEl) trEl.value = 0;
+  var result = await apiCall('POST', '/api/kingdom/mage-tower-allocation', {
+    allocation: { mages: 0, research_mages: 0, research_discipline: null }
+  });
+  if (result.error) return toast(result.error, 'error');
+  state.mage_tower_allocation = {};
+  renderMageTowerPanel();
+  toast('All mages released from tower', 'success');
+}
+
+// ── Shrine ────────────────────────────────────────────────────────────────────
+
+function renderShrinePanel() {
+  var shrines = state.bld_shrines || 0;
+  var warn = document.getElementById('shrine-no-shrine');
+  if (warn) warn.style.display = shrines === 0 ? 'block' : 'none';
+  var cntEl = document.getElementById('shrine-count'); if (cntEl) cntEl.textContent = shrines;
+  var availEl = document.getElementById('shrine-clerics-avail'); if (availEl) availEl.textContent = fmt(state.clerics || 0);
+
+  var alloc = state.shrine_allocation || {};
+  var clericsEl = document.getElementById('shrine-clerics');
+  if (clericsEl) clericsEl.value = alloc.clerics || 0;
+
+  var moraleRate = Math.floor(Math.min(Number(alloc.clerics) || 0, shrines * 15) / 10);
+  var moraleEl = document.getElementById('shrine-morale-rate');
+  if (moraleEl) moraleEl.textContent = fmt(moraleRate);
+}
+
+async function saveShrineAllocation() {
+  var shrines = state.bld_shrines || 0;
+  if (shrines === 0) return toast('Build a Shrine first', 'error');
+  var clerics = parseInt(document.getElementById('shrine-clerics')?.value) || 0;
+  if (clerics > (state.clerics || 0)) return toast('Not enough clerics', 'error');
+  var result = await apiCall('POST', '/api/kingdom/shrine-allocation', { allocation: { clerics } });
+  if (result.error) return toast(result.error, 'error');
+  state.shrine_allocation = result.allocation;
+  renderShrinePanel();
+  toast('Shrine allocation saved', 'success');
+}
+
+async function releaseAllShrineClericsFn() {
+  var el = document.getElementById('shrine-clerics');
+  if (el) el.value = 0;
+  var result = await apiCall('POST', '/api/kingdom/shrine-allocation', { allocation: { clerics: 0 } });
+  if (result.error) return toast(result.error, 'error');
+  state.shrine_allocation = {};
+  renderShrinePanel();
+  toast('All clerics released from shrine', 'success');
+}
 
 // ── Library ───────────────────────────────────────────────────────────────────
 
