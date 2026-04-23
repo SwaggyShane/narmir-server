@@ -2065,16 +2065,9 @@ function showLoginModal() {
     if (result.token) localStorage.setItem('narmir_token', result.token);
     state.username = username;
     overlay.innerHTML = '<div style="color:#e8b84b;font-size:16px;font-weight:600;text-align:center;padding:40px">Loading your kingdom...</div>';
-
-    debugLog('calling loadKingdom...');
-    try {
-      await loadKingdom();
-      debugLog('loadKingdom complete, kingdomId=' + state.kingdomId);
-    } catch(e) {
-      debugLog('loadKingdom threw: ' + e.message);
-    }
     overlay.remove();
-    debugLog('overlay removed');
+    debugLog('overlay removed, loading kingdom...');
+    loadKingdom().catch(function(e) { debugLog('loadKingdom err: ' + e.message); });
   }
 }
 
