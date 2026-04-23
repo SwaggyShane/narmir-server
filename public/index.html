@@ -2797,18 +2797,11 @@ async function doLogout() {
 }
 
 apiCall('GET', '/api/auth/me').then(function(me) {
-  debugLog('auth/me: ' + (me.error ? 'error: ' + me.error : 'ok, user=' + me.username));
   if (me.error) {
     showLoginModal();
   } else {
     state.username = me.username;
-    loadKingdom().then(function() {
-      debugLog('loadKingdom done, kingdomId=' + state.kingdomId);
-      if (!state.kingdomId) showLoginModal();
-    }).catch(function(e) {
-      debugLog('loadKingdom crash: ' + e.message);
-      showLoginModal();
-    });
+    loadKingdom();
   }
 });
 </script>
