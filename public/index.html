@@ -437,48 +437,56 @@
           <span class="count" id="h-fighters">0</span>
           <input type="number" id="hire-fighters" min="0" value="0" placeholder="0">
           <button class="btn btn-gold" onclick="hire('fighters')">Hire</button>
+          <button class="btn btn-red" onclick="fire('fighters')">Fire</button>
         </div>
         <div class="trow">
           <span class="name">Rangers</span><span class="desc">Search for land, gold &amp; targets</span>
           <span class="count" id="h-rangers">0</span>
           <input type="number" id="hire-rangers" min="0" value="0" placeholder="0">
           <button class="btn btn-gold" onclick="hire('rangers')">Hire</button>
+          <button class="btn btn-red" onclick="fire('rangers')">Fire</button>
         </div>
         <div class="trow">
           <span class="name">Clerics</span><span class="desc">Battlefield medics &amp; fighters</span>
           <span class="count" id="h-clerics">0</span>
           <input type="number" id="hire-clerics" min="0" value="0" placeholder="0">
           <button class="btn btn-gold" onclick="hire('clerics')">Hire</button>
+          <button class="btn btn-red" onclick="fire('clerics')">Fire</button>
         </div>
         <div class="trow">
           <span class="name">Mages</span><span class="desc">Attack magic, absorbs enemy spells</span>
           <span class="count" id="h-mages">0</span>
           <input type="number" id="hire-mages" min="0" value="0" placeholder="0">
           <button class="btn btn-gold" onclick="hire('mages')">Hire</button>
+          <button class="btn btn-red" onclick="fire('mages')">Fire</button>
         </div>
         <div class="trow">
           <span class="name">Thieves</span><span class="desc">Loot research, gold &amp; machines</span>
           <span class="count" id="h-thieves">0</span>
           <input type="number" id="hire-thieves" min="0" value="0" placeholder="0">
           <button class="btn btn-gold" onclick="hire('thieves')">Hire</button>
+          <button class="btn btn-red" onclick="fire('thieves')">Fire</button>
         </div>
         <div class="trow">
           <span class="name">Ninjas</span><span class="desc">Assassinate units &amp; sabotage</span>
           <span class="count" id="h-ninjas">0</span>
           <input type="number" id="hire-ninjas" min="0" value="0" placeholder="0">
           <button class="btn btn-gold" onclick="hire('ninjas')">Hire</button>
+          <button class="btn btn-red" onclick="fire('ninjas')">Fire</button>
         </div>
         <div class="trow">
           <span class="name">Researchers</span><span class="desc">Study all disciplines (max 1M)</span>
           <span class="count" id="h-researchers">500</span>
           <input type="number" id="hire-researchers" min="0" value="0" placeholder="0">
           <button class="btn btn-gold" onclick="hire('researchers')">Hire</button>
+          <button class="btn btn-red" onclick="fire('researchers')">Fire</button>
         </div>
         <div class="trow">
           <span class="name">Engineers</span><span class="desc">Construct buildings &amp; operate war machines</span>
           <span class="count" id="h-engineers">0</span>
           <input type="number" id="hire-engineers" min="0" value="0" placeholder="0">
           <button class="btn btn-gold" onclick="hire('engineers')">Hire</button>
+          <button class="btn btn-red" onclick="fire('engineers')">Fire</button>
         </div>
       </div>
       <div style="font-size:12px;color:var(--text3);padding:0 4px">Hired units are subtracted from the population pool. Population returns over time based on morale and entertainment. Dismiss units here to return them.</div>
@@ -1555,14 +1563,32 @@ function logExpeditionEntry(icon, title, subtitle) {
   log.insertBefore(entry, log.firstChild);
 }
 
+var _prevActiveTypes = {};
+
 async function loadActiveExpeditions() {
   var result = await apiCall('GET', '/api/kingdom/expedition/list');
   var bar = document.getElementById('active-expeditions');
   if (!bar) return;
 
+  var activeTypes = {};
+  if (Array.isArray(result)) result.forEach(function(e) { activeTypes[e.type] = e; });
+
+  // Detect completed expeditions — were active, now gone
+  Object.keys(_prevActiveTypes).forEach(function(t) {
+    if (!activeTypes[t]) {
+      // Mark log entry as completed
+      var liveSpan = document.getElementById('exp-log-live-' + t);
+      if (liveSpan) {
+        liveSpan.textContent = 'Returned — check news for rewards';
+        liveSpan.style.color = 'var(--green)';
+        liveSpan.style.fontWeight = '600';
+      }
+    }
+  });
+  _prevActiveTypes = activeTypes;
+
   if (!Array.isArray(result) || result.length === 0) {
     bar.style.display = 'none';
-    // Re-enable all buttons
     ['scout','deep','dungeon'].forEach(function(t) {
       var btn = document.getElementById('btn-exp-' + t);
       if (btn) { btn.disabled = false; btn.textContent = t === 'dungeon' ? 'Launch raid' : 'Launch expedition'; }
@@ -1583,20 +1609,18 @@ async function loadActiveExpeditions() {
       + '</div>';
   }).join('');
 
-  // Update launch buttons and log entries
   ['scout','deep','dungeon'].forEach(function(t) {
-    var active = result.find(function(e) { return e.type === t; });
+    var active = activeTypes[t];
     var btn = document.getElementById('btn-exp-' + t);
     if (btn) {
       btn.disabled = !!active;
       btn.textContent = active ? 'Underway — ' + active.turns_left + ' turn' + (active.turns_left === 1 ? '' : 's') + ' left' : (t === 'dungeon' ? 'Launch raid' : 'Launch expedition');
     }
-    // Update the live log entry for this expedition type
-    var logEntry = document.getElementById('exp-log-live-' + t);
-    if (logEntry && active) {
-      logEntry.textContent = active.turns_left + ' turn' + (active.turns_left === 1 ? '' : 's') + ' remaining';
-    } else if (logEntry && !active) {
-      logEntry.closest('.exp-log-entry').remove();
+    var liveSpan = document.getElementById('exp-log-live-' + t);
+    if (liveSpan && active) {
+      liveSpan.textContent = active.turns_left + ' turn' + (active.turns_left === 1 ? '' : 's') + ' remaining';
+      liveSpan.style.color = '';
+      liveSpan.style.fontWeight = '';
     }
   });
 }
@@ -1892,6 +1916,21 @@ async function hire(unit) {
   if (hEl) hEl.textContent = fmt(state[unit]);
   if (result.events && result.events.length) appendNewsItems(result.events);
   toast('Hired ' + fmt(n) + ' ' + unit + ' · ' + state.turns_stored + ' turns left', 'success');
+}
+
+async function fire(unit) {
+  var n = parseInt(document.getElementById('hire-' + unit).value) || 0;
+  if (n <= 0) return toast('Enter how many to fire', 'error');
+  var current = state[unit] || 0;
+  if (n > current) return toast('You only have ' + fmt(current) + ' ' + unit, 'error');
+  var result = await apiCall('POST', '/api/kingdom/fire', { unit: unit, amount: n });
+  if (result.error) return toast(result.error, 'error');
+  applyServerUpdates(result.updates);
+  syncUI();
+  document.getElementById('hire-' + unit).value = 0;
+  var hEl = document.getElementById('h-' + unit);
+  if (hEl) hEl.textContent = fmt(state[unit]);
+  toast('Fired ' + fmt(n) + ' ' + unit + ' — returned to population', 'success');
 }
 
 async function study(name) {
