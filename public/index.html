@@ -1946,11 +1946,11 @@ async function launchExpedition(type) {
 
   if (result.error) return toast(result.error, 'error');
 
-  // Update state — troops are locked away
-  if (result.updated) {
-    state.rangers = result.updated.rangers;
-    state.fighters = result.updated.fighters !== undefined ? result.updated.fighters : state.fighters;
-  }
+  // Apply full turn updates returned from server (processTurn was run + turn consumed)
+  if (result.updates) applyServerUpdates(result.updates);
+  if (result.turns_stored !== undefined) state.turns_stored = result.turns_stored;
+  // Expedition launch news goes to exploration log only — append turn events to news feed
+  if (result.events && result.events.length) appendNewsItems(result.events);
   syncUI();
   updateExpeditionAvailability();
   await loadActiveExpeditions();
