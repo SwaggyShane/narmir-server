@@ -978,81 +978,193 @@ const SCRIBE_ITEMS = {
   blueprint: { scribes: 5,  turns: 20, desc: 'Boosts construction speed by 10% when used' },
 };
 
-function castSpell(caster, target, spellId, power, duration, obscure) {
+function castSpell(caster, target, spellId, obscure) {
   const def = SPELL_DEFS[spellId];
   if (!def) return { error: 'Unknown spell' };
-  if (caster.res_spellbook < def.minSB) {
+  if ((caster.res_spellbook || 0) < def.minSB)
     return { error: `Spellbook too low — need ${def.minSB}, have ${caster.res_spellbook}` };
-  }
 
-  const obscureCost = obscure ? Math.floor(power * 0.5) : 0;
-  const totalMana   = power + obscureCost;
+  // Scroll check — must have a crafted scroll to cast
+  let scrolls = {};
+  try { scrolls = JSON.parse(caster.scrolls || '{}'); } catch {}
+  if ((scrolls[spellId] || 0) < 1)
+    return { error: `No ${spellId.replace(/_/g,' ')} scroll in your library — craft one first` };
 
-  if (caster.mana < totalMana) {
-    return { error: `Not enough mana — need ${totalMana.toLocaleString()}, have ${caster.mana.toLocaleString()}` };
-  }
+  // Mana cost: base cost scales with tier
+  const TIER_MANA = { 1: 500, 2: 2000, 3: 8000, 4: 50000 };
+  const baseMana   = TIER_MANA[def.tier] || 500;
+  const obscureCost = obscure ? Math.floor(baseMana * 0.5) : 0;
+  const totalMana   = baseMana + obscureCost;
+  if ((caster.mana || 0) < totalMana)
+    return { error: `Not enough mana — need ${totalMana.toLocaleString()}, have ${(caster.mana||0).toLocaleString()}` };
 
-  // Spellbook degrades slightly each cast
-  const sbDecay = Math.floor(power * 0.001);
+  // Consume scroll and mana
+  scrolls[spellId] = (scrolls[spellId] || 0) - 1;
+  if (scrolls[spellId] <= 0) delete scrolls[spellId];
   const casterUpdates = {
-    mana: caster.mana - totalMana,
-    res_spellbook: Math.max(0, caster.res_spellbook - sbDecay),
-    updated_at: Math.floor(Date.now() / 1000),
+    mana:    caster.mana - totalMana,
+    scrolls: JSON.stringify(scrolls),
   };
 
-  // Power per turn spread over duration, modified by race magic bonuses
-  const powerPerTurn  = Math.floor(power / duration);
-  const atkMagic      = (caster.res_attack_magic / 100) * raceBonus(caster, 'magic');
-  const defMagic      = (target.res_defense_magic / 100) * raceBonus(target, 'magic');
-  const effectivePower = Math.floor(powerPerTurn * atkMagic / Math.max(0.5, defMagic));
+  // Attack/defense magic modifiers
+  const atkMagic = ((caster.res_attack_magic || 100) / 100) * raceBonus(caster, 'magic');
+  const defMagic = ((target.res_defense_magic || 100) / 100) * raceBonus(target, 'magic');
+  const magicRatio = Math.max(0.2, atkMagic / Math.max(0.5, defMagic));
 
-  // Friendly spells
+  // Check shield active effect on target
+  let targetEffects = {};
+  try { targetEffects = JSON.parse(target.active_effects || '{}'); } catch {}
+  const shielded = targetEffects.shield ? 0.5 : 1.0;
+
+  const targetUpdates = {};
+  let damageDesc = '';
+  let activeEffect = null; // { key, turns_left, ...data } to apply to target
+
+  // ── Friendly spells (target = caster) ────────────────────────────────────
   if (def.effect === 'friendly') {
-    const targetUpdates = {};
-    if (spellId === 'bless')  { targetUpdates.morale = Math.min(200, target.morale + Math.floor(effectivePower / 100)); }
-    if (spellId === 'dispel') { /* clears active debuffs — tracked server-side in real impl */ }
+    if (spellId === 'mend') {
+      // Restore 10% of fighters (simulates healing recent casualties)
+      const healed = Math.floor((caster.fighters || 0) * 0.10 * magicRatio);
+      casterUpdates.fighters = (caster.fighters || 0) + healed;
+      damageDesc = `${healed.toLocaleString()} fighters restored`;
+    } else if (spellId === 'dispel') {
+      // Clear all active debuffs from caster
+      let effects = {};
+      try { effects = JSON.parse(caster.active_effects || '{}'); } catch {}
+      const debuffs = ['fog_of_war','blight','silence','plague'];
+      let cleared = 0;
+      debuffs.forEach(d => { if (effects[d]) { delete effects[d]; cleared++; } });
+      casterUpdates.active_effects = JSON.stringify(effects);
+      damageDesc = cleared > 0 ? `${cleared} active curse${cleared > 1 ? 's' : ''} dispelled` : 'no active curses to dispel';
+    } else if (spellId === 'bless') {
+      const moraleGain = Math.min(50, Math.floor(10 * magicRatio));
+      casterUpdates.morale = Math.min(200, (caster.morale || 100) + moraleGain);
+      // Apply bless buff for 5 turns
+      let effects = {};
+      try { effects = JSON.parse(caster.active_effects || '{}'); } catch {}
+      effects.bless = { turns_left: def.duration || 5, morale_bonus: moraleGain };
+      casterUpdates.active_effects = JSON.stringify(effects);
+      damageDesc = `+${moraleGain} morale and pop growth boosted for ${def.duration||5} turns`;
+    } else if (spellId === 'shield') {
+      let effects = {};
+      try { effects = JSON.parse(caster.active_effects || '{}'); } catch {}
+      effects.shield = { turns_left: def.duration || 5 };
+      casterUpdates.active_effects = JSON.stringify(effects);
+      damageDesc = `magic shield active for ${def.duration||5} turns — incoming spell damage halved`;
+    }
     return {
       casterUpdates,
-      targetUpdates,
-      report: { spellId, obscure, power, duration, effectivePower, win: true },
-      targetEvent: `${obscure ? 'An unknown caster' : caster.name} cast ${spellId} on your kingdom.`,
+      targetUpdates: {},
+      report: { spellId, friendly: true, damageDesc, manaCost: totalMana, obscure },
+      casterEvent: `✨ Cast ${spellId.replace(/_/g,' ')} — ${damageDesc}.`,
     };
   }
 
-  // Offensive spells — compute damage
-  const targetUpdates = {};
-  let damageDesc = '';
+  // ── Offensive / debuff spells ─────────────────────────────────────────────
 
-  if (def.effect === 'buildings') {
-    const farmsLost = Math.min(target.bld_farms, Math.floor(effectivePower / 500));
-    targetUpdates.bld_farms = target.bld_farms - farmsLost;
-    damageDesc = `${farmsLost} farms destroyed`;
-  } else if (def.effect === 'troops') {
-    const fightersLost = Math.min(target.fighters, Math.floor(effectivePower / 10));
-    targetUpdates.fighters = target.fighters - fightersLost;
+  if (spellId === 'spark') {
+    // Burns a small number of farms
+    const farmsLost = Math.max(1, Math.floor(5 * magicRatio * shielded));
+    targetUpdates.bld_farms = Math.max(0, (target.bld_farms || 0) - farmsLost);
+    damageDesc = `${farmsLost} farm${farmsLost > 1 ? 's' : ''} burned`;
+
+  } else if (spellId === 'rain') {
+    // Floods more farms than Spark
+    const farmsLost = Math.max(1, Math.floor(20 * magicRatio * shielded));
+    targetUpdates.bld_farms = Math.max(0, (target.bld_farms || 0) - farmsLost);
+    damageDesc = `${farmsLost} farm${farmsLost > 1 ? 's' : ''} flooded`;
+
+  } else if (spellId === 'fog_of_war') {
+    // Debuff: blinds rangers for duration turns
+    activeEffect = { turns_left: def.duration || 3, type: 'fog_of_war' };
+    damageDesc = `rangers blinded for ${def.duration||3} turns`;
+
+  } else if (spellId === 'blight') {
+    // Debuff: poison food supply for duration turns
+    const foodDamage = Math.floor(500 * magicRatio * shielded);
+    activeEffect = { turns_left: def.duration || 5, type: 'blight', damage: foodDamage };
+    damageDesc = `food supply poisoned for ${def.duration||5} turns (-${foodDamage.toLocaleString()} food/turn)`;
+
+  } else if (spellId === 'lightning') {
+    // Kills enemy fighters
+    const fightersLost = Math.max(1, Math.floor((target.fighters || 0) * 0.05 * magicRatio * shielded));
+    targetUpdates.fighters = Math.max(0, (target.fighters || 0) - fightersLost);
     damageDesc = `${fightersLost.toLocaleString()} fighters struck down`;
-  } else if (def.effect === 'research') {
-    const resLost = Math.floor(effectivePower / 200);
-    targetUpdates.res_economy = Math.max(0, target.res_economy - resLost);
-    damageDesc = `${resLost}% economy research wiped`;
-  } else if (def.effect === 'population') {
-    const popLost = Math.floor(target.population * (effectivePower / 1_000_000));
-    targetUpdates.population = Math.max(0, target.population - popLost);
-    damageDesc = `${popLost.toLocaleString()} citizens perished`;
+
+  } else if (spellId === 'silence') {
+    // Debuff: suppresses research for duration turns
+    activeEffect = { turns_left: def.duration || 3, type: 'silence' };
+    damageDesc = `research suppressed for ${def.duration||3} turns`;
+
+  } else if (spellId === 'amnesia') {
+    // Permanently wipes economy research
+    const resLost = Math.max(1, Math.floor(15 * magicRatio * shielded));
+    targetUpdates.res_economy = Math.max(0, (target.res_economy || 0) - resLost);
+    damageDesc = `economy research reduced by ${resLost}%`;
+
+  } else if (spellId === 'drain') {
+    // Siphons mana from target to caster
+    const manaDrained = Math.max(10, Math.floor((target.mana || 0) * 0.15 * magicRatio * shielded));
+    targetUpdates.mana = Math.max(0, (target.mana || 0) - manaDrained);
+    casterUpdates.mana = (casterUpdates.mana || caster.mana - totalMana) + manaDrained;
+    damageDesc = `${manaDrained.toLocaleString()} mana drained`;
+
+  } else if (spellId === 'plague') {
+    // Debuff: kills population each turn for duration
+    activeEffect = { turns_left: def.duration || 5, type: 'plague' };
+    damageDesc = `plague spreading — population will die each turn for ${def.duration||5} turns`;
+
+  } else if (spellId === 'earthquake') {
+    // Destroys buildings across all types
+    const dmg = Math.max(1, Math.floor(8 * magicRatio * shielded));
+    targetUpdates.bld_farms       = Math.max(0, (target.bld_farms       || 0) - Math.floor(dmg * 1.5));
+    targetUpdates.bld_barracks    = Math.max(0, (target.bld_barracks    || 0) - dmg);
+    targetUpdates.bld_guard_towers= Math.max(0, (target.bld_guard_towers|| 0) - dmg);
+    targetUpdates.bld_markets     = Math.max(0, (target.bld_markets     || 0) - Math.floor(dmg * 0.5));
+    targetUpdates.bld_castles     = Math.max(0, (target.bld_castles     || 0) - Math.floor(dmg * 0.1));
+    damageDesc = `buildings destroyed across the kingdom (farms, barracks, towers)`;
+
+  } else if (spellId === 'tempest') {
+    // Kills all troop types
+    const troopKill = Math.max(1, Math.floor((target.fighters || 0) * 0.08 * magicRatio * shielded));
+    const rangerKill = Math.max(0, Math.floor((target.rangers || 0) * 0.06 * magicRatio * shielded));
+    const clericKill = Math.max(0, Math.floor((target.clerics || 0) * 0.06 * magicRatio * shielded));
+    targetUpdates.fighters = Math.max(0, (target.fighters || 0) - troopKill);
+    targetUpdates.rangers  = Math.max(0, (target.rangers  || 0) - rangerKill);
+    targetUpdates.clerics  = Math.max(0, (target.clerics  || 0) - clericKill);
+    damageDesc = `${troopKill.toLocaleString()} fighters, ${rangerKill.toLocaleString()} rangers, ${clericKill.toLocaleString()} clerics killed`;
+
+  } else if (spellId === 'armageddon') {
+    // Catastrophic — land, buildings, population
+    const landLost  = Math.floor((target.land || 0) * 0.20 * magicRatio * shielded);
+    const popLost   = Math.floor((target.population || 0) * 0.25 * magicRatio * shielded);
+    const farmLost  = Math.floor((target.bld_farms || 0) * 0.30 * magicRatio * shielded);
+    const fightLost = Math.floor((target.fighters || 0) * 0.20 * magicRatio * shielded);
+    targetUpdates.land       = Math.max(0, (target.land       || 0) - landLost);
+    targetUpdates.population = Math.max(0, (target.population || 0) - popLost);
+    targetUpdates.bld_farms  = Math.max(0, (target.bld_farms  || 0) - farmLost);
+    targetUpdates.fighters   = Math.max(0, (target.fighters   || 0) - fightLost);
+    damageDesc = `ARMAGEDDON — ${landLost} acres scorched, ${popLost.toLocaleString()} killed, ${farmLost} farms razed, ${fightLost.toLocaleString()} fighters slain`;
   }
 
-  targetUpdates.updated_at = Math.floor(Date.now() / 1000);
+  // Apply active effect to target if this is a debuff spell
+  if (activeEffect) {
+    targetEffects[spellId] = activeEffect;
+    targetUpdates.active_effects = JSON.stringify(targetEffects);
+  }
 
-  const targetEventSource = obscure ? 'An unknown caster' : caster.name;
+  const source = obscure ? 'An unknown sorcerer' : caster.name;
   const targetEvent = obscure
-    ? `A mysterious ${spellId} spell struck your kingdom — ${damageDesc}.`
-    : `${caster.name} cast ${spellId} on your kingdom — ${damageDesc}.`;
+    ? `⚡ A mysterious ${spellId.replace(/_/g,' ')} spell struck your kingdom — ${damageDesc}.`
+    : `⚡ ${caster.name} cast ${spellId.replace(/_/g,' ')} on your kingdom — ${damageDesc}.`;
+
+  const casterEvent = `✨ You cast ${spellId.replace(/_/g,' ')} on ${target.name}. Effect: ${damageDesc}.`;
 
   return {
     casterUpdates,
     targetUpdates,
-    report: { spellId, obscure, power, duration, effectivePower, damageDesc, win: true },
-    casterEvent: `You cast ${spellId} on ${target.name}. Effect: ${damageDesc}.`,
+    report: { spellId, damageDesc, manaCost: totalMana, obscure, magicRatio: Math.round(magicRatio * 100) },
+    casterEvent,
     targetEvent,
   };
 }
