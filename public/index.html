@@ -1051,6 +1051,9 @@
 
 <!-- ═══════════════════════════════════════════ COVERT PANEL ══ -->
 <div id="covert" class="panel" style="display:none">
+  <div id="cov-map-warn" style="display:none;background:rgba(232,184,75,.08);border:1px solid var(--gold);border-radius:var(--radius);padding:12px 16px;font-size:13px;color:var(--gold);margin-bottom:16px">
+    🗺️ You need a <strong>map</strong> to interact with other kingdoms. Craft one in your <strong>Library</strong> using scribes.
+  </div>
   <div style="display:grid;grid-template-columns:1fr 320px;gap:16px;align-items:start">
     <div>
       <div class="card">
@@ -1953,52 +1956,81 @@ function castSpell() {
 }
 
 /* ── Covert ── */
-function covertOp(op) {
+async function covertOp(op) {
   if (!selectedCovertTarget) return toast('Select a target kingdom first', 'error');
   var t = selectedCovertTarget;
 
+  if ((state.maps || 0) < 1) return toast('You need a map to interact with other kingdoms — craft one in your Library', 'error');
+
+  var body = { op, targetId: t.id };
+
   if (op === 'spy') {
     var units = parseInt(document.getElementById('spy-units').value) || 0;
-    if (units <= 0) return toast('Send some thieves and ninjas', 'error');
-    var success = (state.thieves + state.ninjas) > (t.fighters * 0.03);
-    if (success) {
-      showSpyReport(t);
-    } else {
-      toast('Spy mission failed — ' + Math.floor(units * 0.3) + ' thieves captured and revealed your location', 'error');
-    }
+    if (units <= 0) return toast('Enter number of thieves/ninjas to send', 'error');
+    if (units > state.thieves + state.ninjas) return toast('Not enough thieves/ninjas', 'error');
+    body.units = units;
+
   } else if (op === 'loot') {
     var thieves = parseInt(document.getElementById('loot-thieves').value) || 0;
-    var lootType = document.getElementById('loot-target-type').value;
-    if (thieves <= 0) return toast('Assign thieves to loot', 'error');
+    if (thieves <= 0) return toast('Enter number of thieves to send', 'error');
     if (thieves > state.thieves) return toast('Not enough thieves', 'error');
-    var lootSuccess = state.thieves > t.fighters * 0.02;
-    if (lootSuccess) {
-      var amounts = { research: '340 research points', gold: fmt(Math.floor(thieves * 80)) + ' gold', weapons: fmt(Math.floor(thieves * 0.3)) + ' weapons', wm: Math.floor(thieves * 0.02) + ' war machines' };
-      toast('Looted ' + amounts[lootType] + ' from ' + t.name + '!', 'success');
-      if (lootType === 'gold') { state.gold += thieves * 80; syncUI(); }
-    } else {
-      toast('Loot failed — thieves caught. ' + t.name + ' now knows your location.', 'error');
-    }
+    body.units = thieves;
+    body.lootType = document.getElementById('loot-target-type').value;
+
   } else if (op === 'assassinate') {
     var ninjas = parseInt(document.getElementById('assn-ninjas').value) || 0;
-    var unitType = document.getElementById('assn-target-type').value;
-    if (ninjas <= 0) return toast('Assign ninjas to assassinate', 'error');
+    if (ninjas <= 0) return toast('Enter number of ninjas to send', 'error');
     if (ninjas > state.ninjas) return toast('Not enough ninjas', 'error');
-    var assSuccess = state.ninjas > t.fighters * 0.01;
-    if (assSuccess) {
-      var killed = Math.floor(ninjas * (12 + Math.random() * 8));
-      toast('Assassinated ' + fmt(killed) + ' ' + unitType + ' in ' + t.name + ' — silently done.', 'success');
-    } else {
-      toast('Assassination failed — ninjas compromised.', 'error');
-    }
+    body.units = ninjas;
+    body.unitType = document.getElementById('assn-target-type').value;
+
   } else if (op === 'sabotage') {
     var sninja = parseInt(document.getElementById('sab-ninjas').value) || 0;
-    var bldType = document.getElementById('sab-target-type').value;
-    if (sninja <= 0) return toast('Assign ninjas to sabotage', 'error');
+    if (sninja <= 0) return toast('Enter number of ninjas to send', 'error');
     if (sninja > state.ninjas) return toast('Not enough ninjas', 'error');
-    var destroyed = Math.floor(sninja * (4 + Math.random() * 4));
-    toast('Sabotaged ' + destroyed + ' ' + bldType + ' in ' + t.name, 'success');
+    body.units = sninja;
+    body.bldType = document.getElementById('sab-target-type').value;
   }
+
+  var result = await apiCall('POST', '/api/kingdom/covert', body);
+  if (result.error) return toast(result.error, 'error');
+
+  if (op === 'spy') {
+    if (result.success && result.report) {
+      showSpyReport(result.report, t.name);
+    } else {
+      toast(result.event || 'Spy mission failed', 'error');
+    }
+  } else if (op === 'loot') {
+    if (result.success) {
+      toast(result.event || 'Loot successful!', 'success');
+    } else {
+      toast(result.event || 'Loot failed', 'error');
+    }
+  } else if (op === 'assassinate') {
+    if (result.success) {
+      toast(result.event || 'Assassination successful!', 'success');
+      if (result.killed) state.ninjas = Math.max(0, state.ninjas); // ninjas returned
+    } else {
+      toast(result.event || 'Assassination failed', 'error');
+    }
+  } else if (op === 'sabotage') {
+    if (result.success) {
+      toast(result.event || 'Sabotage successful!', 'success');
+    } else {
+      toast(result.event || 'Sabotage failed', 'error');
+    }
+    if (result.ninjasLost) {
+      state.ninjas = Math.max(0, (state.ninjas || 0) - result.ninjasLost);
+    }
+  }
+
+  // Deduct a turn
+  if ((state.turns_stored || 0) > 0) {
+    state.turns_stored--;
+    updateTurnsDisplay();
+  }
+  syncUI();
 }
 
 /* ── Battle report modal ── */
@@ -2011,16 +2043,21 @@ function showBattleReport(data) {
   document.getElementById('battle-overlay').style.display = 'flex';
 }
 
-function showSpyReport(t) {
-  var noise = function(n){ return Math.floor(n * (0.85 + Math.random() * 0.3)); };
-  var html = '<div class="br-title" style="color:var(--blue)">Spy report — ' + t.name + '</div>';
+function showSpyReport(report, targetName) {
+  var name = targetName || report.name || 'Unknown';
+  var html = '<div class="br-title" style="color:var(--blue)">🕵️ Spy report — ' + name + '</div>';
   var rows = [
-    ['Race', t.race], ['Rank', '#' + t.rank], ['Land', fmt(noise(t.land)) + ' acres (approx)'],
-    ['Fighters', fmt(noise(t.fighters))], ['Mages', fmt(noise(t.mages || 0))],
-    ['Accuracy', 'Moderate — ±15%']
+    ['Race',        report.race || '?'],
+    ['Land',        fmt(report.land || 0) + ' acres (approx)'],
+    ['Fighters',    fmt(report.fighters || 0)],
+    ['Mages',       fmt(report.mages || 0)],
+    ['Gold',        fmt(report.gold || 0)],
+    ['Accuracy',    '±15% — not fully reliable'],
   ];
-  html += rows.map(function(r){ return '<div class="spy-row"><span style="color:var(--text2)">' + r[0] + '</span><span style="color:var(--text)">' + r[1] + '</span></div>'; }).join('');
-  html += '<div style="font-size:12px;color:var(--text3);margin-top:10px">Report is never fully accurate. Check again for confirmation.</div>';
+  html += rows.map(function(r){
+    return '<div class="spy-row"><span style="color:var(--text2)">' + r[0] + '</span><span style="color:var(--text)">' + r[1] + '</span></div>';
+  }).join('');
+  html += '<div style="font-size:12px;color:var(--text3);margin-top:10px">Spy again to confirm. Report degrades with distance.</div>';
   document.getElementById('battle-content').innerHTML = html;
   document.getElementById('battle-overlay').style.display = 'flex';
 }
@@ -2284,6 +2321,11 @@ function syncUI() {
   var schoolCap = (state.bld_schools || 0) * 100;
   var scEl = document.getElementById('hire-school-cap'); if (scEl) scEl.textContent = fmt(schoolCap);
   var suEl = document.getElementById('hire-school-used'); if (suEl) suEl.textContent = fmt(state.researchers || 0);
+  // Update covert panel unit counts
+  var spyAvail = document.getElementById('spy-thieves-avail');
+  if (spyAvail) spyAvail.textContent = fmt((state.thieves||0) + (state.ninjas||0));
+  var covMapWarn = document.getElementById('cov-map-warn');
+  if (covMapWarn) covMapWarn.style.display = (state.maps||0) < 1 ? 'block' : 'none';
   document.getElementById('build-eng').textContent = fmt(state.engineers || 0);
   var expRangers = document.getElementById('exp-rangers-avail');
   if (expRangers) expRangers.textContent = fmt(state.rangers || 0);
