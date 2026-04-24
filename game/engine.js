@@ -73,14 +73,23 @@ function foodBalance(k) {
 
 function popGrowth(k) {
   if (k.morale < 30) return -Math.floor(k.population * 0.02);
-  const base = Math.floor(k.population * 0.003);
+
+  const housingCap = (k.bld_housing || 0) * 500;
+  const pop = k.population || 0;
+
+  // Overcrowding — population above housing cap loses morale each turn (handled in processTurn)
+  // Growth slows to 10% if over cap, stops at 2× cap
+  let growthMult = 1.0;
+  if (housingCap > 0 && pop >= housingCap * 2) return 0; // hard stop at 2× cap
+  if (housingCap > 0 && pop > housingCap) growthMult = 0.10; // trickle growth when overcrowded
+
+  const base = Math.floor(pop * 0.003);
   const entertainment = Math.floor(k.res_entertainment / 100) * 10;
-  // High elves grow slowly (long-lived), humans grow fastest
   const raceGrowthMult = {
     high_elf: 0.80, dwarf: 0.90, dire_wolf: 1.00,
     dark_elf: 0.85, human: 1.15, orc: 1.10,
   }[k.race] || 1.0;
-  return Math.floor((base + entertainment) * raceGrowthMult);
+  return Math.floor((base + entertainment) * raceGrowthMult * growthMult);
 }
 
 function researchIncrement(k, discipline, researchersAssigned) {
@@ -220,18 +229,28 @@ function processTurn(k) {
   }
 
   // ── 6. Morale ─────────────────────────────────────────────────────────────────
-  if (k.tax > 50) {
-    const penalty = Math.floor((k.tax - 50) * 0.5);
-    updates.morale = Math.max(0, (k.morale||100) - penalty);
-    events.push({ type: 'system', message: `😡 Morale fell by ${penalty} to ${updates.morale} — citizens angry over ${k.tax}% taxation.` });
-  } else {
-    // Morale recovers based on entertainment research + taverns (formerly colosseums)
-    const tavernBonus = Math.floor((k.bld_colosseums||0) / 25);
-    const recovery = 1 + Math.floor((k.res_entertainment||0) / 200) + tavernBonus;
-    const newMorale = Math.min(200, (k.morale||100) + recovery);
-    if (newMorale !== k.morale) {
-      updates.morale = newMorale;
-      events.push({ type: 'system', message: `😊 Morale recovered by ${recovery} to ${newMorale}${tavernBonus > 0 ? ' (tavern bonus applied)' : ''}.` });
+  {
+    const housingCap = (k.bld_housing || 0) * 500;
+    const overcrowded = housingCap > 0 && (k.population || 0) > housingCap;
+    const overcrowdPenalty = overcrowded
+      ? Math.floor(((k.population || 0) - housingCap) / 1000)
+      : 0;
+
+    if (k.tax > 50) {
+      const penalty = Math.floor((k.tax - 50) * 0.5) + overcrowdPenalty;
+      updates.morale = Math.max(0, (k.morale||100) - penalty);
+      events.push({ type: 'system', message: `😡 Morale fell by ${penalty} to ${updates.morale} — citizens angry over ${k.tax}% taxation.` });
+    } else {
+      const tavernBonus = Math.floor((k.bld_colosseums||0) / 25);
+      const recovery = 1 + Math.floor((k.res_entertainment||0) / 200) + tavernBonus;
+      let newMorale = Math.min(200, (k.morale||100) + recovery);
+      if (overcrowdPenalty > 0) {
+        newMorale = Math.max(0, newMorale - overcrowdPenalty);
+        events.push({ type: 'system', message: `🏚️ Overcrowding penalty: -${overcrowdPenalty} morale (${(((k.population||0) - housingCap)/1000).toFixed(1)}k over housing cap).` });
+      }
+      if (newMorale !== k.morale) {
+        updates.morale = newMorale;
+      }
     }
   }
 
@@ -619,7 +638,7 @@ const BUILDING_COST = {
   farms: 2500, barracks: 5000, outposts: 7500, guard_towers: 2500,
   schools: 7500, armories: 2500, vaults: 10000, smithies: 10000,
   markets: 10000, cathedrals: 15000, shrines: 5000, training: 20000, colosseums: 5000,
-  castles: 100000, libraries: 10000,
+  castles: 100000, libraries: 10000, housing: 5000,
   war_machine: 200, weapons: 10, armor: 10,
 };
 
@@ -629,6 +648,7 @@ const BUILDING_COL = {
   vaults: 'bld_vaults', smithies: 'bld_smithies', markets: 'bld_markets',
   cathedrals: 'bld_cathedrals', shrines: 'bld_shrines', training: 'bld_training',
   colosseums: 'bld_colosseums', castles: 'bld_castles', libraries: 'bld_libraries',
+  housing: 'bld_housing',
   war_machine: 'war_machines', weapons: 'weapons_stockpile', armor: 'armor_stockpile',
 };
 
@@ -636,7 +656,7 @@ const BUILDING_GOLD_COST = {
   farms: 50, barracks: 200, outposts: 150, guard_towers: 150,
   schools: 500, armories: 400, vaults: 400, smithies: 800,
   markets: 2000, cathedrals: 3000, shrines: 1000, training: 10000, colosseums: 1500,
-  castles: 25000, libraries: 2000,
+  castles: 25000, libraries: 2000, housing: 500,
   war_machine: 5000, weapons: 100, armor: 150,
 };
 
@@ -644,6 +664,7 @@ const BUILDING_GOLD_COST = {
 const BUILDING_LAND_COST = {
   farms: 1, barracks: 1, outposts: 1, guard_towers: 1, armories: 1, vaults: 1,
   schools: 2, smithies: 2, markets: 2, colosseums: 2, shrines: 2, libraries: 2,
+  housing: 1,
   cathedrals: 5, training: 5,
   castles: 10,
   war_machine: 0, weapons: 0, armor: 0,
