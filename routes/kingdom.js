@@ -281,6 +281,71 @@ module.exports = function(db) {
     res.json({ ok: true, allocation: { clerics: clericsAlloc } });
   });
 
+  // ── Military attack ───────────────────────────────────────────────────────────
+  router.post('/attack', requireAuth, async (req, res) => {
+    const { targetId, fighters, mages } = req.body;
+    const fightersSent = Math.max(0, parseInt(fighters) || 0);
+    const magesSent    = Math.max(0, parseInt(mages)    || 0);
+
+    const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
+    if (!k) return res.status(404).json({ error: 'Kingdom not found' });
+    if (k.turns_stored < 1) return res.status(429).json({ error: 'No turns available' });
+    if (fightersSent <= 0) return res.status(400).json({ error: 'Send at least 1 fighter' });
+    if (fightersSent > k.fighters) return res.status(400).json({ error: 'Not enough fighters' });
+    if (magesSent > k.mages) return res.status(400).json({ error: 'Not enough mages' });
+
+    const target = await db.get('SELECT * FROM kingdoms WHERE id = ?', [targetId]);
+    if (!target) return res.status(404).json({ error: 'Target kingdom not found' });
+    if (target.id === k.id) return res.status(400).json({ error: 'Cannot attack yourself' });
+
+    // Map requirement
+    if ((k.maps || 0) < 1) return res.status(400).json({ error: 'You need a map to attack other kingdoms — craft one in your Library' });
+
+    const result = engine.resolveMilitaryAttack(k, target, fightersSent, magesSent);
+    if (result.error) return res.status(400).json({ error: result.error });
+
+    const VALID = new Set([
+      'gold','mana','land','population','morale','food','fighters','rangers','clerics',
+      'mages','thieves','ninjas','researchers','engineers','war_machines',
+      'weapons_stockpile','armor_stockpile','xp','level','troop_levels',
+      'res_economy','res_weapons','res_armor','res_military','res_attack_magic',
+      'res_defense_magic','res_entertainment','res_construction','res_war_machines','res_spellbook',
+    ]);
+
+    async function applyBattle(kingdom, updates) {
+      const safe = Object.fromEntries(Object.entries(updates).filter(([c,v]) =>
+        VALID.has(c) && v !== undefined && v !== null && !isNaN(v)
+      ));
+      if (Object.keys(safe).length > 0) {
+        const cols = Object.keys(safe).map(c => `${c} = ?`).join(', ');
+        await db.run(`UPDATE kingdoms SET ${cols} WHERE id = ?`, [...Object.values(safe), kingdom.id]);
+      }
+    }
+
+    await applyBattle(k, result.attackerUpdates);
+    await applyBattle(target, result.defenderUpdates);
+    await db.run('UPDATE kingdoms SET turns_stored = turns_stored - 1 WHERE id = ?', [k.id]);
+
+    // News for both kingdoms
+    await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)',
+      [k.id, 'attack', result.atkEvent, k.turn]);
+    await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)',
+      [target.id, 'attack', result.defEvent, target.turn]);
+
+    // XP event for level-up
+    if (result.report.atkLevelUp) {
+      await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)',
+        [k.id, 'system', `🎉 Level up! You are now level ${result.attackerUpdates.level}!`, k.turn]);
+    }
+
+    res.json({
+      ok: true,
+      report: result.report,
+      updates: result.attackerUpdates,
+      event: result.atkEvent,
+    });
+  });
+
   // ── Covert operations ────────────────────────────────────────────────────────
   router.post('/covert', requireAuth, async (req, res) => {
     const { op, targetId, units, lootType, unitType, bldType } = req.body;
