@@ -77,7 +77,7 @@ module.exports = function(db, io) {
   // POST /api/admin/reset-all-kingdoms — wipe all kingdoms back to starting stats
   router.post('/reset-all-kingdoms', async (_req, res) => {
     await db.run(`UPDATE kingdoms SET
-      gold = 10000, mana = 0, land = 404, population = 50000, food = 0, morale = 100,
+      gold = 10000, mana = 0, land = 504, population = 50000, food = 0, morale = 100,
       turn = 0, turns_stored = 200,
       fighters = 0, rangers = 50, clerics = 0, mages = 0, thieves = 0, ninjas = 0,
       researchers = 100, engineers = 100, scribes = 0,
@@ -85,7 +85,7 @@ module.exports = function(db, io) {
       bld_farms = 200, bld_barracks = 1, bld_outposts = 0, bld_guard_towers = 0,
       bld_schools = 1, bld_armories = 1, bld_vaults = 0, bld_smithies = 0,
       bld_markets = 0, bld_cathedrals = 0, bld_training = 0, bld_colosseums = 0,
-      bld_castles = 0, bld_shrines = 0, bld_libraries = 0,
+      bld_castles = 0, bld_shrines = 0, bld_libraries = 0, bld_housing = 100,
       res_economy = 100, res_weapons = 100, res_armor = 100, res_military = 100,
       res_attack_magic = 100, res_defense_magic = 100, res_entertainment = 100,
       res_construction = 100, res_war_machines = 100, res_spellbook = 0,
@@ -130,7 +130,7 @@ module.exports = function(db, io) {
       'war_machines','weapons_stockpile','armor_stockpile','maps','blueprints_stored',
       'bld_farms','bld_barracks','bld_outposts','bld_guard_towers','bld_schools',
       'bld_armories','bld_vaults','bld_smithies','bld_markets','bld_cathedrals',
-      'bld_training','bld_colosseums','bld_castles','bld_libraries','bld_shrines',
+      'bld_training','bld_colosseums','bld_castles','bld_libraries','bld_shrines','bld_housing',
       'res_economy','res_weapons','res_armor','res_military','res_attack_magic',
       'res_defense_magic','res_entertainment','res_construction','res_war_machines','res_spellbook',
       'xp','level',

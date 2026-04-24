@@ -31,8 +31,8 @@ module.exports = function(db) {
           player_id, name, race, gold, land, population,
           researchers, engineers, rangers, turns_stored,
           res_spellbook,
-          bld_farms, bld_schools, bld_barracks, bld_armories
-        ) VALUES (?, ?, ?, 10000, 404, 50000, 100, 100, 50, 200, 0, 200, 1, 1, 1)`,
+          bld_farms, bld_schools, bld_barracks, bld_armories, bld_housing
+        ) VALUES (?, ?, ?, 10000, 504, 50000, 100, 100, 50, 200, 0, 200, 1, 1, 1, 100)`,
         [playerResult.lastID, kingdomName, chosenRace]
       );
       const token = jwt.sign(
