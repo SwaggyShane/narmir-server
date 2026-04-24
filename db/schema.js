@@ -13,6 +13,10 @@ async function initDb() {
 
   await _db.exec('PRAGMA journal_mode = WAL');
   await _db.exec('PRAGMA foreign_keys = ON');
+  await _db.exec('PRAGMA cache_size = -32000');     // 32MB page cache
+  await _db.exec('PRAGMA synchronous = NORMAL');    // safe with WAL, much faster than FULL
+  await _db.exec('PRAGMA temp_store = MEMORY');     // temp tables in RAM
+  await _db.exec('PRAGMA mmap_size = 134217728');   // 128MB memory-mapped I/O
 
   await _db.exec(`
     CREATE TABLE IF NOT EXISTS players (
