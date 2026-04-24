@@ -359,7 +359,7 @@
     <div class="kingdom-header" style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
       <div>
         <h1 style="font-size:26px;font-weight:700;color:var(--text);line-height:1.2" id="kingdom-name">—</h1>
-        <div style="color:var(--text2);font-size:13px;margin-top:4px"><span id="kingdom-owner-line">—</span> · Turn <span id="turn-num" style="color:var(--text);font-weight:600">0</span> · <span class="badge badge-green">Protected</span></div>
+        <div style="color:var(--text2);font-size:13px;margin-top:4px"><span id="kingdom-owner-line">—</span> · Turn <span id="turn-num" style="color:var(--text);font-weight:600">0</span> · <span id="protection-badge" class="badge badge-green" style="display:none">🛡️ Protected</span></div>
         <div style="margin-top:6px"><span class="race-tag" id="race-tag-display">—</span></div>
         <div style="margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
           <span style="font-size:13px;color:var(--text3);cursor:pointer" onclick="showXpModal()" title="Click for XP breakdown">Level <span id="kingdom-level" style="color:var(--gold);font-weight:700;font-size:16px;text-decoration:underline dotted;text-underline-offset:3px">1</span> <span style="font-size:10px;color:var(--text3)">ⓘ</span></span>
@@ -2921,7 +2921,8 @@ function syncUI() {
   if (th) th.textContent = fmt(state.tools_hammers || 0);
   if (ts) ts.textContent = fmt(state.tools_scaffolding || 0);
   if (tb) tb.textContent = fmt(state.tools_blueprints || 0);
-  renderActiveEffects();
+  var pb = document.getElementById('protection-badge');
+  if (pb) pb.style.display = (state.turn || 0) < 200 ? 'inline' : 'none';
   // Only rebuild heavy panels when they're visible
   var buildPanel = document.getElementById('build');
   if (buildPanel && buildPanel.style.display !== 'none') renderBuildQueue();
@@ -3501,6 +3502,7 @@ function renderRankingsPanel(rankings) {
     var nameColor = isMe ? 'color:var(--purple);font-weight:700' : 'color:var(--text);font-weight:600';
     var aiTag = r.is_ai ? ' <span style="font-size:10px;color:var(--text3)">🤖</span>' : '';
     var meTag = isMe ? ' <span style="font-size:10px;color:var(--purple);font-weight:400">(you)</span>' : '';
+    var protTag = (!isMe && (r.turn||0) < 200) ? ' <span style="font-size:10px;color:var(--green)" title="Newbie protection — cannot be attacked until Turn 200">🛡️</span>' : '';
     var rankColor = r.rank === 1 ? 'color:var(--gold);font-weight:700' : r.rank <= 3 ? 'color:var(--amber)' : 'color:var(--text3)';
     var rankBadge = r.rank === 1 ? '👑' : r.rank <= 3 ? '🥈' : '';
 
@@ -3511,18 +3513,20 @@ function renderRankingsPanel(rankings) {
     var winColor = winChance >= 60 ? 'var(--green)' : winChance >= 40 ? 'var(--amber)' : 'var(--red)';
 
     var actionBtns = isMe ? '<span style="font-size:11px;color:var(--text3)">—</span>' :
-      '<div style="display:flex;gap:4px;justify-content:center">'
-      + '<button class="btn btn-red" style="font-size:11px;padding:3px 8px" onclick="targetFromRankings(' + r.id + ',\'attack\')">⚔️</button>'
-      + '<button class="btn btn-purple" style="font-size:11px;padding:3px 8px" onclick="targetFromRankings(' + r.id + ',\'spells\')">✨</button>'
-      + '<button class="btn" style="font-size:11px;padding:3px 8px" onclick="targetFromRankings(' + r.id + ',\'covert\')">🕵️</button>'
-      + '</div>';
+      (r.turn||0) < 200
+        ? '<span style="font-size:11px;color:var(--green)" title="Protected until Turn 200">🛡️ Protected</span>'
+        : '<div style="display:flex;gap:4px;justify-content:center">'
+          + '<button class="btn btn-red" style="font-size:11px;padding:3px 8px" onclick="targetFromRankings(' + r.id + ',\'attack\')">⚔️</button>'
+          + '<button class="btn btn-purple" style="font-size:11px;padding:3px 8px" onclick="targetFromRankings(' + r.id + ',\'spells\')">✨</button>'
+          + '<button class="btn" style="font-size:11px;padding:3px 8px" onclick="targetFromRankings(' + r.id + ',\'covert\')">🕵️</button>'
+          + '</div>';
 
     return '<tr style="border-bottom:1px solid var(--border);' + rowBg + 'transition:background .15s" onmouseover="this.style.background=\'' + (isMe?'rgba(124,106,245,.12)':'rgba(255,255,255,.02)') + '\'" onmouseout="this.style.background=\'' + (isMe?'rgba(124,106,245,.08)':'') + '\'">'
       + '<td style="padding:10px 6px;' + rankColor + '">' + (rankBadge||r.rank) + '</td>'
       + '<td style="padding:10px 6px">'
         + '<div style="display:flex;align-items:center;gap:8px">'
         + '<span style="font-size:20px;flex-shrink:0">' + raceIcon + '</span>'
-        + '<div><div style="' + nameColor + '">' + r.name + meTag + aiTag + '</div>'
+        + '<div><div style="' + nameColor + '">' + r.name + meTag + aiTag + protTag + '</div>'
         + '<div style="font-size:11px;color:var(--text3);text-transform:capitalize;margin-top:1px">' + raceName + (r.username ? ' · ' + r.username : '') + '</div>'
         + '</div></div></td>'
       + '<td style="padding:10px 6px;text-align:right;color:var(--gold);font-weight:600">' + fmt(r.land) + '</td>'
