@@ -65,6 +65,7 @@ async function initDb() {
       bld_training      INTEGER NOT NULL DEFAULT 0,
       bld_colosseums    INTEGER NOT NULL DEFAULT 0,
       bld_castles       INTEGER NOT NULL DEFAULT 0,
+      bld_housing       INTEGER NOT NULL DEFAULT 100,
       fighters    INTEGER NOT NULL DEFAULT 0,
       rangers     INTEGER NOT NULL DEFAULT 0,
       clerics     INTEGER NOT NULL DEFAULT 0,
@@ -196,6 +197,7 @@ async function initDb() {
   if (!expCols.includes('rewards')) await addColumn('expeditions', 'rewards', 'TEXT');
 
   if (!cols.includes('bld_shrines'))             await addColumn('kingdoms', 'bld_shrines',             'INTEGER NOT NULL DEFAULT 0');
+  if (!cols.includes('bld_housing'))             await addColumn('kingdoms', 'bld_housing',             'INTEGER NOT NULL DEFAULT 100');
   if (!cols.includes('mage_tower_allocation'))   await addColumn('kingdoms', 'mage_tower_allocation',   "TEXT NOT NULL DEFAULT '{}'");
   if (!cols.includes('shrine_allocation'))       await addColumn('kingdoms', 'shrine_allocation',       "TEXT NOT NULL DEFAULT '{}'");
   if (!cols.includes('scribes'))             await addColumn('kingdoms', 'scribes',             'INTEGER NOT NULL DEFAULT 0');
