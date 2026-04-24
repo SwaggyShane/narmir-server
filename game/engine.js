@@ -7,7 +7,7 @@ const RACE_BONUSES = {
   high_elf:  { research: 1.15, magic: 1.20, economy: 1.05, military: 0.90 },
 
   // Dwarf: master traders and builders — strong economy and construction
-  dwarf:     { construction: 1.20, war_machines: 1.25, economy: 1.20, magic: 0.75, research: 0.90 },
+  dwarf:     { construction: 1.20, war_machines: 1.25, economy: 1.202, magic: 0.75, research: 0.90 },
 
   // Dire Wolf: savage raiders — economy is plunder-based, terrible long-term
   dire_wolf: { military: 1.30, covert: 1.10, research: 0.70, magic: 0.60, economy: 0.70 },
@@ -38,7 +38,7 @@ function goldPerTurn(k) {
   const marketBonus = Math.floor(k.bld_markets / 30) * 200;
   const castleBonus = Math.floor(k.bld_castles / 500) * 500;
   const econBonus = raceBonus(k, 'economy');
-  return Math.floor((baseRate + marketBonus + castleBonus) * econBonus * 1.25);
+  return Math.floor((baseRate + marketBonus + castleBonus) * econBonus * 2.25);
 }
 
 function manaPerTurn(k) {
