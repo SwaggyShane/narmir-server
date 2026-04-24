@@ -3,22 +3,22 @@
 // All functions take a kingdom row (or rows) and return mutations + events.
 
 const RACE_BONUSES = {
-  // High Elf: masters of research and magic, fragile in direct combat
-  high_elf:  { research: 1.15, magic: 1.20, military: 0.90 },
+  // High Elf: scholarly civilization — modest economy, excellent research and magic
+  high_elf:  { research: 1.15, magic: 1.20, economy: 1.05, military: 0.90 },
 
-  // Dwarf: unmatched builders and engineers, slow to learn magic
-  dwarf:     { construction: 1.20, war_machines: 1.25, economy: 1.10, magic: 0.75, research: 0.90 },
+  // Dwarf: master traders and builders — strong economy and construction
+  dwarf:     { construction: 1.20, war_machines: 1.25, economy: 1.20, magic: 0.75, research: 0.90 },
 
-  // Dire Wolf: savage fighters, terrible scholars
-  dire_wolf: { military: 1.30, covert: 1.10, research: 0.70, magic: 0.60, economy: 0.85 },
+  // Dire Wolf: savage raiders — economy is plunder-based, terrible long-term
+  dire_wolf: { military: 1.30, covert: 1.10, research: 0.70, magic: 0.60, economy: 0.70 },
 
-  // Dark Elf: lethal covert operatives, poor open combat
+  // Dark Elf: shadow traders — modest economy, lethal covert
   dark_elf:  { covert: 1.25, stealth: 1.30, magic: 1.10, military: 0.85, economy: 0.90 },
 
-  // Human: no bonuses or penalties — jack of all trades
-  human:     {},
+  // Human: balanced — slight economic edge from adaptability
+  human:     { economy: 1.05 },
 
-  // Orc: powerful fighters and good economy from raiding, poor research
+  // Orc: raiders with a nose for loot — decent economy from conquest
   orc:       { military: 1.20, economy: 1.10, research: 0.80, magic: 0.65, construction: 0.90 },
 };
 
