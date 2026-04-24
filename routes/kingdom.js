@@ -281,6 +281,102 @@ module.exports = function(db) {
     res.json({ ok: true, allocation: { clerics: clericsAlloc } });
   });
 
+  // ── Covert operations ────────────────────────────────────────────────────────
+  router.post('/covert', requireAuth, async (req, res) => {
+    const { op, targetId, units, lootType, unitType, bldType } = req.body;
+    const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
+    if (!k) return res.status(404).json({ error: 'Kingdom not found' });
+    if (k.turns_stored < 1) return res.status(429).json({ error: 'No turns available' });
+
+    const target = await db.get('SELECT * FROM kingdoms WHERE id = ?', [targetId]);
+    if (!target) return res.status(404).json({ error: 'Target kingdom not found' });
+    if (target.id === k.id) return res.status(400).json({ error: 'Cannot target your own kingdom' });
+
+    // Check map requirement
+    if ((k.maps || 0) < 1) return res.status(400).json({ error: 'You need a map to interact with other kingdoms — craft one in your Library' });
+
+    let result;
+    const VALID_COLS = new Set([
+      'gold','mana','land','population','morale','food','fighters','rangers','clerics',
+      'mages','thieves','ninjas','researchers','engineers','war_machines',
+      'weapons_stockpile','armor_stockpile',
+      'res_economy','res_weapons','res_armor','res_military','res_attack_magic',
+      'res_defense_magic','res_entertainment','res_construction','res_war_machines','res_spellbook',
+      'bld_farms','bld_barracks','bld_schools','bld_armories','bld_vaults','bld_smithies',
+      'bld_markets','bld_cathedrals','bld_colosseums','bld_castles','bld_libraries','bld_shrines',
+    ]);
+
+    async function applyCovert(kingdom, updates) {
+      const safe = Object.fromEntries(Object.entries(updates).filter(([c,v]) => VALID_COLS.has(c) && v !== undefined && !isNaN(v)));
+      if (Object.keys(safe).length > 0) {
+        const cols = Object.keys(safe).map(c => `${c} = ?`).join(', ');
+        await db.run(`UPDATE kingdoms SET ${cols} WHERE id = ?`, [...Object.values(safe), kingdom.id]);
+      }
+    }
+
+    if (op === 'spy') {
+      const unitsSent = Math.max(1, parseInt(units) || 0);
+      if (unitsSent > (k.thieves + k.ninjas)) return res.status(400).json({ error: 'Not enough thieves/ninjas' });
+      result = engine.covertSpy(k, target, unitsSent);
+      await applyCovert(k, result.spyUpdates || {});
+      await db.run('UPDATE kingdoms SET turns_stored = turns_stored - 1 WHERE id = ?', [k.id]);
+      if (result.spyEvent) await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)', [k.id, 'covert', result.spyEvent, k.turn]);
+      if (!result.success && result.targetEvent) await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)', [target.id, 'covert', result.targetEvent, target.turn]);
+      return res.json({ ok: true, success: result.success, report: result.report || null, event: result.spyEvent });
+
+    } else if (op === 'loot') {
+      const thievesSent = Math.max(1, parseInt(units) || 0);
+      if (thievesSent > k.thieves) return res.status(400).json({ error: 'Not enough thieves' });
+      const loot = lootType === 'wm' ? 'war_machines' : lootType;
+      result = engine.covertLoot(k, target, loot, thievesSent);
+      if (result.error) return res.status(400).json({ error: result.error });
+      await applyCovert(k, result.thiefUpdates || {});
+      await applyCovert(target, result.targetUpdates || {});
+      await db.run('UPDATE kingdoms SET turns_stored = turns_stored - 1 WHERE id = ?', [k.id]);
+      if (result.thiefEvent) await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)', [k.id, 'covert', result.thiefEvent, k.turn]);
+      if (result.targetEvent) await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)', [target.id, 'covert', result.targetEvent, target.turn]);
+      return res.json({ ok: true, success: result.success, stolen: result.stolen, lootType: result.lootType, event: result.thiefEvent });
+
+    } else if (op === 'assassinate') {
+      const ninjasSent = Math.max(1, parseInt(units) || 0);
+      if (ninjasSent > k.ninjas) return res.status(400).json({ error: 'Not enough ninjas' });
+      const validTargets = ['fighters','rangers','clerics','mages','thieves','ninjas','researchers','engineers'];
+      if (!validTargets.includes(unitType)) return res.status(400).json({ error: 'Invalid target unit type' });
+      result = engine.covertAssassinate(k, target, ninjasSent, unitType);
+      if (result.error) return res.status(400).json({ error: result.error });
+      await applyCovert(k, result.assassinUpdates || {});
+      await applyCovert(target, result.targetUpdates || {});
+      await db.run('UPDATE kingdoms SET turns_stored = turns_stored - 1 WHERE id = ?', [k.id]);
+      if (result.assassinEvent) await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)', [k.id, 'covert', result.assassinEvent, k.turn]);
+      if (result.targetEvent) await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)', [target.id, 'covert', result.targetEvent, target.turn]);
+      return res.json({ ok: true, success: result.success, killed: result.killed, event: result.assassinEvent });
+
+    } else if (op === 'sabotage') {
+      const ninjasSent = Math.max(1, parseInt(units) || 0);
+      if (ninjasSent > k.ninjas) return res.status(400).json({ error: 'Not enough ninjas' });
+      const BLD_MAP = { farms:'bld_farms', smithies:'bld_smithies', cathedrals:'bld_cathedrals', barracks:'bld_barracks', libraries:'bld_libraries' };
+      const col = BLD_MAP[bldType];
+      if (!col) return res.status(400).json({ error: 'Invalid building type' });
+      const stealthMulti = (engine.RACE_BONUSES[k.race]?.stealth || 1.0);
+      const success = k.ninjas * stealthMulti * 1.2 > (target.fighters||0) * 0.01 + (target.bld_guard_towers||0) * 2;
+      const ninjasLost = success ? 0 : Math.floor(ninjasSent * 0.2);
+      const destroyed = success ? Math.floor(ninjasSent * (3 + Math.random() * 4)) : 0;
+      const newBldVal = Math.max(0, (target[col] || 0) - destroyed);
+      await db.run('UPDATE kingdoms SET turns_stored = turns_stored - 1 WHERE id = ?', [k.id]);
+      if (ninjasLost > 0) await db.run('UPDATE kingdoms SET ninjas = MAX(0, ninjas - ?) WHERE id = ?', [ninjasLost, k.id]);
+      if (success && destroyed > 0) await db.run(`UPDATE kingdoms SET ${col} = ? WHERE id = ?`, [newBldVal, target.id]);
+      const sabMsg = success
+        ? `Sabotaged ${destroyed} ${bldType.replace(/_/g,' ')} in ${target.name}.`
+        : `Sabotage of ${bldType} in ${target.name} failed — ${ninjasLost} ninjas lost.`;
+      await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)', [k.id, 'covert', sabMsg, k.turn]);
+      if (success) await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)', [target.id, 'covert', `Enemy ninjas sabotaged ${destroyed} of your ${bldType.replace(/_/g,' ')}.`, target.turn]);
+      return res.json({ ok: true, success, destroyed, ninjasLost, event: sabMsg });
+
+    } else {
+      return res.status(400).json({ error: 'Unknown covert operation' });
+    }
+  });
+
   // ── Library allocation ────────────────────────────────────────────────────────
   router.post('/library-allocation', requireAuth, async (req, res) => {
     const { allocation } = req.body;
