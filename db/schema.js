@@ -234,7 +234,8 @@ async function initDb() {
   if (!cmCols.includes('player_id')) await addColumn('chat_messages', 'player_id', 'INTEGER NOT NULL DEFAULT 0');
   if (!cmCols.includes('deleted'))  await addColumn('chat_messages', 'deleted',  'INTEGER NOT NULL DEFAULT 0');
 
-  if (!cols.includes('bld_shrines'))             await addColumn('kingdoms', 'bld_shrines',             'INTEGER NOT NULL DEFAULT 0');
+  if (!cols.includes('hammer_turns_used'))    await addColumn('kingdoms', 'hammer_turns_used',    'INTEGER NOT NULL DEFAULT 0');
+  if (!cols.includes('smithy_allocation'))    await addColumn('kingdoms', 'smithy_allocation',    "TEXT NOT NULL DEFAULT '{}'");
   if (!cols.includes('bld_housing'))             await addColumn('kingdoms', 'bld_housing',             'INTEGER NOT NULL DEFAULT 100');
   if (!cols.includes('mage_tower_allocation'))   await addColumn('kingdoms', 'mage_tower_allocation',   "TEXT NOT NULL DEFAULT '{}'");
   if (!cols.includes('shrine_allocation'))       await addColumn('kingdoms', 'shrine_allocation',       "TEXT NOT NULL DEFAULT '{}'");
