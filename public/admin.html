@@ -306,9 +306,10 @@ async function openEditModal(kingdomId, kingdomName) {
   document.getElementById('edit-fields').innerHTML = '<div style="color:var(--text3);padding:20px;text-align:center;grid-column:1/-1">⏳ Fetching live data...</div>';
   document.getElementById('edit-modal').classList.add('open');
 
-  var k = await api('GET', '/api/admin/kingdom/' + kingdomId);
-  if (!k || k.error) {
-    document.getElementById('edit-fields').innerHTML = '<div style="color:var(--red);padding:20px;grid-column:1/-1">Error: ' + (k && k.error ? k.error : 'No response') + '</div>';
+  var k = await api('GET', '/api/admin/kingdom-detail/' + kingdomId);
+  console.log('[admin edit] kingdom fetch:', kingdomId, k);
+  if (!k || k.error !== undefined) {
+    document.getElementById('edit-fields').innerHTML = '<div style="color:var(--red);padding:20px;grid-column:1/-1">Error: ' + (k && k.error ? k.error : JSON.stringify(k)) + '</div>';
     return;
   }
 
