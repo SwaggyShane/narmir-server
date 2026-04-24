@@ -202,7 +202,18 @@ module.exports = function(db) {
     res.json({ ok: true, updates: result.updates, totalCost: result.totalCost });
   });
 
-  // ── Search (exploration) — costs 1 turn ───────────────────────────────────────
+  router.post('/smithy-allocation', requireAuth, async (req, res) => {
+    const { hammers, scaffolding } = req.body;
+    const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
+    if (!k) return res.status(404).json({ error: 'Kingdom not found' });
+    const smithies = k.bld_smithies || 0;
+    if (smithies === 0) return res.status(400).json({ error: 'You need at least 1 smithy' });
+    const h = Math.max(0, Math.min(smithies, Number(hammers) || 0));
+    const s = Math.max(0, Math.min(smithies, Number(scaffolding) || 0));
+    await db.run('UPDATE kingdoms SET smithy_allocation = ? WHERE id = ?',
+      [JSON.stringify({ hammers: h, scaffolding: s }), k.id]);
+    res.json({ ok: true, smithy_allocation: { hammers: h, scaffolding: s } });
+  });
   router.post('/search', requireAuth, async (req, res) => {
     const { type, rangers } = req.body;
     const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
