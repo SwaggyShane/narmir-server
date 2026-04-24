@@ -450,12 +450,13 @@
           <input type="range" id="tax-slider" min="0" max="100" step="1" value="42" oninput="updateTax(this.value)" style="flex:1">
           <span style="font-size:22px;font-weight:700;color:var(--gold);min-width:48px" id="tax-disp">42%</span>
           <div style="display:flex;gap:8px">
+            <button class="btn btn-gold" onclick="lockTax()">🔒 Lock</button>
             <button class="btn" onclick="setTax(42)">42%</button>
             <button class="btn" onclick="setTax(50)">50%</button>
             <button class="btn btn-red" onclick="setTax(0)">0%</button>
           </div>
         </div>
-        <div style="font-size:12px;color:var(--text3);line-height:1.7">42% is the sweet spot — max gold without morale penalty. Above 50%: citizens leave. Below 30%: minimal income.</div>
+        <div style="font-size:12px;color:var(--text3);line-height:1.7">42% is the sweet spot — max gold without morale penalty. Above 50%: citizens leave. Below 30%: minimal income. <strong style="color:var(--gold)">Press Lock to save your tax rate.</strong></div>
       </div>
 
     </div>
@@ -2240,15 +2241,28 @@ function updateTax(v) {
   v = parseInt(v);
   state.tax = v;
   document.getElementById('tax-disp').textContent = v + '%';
-  document.getElementById('m-tax').textContent = v + '%';
+  var mtax = document.getElementById('m-tax');
+  if (mtax) mtax.textContent = v + '%';
   var rate = Math.round(state.land * v * 0.12);
   document.getElementById('m-gold-sub').textContent = '+' + trunc(rate) + '/turn';
 }
 
-function setTax(v) {
+async function lockTax() {
+  var v = parseInt(document.getElementById('tax-slider').value);
+  var result = await apiCall('POST', '/api/kingdom/options', { tax: v });
+  if (result.error) return toast(result.error, 'error');
+  state.tax = v;
+  syncUI();
+  toast('Tax rate locked at ' + v + '%', v > 50 ? 'warn' : 'success');
+}
+
+async function setTax(v) {
   document.getElementById('tax-slider').value = v;
   updateTax(v);
-  toast('Tax rate set to ' + v + '%', v > 50 ? 'warn' : 'success');
+  var result = await apiCall('POST', '/api/kingdom/options', { tax: v });
+  if (result.error) return toast(result.error, 'error');
+  state.tax = v;
+  toast('Tax rate locked at ' + v + '%', v > 50 ? 'warn' : 'success');
 }
 
 
