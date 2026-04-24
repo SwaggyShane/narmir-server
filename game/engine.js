@@ -38,7 +38,7 @@ function goldPerTurn(k) {
   const marketBonus = Math.floor(k.bld_markets / 30) * 200;
   const castleBonus = Math.floor(k.bld_castles / 500) * 500;
   const econBonus = raceBonus(k, 'economy');
-  return Math.floor((baseRate + marketBonus + castleBonus) * econBonus);
+  return Math.floor((baseRate + marketBonus + castleBonus) * econBonus * 1.25);
 }
 
 function manaPerTurn(k) {
