@@ -34,7 +34,8 @@ module.exports = function(db) {
 
   router.get('/rankings', requireAuth, async (_req, res) => {
     const rows = await db.all(`
-      SELECT k.id, k.name, k.race, k.land, k.turn, k.population, p.username, p.is_ai
+      SELECT k.id, k.name, k.race, k.land, k.turn, k.population,
+             k.fighters, k.mages, k.level, p.username, p.is_ai
       FROM kingdoms k JOIN players p ON k.player_id = p.id
       ORDER BY k.land DESC LIMIT 100
     `);
