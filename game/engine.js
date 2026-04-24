@@ -106,9 +106,10 @@ function popGrowth(k) {
 }
 
 function researchIncrement(k, discipline, researchersAssigned) {
-  const schoolBonus = 1 + (Math.floor(k.bld_schools / 5) * 0.02);
-  const raceMulti = discipline === 'spellbook' ? raceBonus(k, 'magic') : raceBonus(k, 'research');
-  const effective = Math.floor(researchersAssigned * schoolBonus * raceMulti);
+  const schoolBonus    = 1 + (Math.floor(k.bld_schools / 5) * 0.02);
+  const raceMulti      = discipline === 'spellbook' ? raceBonus(k, 'magic') : raceBonus(k, 'research');
+  const resLevelMult   = unitLevelMult(k, 'researchers');
+  const effective = Math.floor(researchersAssigned * schoolBonus * raceMulti * resLevelMult);
   if (effective >= 2000) return 5;
   if (effective >= 1200) return 3;
   if (effective >= 600)  return 2;
@@ -176,7 +177,58 @@ function awardTroopXp(k, unit, xpAmount) {
   return { troop_levels: JSON.stringify(troopLevels), levelUps };
 }
 
-// ── Turn processor ────────────────────────────────────────────────────────────
+// ── Unit level scaling ────────────────────────────────────────────────────────
+// Returns effectiveness multiplier: +0.5% per level above 1, caps at +50% at level 100
+function unitLevelMult(k, unit) {
+  const level = effectiveTroopLevel(k, unit);
+  return 1 + Math.min(0.50, (level - 1) * 0.005);
+}
+
+// ── Racial unique bonuses (unlocked at unit level 5+) ─────────────────────────
+function racialUnitBonus(k, unit) {
+  const level = effectiveTroopLevel(k, unit);
+  if (level < 5) return {};
+  const race = k.race;
+  // Dwarf: 1 engineer can solo-crew a war machine
+  if (race === 'dwarf'     && unit === 'engineers') return { warMachineSoloCrew: true };
+  // High Elf: scroll crafting produces 2 scrolls instead of 1
+  if (race === 'high_elf'  && unit === 'mages')     return { doubleScrolls: true };
+  // Orc: every 10 fighters trains 1 free fighter per turn
+  if (race === 'orc'       && unit === 'fighters')  return { freeTrainees: Math.floor((k.fighters||0) / 10) };
+  // Dark Elf: assassinations leave no trace — target gets no news
+  if (race === 'dark_elf'  && unit === 'ninjas')    return { silentAssassination: true };
+  // Dire Wolf: expeditions return 1 turn early
+  if (race === 'dire_wolf' && unit === 'rangers')   return { earlyReturn: true };
+  // Human: clerics restore 1 morale across all unit types per turn
+  if (race === 'human'     && unit === 'clerics')   return { auraHeal: true };
+  return {};
+}
+
+// ── Dilute troop XP when new units are hired ──────────────────────────────────
+// new_avg_xp = (old_xp × old_count) / (old_count + hired)
+function diluteTroopXp(k, unit, hired) {
+  if (!hired || hired <= 0) return null;
+  let troopLevels = {};
+  try { troopLevels = JSON.parse(k.troop_levels || '{}'); } catch {}
+  const current = troopLevels[unit] || { level: 1, xp: 0, count: k[unit] || 0 };
+  const oldCount = Math.max(1, current.count || k[unit] || 1);
+  const totalXp  = current.xp + troopXpForLevel(current.level); // total absolute XP
+  const newCount = oldCount + hired;
+  const newAvgXp = Math.floor((totalXp * oldCount) / newCount);
+  // Recompute level from new average XP
+  let newLevel = 1;
+  while (newLevel < 100 && newAvgXp >= troopXpForLevel(newLevel + 1)) newLevel++;
+  const xpIntoLevel = newAvgXp - troopXpForLevel(newLevel);
+  troopLevels[unit] = { level: newLevel, xp: Math.max(0, xpIntoLevel), count: newCount };
+  return JSON.stringify(troopLevels);
+}
+
+// ── Award activity XP to a unit type ─────────────────────────────────────────
+// Wraps awardTroopXp, applies race bonus, returns updated troop_levels string
+function awardUnitXp(k, unit, xpAmount) {
+  if (!xpAmount || xpAmount <= 0 || !(k[unit] > 0)) return null;
+  return awardTroopXp(k, unit, xpAmount).troop_levels;
+}
 
 function processTurn(k) {
   const events = [];
@@ -374,11 +426,14 @@ function processTurn(k) {
 
     if (advances.length > 0) {
       events.push({ type: 'system', message: `📚 Research advanced: ${advances.join(', ')}.` });
-      // XP for research advances
       const resXp = awardXp({ ...k, xp: updates.xp || (k.xp||0), level: updates.level || (k.level||1) }, 'research', advances.length);
       updates.xp    = resXp.xp;
       updates.level = resXp.level;
       if (resXp.levelled) events.push(...resXp.events);
+      // Award researcher unit XP
+      const rXp = awardTroopXp({ ...k, troop_levels: updates.troop_levels || k.troop_levels }, 'researchers', advances.length * 5);
+      updates.troop_levels = rXp.troop_levels;
+      if (rXp.levelUps.length) events.push({ type: 'system', message: `📚 Researchers grew more skilled!` });
     } else if (researchers > 0) {
       events.push({ type: 'system', message: `📚 ${researchers.toLocaleString()} researchers studying — allocate more per discipline for advancement.` });
     }
@@ -409,32 +464,27 @@ function processTurn(k) {
   // ── 9. Training fields — passive troop XP each turn ──────────────────────────
   if ((k.bld_training||0) > 0) {
     let troopLevels = {};
-    try { troopLevels = JSON.parse(k.troop_levels || '{}'); } catch { troopLevels = {}; }
+    try { troopLevels = JSON.parse(updates.troop_levels || k.troop_levels || '{}'); } catch { troopLevels = {}; }
     let allocation = {};
     try { allocation = JSON.parse(k.training_allocation || '{}'); } catch { allocation = {}; }
 
     const TROOP_TYPES = ['fighters','rangers','clerics','mages','thieves','ninjas'];
-    const trainingFields = k.bld_training || 0;
-    const trainingCapacity = trainingFields * 50; // each field trains 50 units per turn
+    const trainingFields   = k.bld_training || 0;
+    const trainingCapacity = trainingFields * 50;
     let advancedTroops = [];
 
     TROOP_TYPES.forEach(function(unit) {
       const assigned = Number(allocation[unit]) || 0;
       if (assigned <= 0) return;
-
       const currentData = troopLevels[unit] || { level: 1, xp: 0, count: 0 };
-      const capLevel = 100;
-      if (currentData.level >= capLevel) return; // at visible cap
-
-      // XP gain per turn based on training fields, weapons/armor equipped
+      if (currentData.level >= 100) return;
       const weaponsEquipped = Math.min(assigned, k.weapons_stockpile || 0);
       const armorEquipped   = Math.min(assigned, k.armor_stockpile   || 0);
       const equipBonus = 1 + (weaponsEquipped / Math.max(assigned, 1)) * 0.5
                            + (armorEquipped   / Math.max(assigned, 1)) * 0.5;
       const raceTrainBonus = TROOP_RACE_BONUS[k.race]?.[unit] || 1.0;
       const xpGain = Math.floor(trainingCapacity * equipBonus * raceTrainBonus / TROOP_TYPES.length);
-
-      const newXp = currentData.xp + xpGain;
+      const newXp  = currentData.xp + xpGain;
       const xpNeeded = troopXpForLevel(currentData.level + 1);
       if (newXp >= xpNeeded) {
         troopLevels[unit] = { level: currentData.level + 1, xp: newXp - xpNeeded, count: assigned };
@@ -452,14 +502,32 @@ function processTurn(k) {
     }
   }
 
-  // ── 10. Rangers auto-explore — military race bonus improves scouting ─────────
+  // ── 9b. Racial passive bonuses ────────────────────────────────────────────────
+  // Orc: every 10 fighters (level 5+) trains 1 free fighter per turn
+  const orcBonus = racialUnitBonus({ ...k, troop_levels: updates.troop_levels || k.troop_levels }, 'fighters');
+  if (orcBonus.freeTrainees > 0) {
+    updates.fighters = (updates.fighters || k.fighters || 0) + orcBonus.freeTrainees;
+    events.push({ type: 'system', message: `⚔️ Orcish war culture: ${orcBonus.freeTrainees} new fighter${orcBonus.freeTrainees > 1 ? 's' : ''} trained this turn.` });
+  }
+  // Human: level 5+ clerics restore 1 morale per turn
+  const humanBonus = racialUnitBonus({ ...k, troop_levels: updates.troop_levels || k.troop_levels }, 'clerics');
+  if (humanBonus.auraHeal && (k.clerics || 0) > 0) {
+    updates.morale = Math.min(200, (updates.morale || k.morale || 100) + 1);
+    events.push({ type: 'system', message: `✨ Human clerics radiate healing aura — +1 morale.` });
+  }
+
+  // ── 10. Rangers auto-explore — level scales land discovery ───────────────────
   const rangers = k.rangers || 0;
   if (rangers > 0) {
-    const scoutMult = raceBonus(k, 'military');
-    const autoLand = Math.floor(rangers * 0.001 * scoutMult);
+    const scoutMult    = raceBonus(k, 'military');
+    const rangerLvMult = unitLevelMult({ ...k, troop_levels: updates.troop_levels || k.troop_levels }, 'rangers');
+    const autoLand = Math.floor(rangers * 0.001 * scoutMult * rangerLvMult);
     if (autoLand > 0) {
-      updates.land = (k.land||0) + autoLand;
+      updates.land = (updates.land || k.land || 0) + autoLand;
       events.push({ type: 'system', message: `🗺️ Rangers explored and claimed ${autoLand} acre(s) of new land. Total: ${updates.land.toLocaleString()} acres.` });
+      // Passive ranger XP for exploring
+      const rangerXp = awardTroopXp({ ...k, troop_levels: updates.troop_levels || k.troop_levels }, 'rangers', 3);
+      updates.troop_levels = rangerXp.troop_levels;
     }
   }
 
@@ -581,11 +649,15 @@ function hireUnits(k, unit, amount) {
   if (k.gold < cost) return { error: `Not enough gold — need ${cost.toLocaleString()} gold` };
   if (amount > k.population) return { error: 'Not enough population available' };
 
+  // Dilute unit XP pool when new recruits join — new troops lower the average
+  const dilutedLevels = diluteTroopXp(k, unit, amount);
+
   return {
     updates: {
       gold: k.gold - cost,
       population: k.population - amount,
       [unit]: (k[unit]||0) + amount,
+      ...(dilutedLevels ? { troop_levels: dilutedLevels } : {}),
       updated_at: Math.floor(Date.now() / 1000),
     }
   };
@@ -778,8 +850,9 @@ function processBuildQueue(k, events) {
   const scaffoldBonus   = 1 + (k.tools_scaffolding  || 0) * 0.15;
   const blueprintBonus  = 1 + (k.tools_blueprints   || 0) * 0.25;
   const smithyBonus     = 1 + (Math.floor((k.bld_smithies||0) / 15) * 0.02);
-  const raceConstr      = raceBonus(k, 'construction');
-  const toolMult        = hammerBonus * scaffoldBonus * blueprintBonus * smithyBonus * raceConstr;
+  const raceConstr   = raceBonus(k, 'construction');
+  const engLevelMult = unitLevelMult(k, 'engineers');
+  const toolMult     = hammerBonus * scaffoldBonus * blueprintBonus * smithyBonus * raceConstr * engLevelMult;
 
   // Get engineer allocation — keys are building types like 'farm', 'barracks', etc.
   let allocation = {};
@@ -859,6 +932,18 @@ function processBuildQueue(k, events) {
     updates.xp    = conXp.xp;
     updates.level = conXp.level;
     if (conXp.levelled) events.push(...conXp.events);
+    // Award engineer unit XP per building completed
+    const engXpRes = awardTroopXp({ ...k, troop_levels: updates.troop_levels || k.troop_levels }, 'engineers', totalCompleted * 10);
+    updates.troop_levels = engXpRes.troop_levels;
+    if (engXpRes.levelUps.length) events.push({ type: 'system', message: `⚒️ Your engineers grew more skilled — Level ${JSON.parse(engXpRes.troop_levels).engineers?.level || ''}!` });
+    // Dwarf racial bonus: level 5+ engineers can solo-crew war machines
+    const dwarfBonus = racialUnitBonus(k, 'engineers');
+    if (dwarfBonus.warMachineSoloCrew && (k.war_machines || 0) > 0) {
+      if (!updates._dwarf_wm_noted) {
+        updates._dwarf_wm_noted = true;
+        events.push({ type: 'system', message: `🔥 Dwarven master engineers (Lv 5+) can now crew war machines solo — 1 engineer per machine.` });
+      }
+    }
   } else if (activeBuildings.size > 0) {
     events.push({ type: 'system', message: `🔨 Engineers making progress on ${activeBuildings.size} building type${activeBuildings.size > 1 ? 's' : ''}.` });
   }
@@ -1234,21 +1319,20 @@ function castSpell(caster, target, spellId, obscure) {
 // ── Covert ops ────────────────────────────────────────────────────────────────
 
 function covertSpy(spy, target, unitsSent) {
-  const stealthMulti = raceBonus(spy, 'stealth');
+  const stealthMulti = raceBonus(spy, 'stealth') * unitLevelMult(spy, 'thieves');
   const success = (spy.thieves + spy.ninjas) * stealthMulti > target.fighters * 0.02 + target.bld_guard_towers * 5;
 
   if (!success) {
     const caught = Math.floor(unitsSent * 0.3);
     return {
       success: false,
-      spyUpdates:    { thieves: spy.thieves - caught, updated_at: Math.floor(Date.now() / 1000) },
+      spyUpdates:    { thieves: spy.thieves - caught },
       targetUpdates: {},
-      spyEvent:      `Spy mission on ${target.name} failed — ${caught} thieves caught and exposed your location.`,
+      spyEvent:      `Spy mission on ${target.name} failed — ${caught} thieves caught.`,
       targetEvent:   `${spy.name} attempted to spy on you — caught ${caught} thieves.`,
     };
   }
 
-  // Approximate report with ±15% noise
   function noise(n) { return Math.floor(n * (0.85 + Math.random() * 0.30)); }
   const report = {
     name: target.name, race: target.race,
@@ -1256,9 +1340,11 @@ function covertSpy(spy, target, unitsSent) {
     mages: noise(target.mages), gold: noise(target.gold),
   };
 
+  // Award thief XP for successful spy
+  const tXp = awardTroopXp(spy, 'thieves', 12);
   return {
     success: true, report,
-    spyUpdates: {},
+    spyUpdates: { troop_levels: tXp.troop_levels },
     targetUpdates: {},
     spyEvent: `Spy report on ${target.name} retrieved successfully.`,
     targetEvent: null,
@@ -1267,45 +1353,47 @@ function covertSpy(spy, target, unitsSent) {
 
 function covertLoot(thief, target, lootType, thievesSent) {
   if (thievesSent > thief.thieves) return { error: 'Not enough thieves' };
-  const stealthMulti = raceBonus(thief, 'stealth');
+  const thiefLvMult  = unitLevelMult(thief, 'thieves');
+  const stealthMulti = raceBonus(thief, 'stealth') * thiefLvMult;
   const success = thief.thieves * stealthMulti > target.fighters * 0.015 + target.bld_guard_towers * 3
                                                                           + target.bld_armories * 10
                                                                           + target.bld_vaults * 10;
-
   if (!success) {
     return {
       success: false,
-      thiefUpdates:  { thieves: thief.thieves - Math.floor(thievesSent * 0.25), updated_at: Math.floor(Date.now() / 1000) },
+      thiefUpdates:  { thieves: thief.thieves - Math.floor(thievesSent * 0.25) },
       targetUpdates: {},
-      event: `Loot attempt on ${target.name} failed. Thieves captured and location revealed.`,
+      event: `Loot attempt on ${target.name} failed. Thieves captured.`,
     };
   }
 
-  const targetUpdates = { updated_at: Math.floor(Date.now() / 1000) };
+  const targetUpdates = {};
   let stolen = 0, desc = '';
 
+  // Level scales loot amount
   if (lootType === 'gold') {
-    stolen = Math.floor(thievesSent * (50 + Math.random() * 50));
+    stolen = Math.floor(thievesSent * (50 + Math.random() * 50) * thiefLvMult);
     stolen = Math.min(stolen, Math.floor(target.gold * 0.05));
     targetUpdates.gold = target.gold - stolen;
     desc = `${stolen.toLocaleString()} gold`;
   } else if (lootType === 'research') {
-    stolen = Math.floor(thievesSent * 0.2);
+    stolen = Math.floor(thievesSent * 0.2 * thiefLvMult);
     targetUpdates.res_economy = Math.max(0, target.res_economy - stolen);
     desc = `${stolen} economy research points`;
   } else if (lootType === 'weapons') {
-    stolen = Math.floor(thievesSent * 0.3);
+    stolen = Math.floor(thievesSent * 0.3 * thiefLvMult);
     targetUpdates.res_weapons = Math.max(0, target.res_weapons - stolen);
     desc = `${stolen} weapon research points`;
   } else if (lootType === 'war_machines') {
-    stolen = Math.floor(thievesSent * 0.01);
+    stolen = Math.floor(thievesSent * 0.01 * thiefLvMult);
     targetUpdates.war_machines = Math.max(0, target.war_machines - stolen);
     desc = `${stolen} war machine(s)`;
   }
 
+  const tXp = awardTroopXp(thief, 'thieves', 20);
   return {
     success: true, stolen, lootType,
-    thiefUpdates: {},
+    thiefUpdates:  { troop_levels: tXp.troop_levels },
     targetUpdates,
     thiefEvent:  `Looted ${desc} from ${target.name}.`,
     targetEvent: `Thieves infiltrated your kingdom and stole ${desc}.`,
@@ -1314,30 +1402,33 @@ function covertLoot(thief, target, lootType, thievesSent) {
 
 function covertAssassinate(assassin, target, ninjasSent, unitType) {
   if (ninjasSent > assassin.ninjas) return { error: 'Not enough ninjas' };
-  const stealthMulti = raceBonus(assassin, 'stealth');
+  const ninjaLvMult  = unitLevelMult(assassin, 'ninjas');
+  const stealthMulti = raceBonus(assassin, 'stealth') * ninjaLvMult;
   const success = assassin.ninjas * stealthMulti * 1.2 > target[unitType] * 0.01 + target.bld_guard_towers * 2;
 
   if (!success) {
     return {
       success: false,
-      assassinUpdates: { ninjas: assassin.ninjas - Math.floor(ninjasSent * 0.2), updated_at: Math.floor(Date.now() / 1000) },
+      assassinUpdates: { ninjas: assassin.ninjas - Math.floor(ninjasSent * 0.2) },
       targetUpdates: {},
       event: `Assassination of ${unitType} in ${target.name} failed. Ninjas compromised.`,
     };
   }
 
-  const killed = Math.floor(ninjasSent * (10 + Math.random() * 10));
-  const targetUpdates = {
-    [unitType]: Math.max(0, target[unitType] - killed),
-    updated_at: Math.floor(Date.now() / 1000),
-  };
+  const killed = Math.floor(ninjasSent * (10 + Math.random() * 10) * ninjaLvMult);
+  const targetUpdates = { [unitType]: Math.max(0, target[unitType] - killed) };
 
+  // Dark Elf racial bonus: level 5+ ninjas leave no trace
+  const darkElfBonus = racialUnitBonus(assassin, 'ninjas');
+  const silent = darkElfBonus.silentAssassination;
+
+  const nXp = awardTroopXp(assassin, 'ninjas', 30);
   return {
-    success: true, killed,
-    assassinUpdates: {},
+    success: true, killed, silent,
+    assassinUpdates: { troop_levels: nXp.troop_levels },
     targetUpdates,
-    assassinEvent: `Assassinated ${killed.toLocaleString()} ${unitType} in ${target.name}.`,
-    targetEvent:   `${assassin.name}'s ninjas assassinated ${killed.toLocaleString()} of your ${unitType}.`,
+    assassinEvent: `Assassinated ${killed.toLocaleString()} ${unitType} in ${target.name}.${silent ? ' No trace left.' : ''}`,
+    targetEvent:   silent ? null : `${assassin.name}'s ninjas assassinated ${killed.toLocaleString()} of your ${unitType}.`,
   };
 }
 
@@ -1385,6 +1476,99 @@ const JUNK_PRIZES = [
   'a coupon for 10% off at an inn that burned down decades ago',
 ];
 
+// ── Ultra-rare expedition prizes ─────────────────────────────────────────────
+const ULTRA_RARE_PRIZES = [
+  {
+    id: 'ancient_dragon_egg',
+    text: '🥚 An ancient dragon egg, still warm — it pulses with primordial magic',
+    effect: (k, updates) => {
+      updates.res_attack_magic = (k.res_attack_magic || 0) + 75;
+      updates.res_spellbook    = (k.res_spellbook    || 0) + 50;
+      updates.mana             = (k.mana             || 0) + 5000;
+    },
+  },
+  {
+    id: 'tome_of_forgotten_kings',
+    text: "📖 The Tome of Forgotten Kings — ancient military wisdom permanently inscribed in your kingdom's history",
+    effect: (k, updates) => {
+      updates.res_military = (k.res_military || 0) + 80;
+      updates.res_weapons  = (k.res_weapons  || 0) + 50;
+      updates.res_armor    = (k.res_armor    || 0) + 50;
+    },
+  },
+  {
+    id: 'crystalline_mana_heart',
+    text: '💎 A crystalline mana heart — it hums with a frequency older than the world itself',
+    effect: (k, updates) => {
+      updates.mana              = (k.mana              || 0) + 20000;
+      updates.res_defense_magic = (k.res_defense_magic || 0) + 60;
+      updates.res_spellbook     = (k.res_spellbook     || 0) + 100;
+    },
+  },
+  {
+    id: 'vault_of_the_ancients',
+    text: '💰 A sealed vault of the Ancient Ones — untold riches beyond imagining',
+    effect: (k, updates) => {
+      updates.gold        = (k.gold        || 0) + 500000;
+      updates.res_economy = (k.res_economy || 0) + 60;
+    },
+  },
+  {
+    id: 'lost_legion_banner',
+    text: '⚔️ The Banner of the Lost Legion — ten thousand warriors emerge from the mist and pledge their eternal service',
+    effect: (k, updates) => {
+      updates.fighters     = (k.fighters     || 0) + 10000;
+      updates.res_military = (k.res_military || 0) + 40;
+    },
+  },
+  {
+    id: 'seed_of_the_world_tree',
+    text: '🌳 The Seed of the World Tree — your lands bloom with ancient fertility',
+    effect: (k, updates) => {
+      updates.land       = (k.land       || 0) + 500;
+      updates.bld_farms  = (k.bld_farms  || 0) + 100;
+      updates.population = (k.population || 0) + 50000;
+    },
+  },
+];
+
+// ── The Throne of Nazdreg Grishnak — unique, exists once in the entire world ──
+const THRONE_OF_NAZDREG = {
+  id: 'throne_of_nazdreg',
+  unique: true,
+  text: [
+    '👑 The Throne of Nazdreg Grishnak',
+    '',
+    'Your rangers stumble upon a clearing unlike any other.',
+    'Vines have claimed it, but beneath the green — a throne of obsidian and iron,',
+    'carved with the fury and grace of a warrior who loved deeply and lived fully.',
+    '',
+    'Inscribed in the stone, worn smooth by years of wilderness rain:',
+    '',
+    '    Nazdreg Grishnak',
+    '    August 13, 1975 — August 19, 2012',
+    '',
+    'An orc who sat upon this throne once commanded armies and shaped the world.',
+    'His name is remembered. His legacy endures.',
+    '',
+    'Your people carry the throne home with reverence.',
+    'They say the land itself feels stronger for it.',
+  ].join('\n'),
+  effect: (k, updates) => {
+    updates.res_military      = (k.res_military      || 0) + 100;
+    updates.res_economy       = (k.res_economy       || 0) + 100;
+    updates.res_construction  = (k.res_construction  || 0) + 100;
+    updates.res_weapons       = (k.res_weapons       || 0) + 100;
+    updates.res_armor         = (k.res_armor         || 0) + 100;
+    updates.res_entertainment = (k.res_entertainment || 0) + 100;
+    updates.gold              = (k.gold              || 0) + 1000000;
+    updates.land              = (k.land              || 0) + 1000;
+    updates.population        = (k.population        || 0) + 100000;
+    updates.morale            = Math.min(200, (k.morale || 100) + 50);
+    updates.fighters          = (k.fighters          || 0) + 50000;
+  },
+};
+
 function junkPrize() {
   return JUNK_PRIZES[Math.floor(Math.random() * JUNK_PRIZES.length)];
 }
@@ -1397,154 +1581,161 @@ const RARITY = {
   legendary: { label: 'Legendary', color: '#e05c5c' },
 };
 
-function expeditionRewards(type, rangers, fighters, k) {
-  const tacBonus = 1 + ((k.res_military || 0) / 2000); // softer bonus
+function expeditionRewards(type, rangers, fighters, k, db) {
+  const tacBonus = 1 + ((k.res_military || 0) / 2000);
+
+  // Race exploration bonus — affects all reward quantities
+  const exploreBonus = {
+    dire_wolf: 1.40, dark_elf: 1.25, human: 1.10,
+    orc: 1.05, dwarf: 0.90, high_elf: 0.95,
+  }[k.race] || 1.0;
+
+  // Ranger level bonus — higher level rangers are better scouts
+  const rangerLvBonus = unitLevelMult(k, 'rangers');
+
+  // Attrition reduced for skilled explorer races
+  const attritionMult = { dire_wolf: 0.5, dark_elf: 0.6 }[k.race] || 1.0;
   const rewards = [];
   const events  = [];
   const updates = {};
 
-  // Ranger attrition — very low: 0–2% scout/deep, 0–3% dungeon
+  // Attrition — skilled explorer races lose fewer rangers
   const attritionPct = type === 'dungeon' ? rand(0, 3) : rand(0, 2);
-  const lost = Math.floor(rangers * attritionPct / 100);
+  const lost = Math.floor(rangers * attritionPct / 100 * attritionMult);
   const returned = rangers - lost;
   if (lost > 0) rewards.push({ text: `${lost} ranger${lost > 1 ? 's' : ''} did not return from the expedition` });
   // Rangers returned stored separately so resolveExpeditions can use SQL increment
   updates._rangers_returned = returned;
 
-  if (type === 'scout') {
-    // Gold: modest, ranger-scaled
-    const gold = Math.floor(rand(rangers * 3, rangers * 8) * tacBonus);
-    rewards.push({ text: `+${gold.toLocaleString()} gold from foraging` });
-    updates.gold = (k.gold || 0) + gold;
+  // Expedition turn counts — used to calculate gold from foraging rate
+  const EXPEDITION_TURNS = { scout: 10, deep: 25, dungeon: 50 };
+  const expTurns = EXPEDITION_TURNS[type] || 10;
 
-    // Land: small find
-    const land = Math.max(1, Math.floor(rand(rangers * 0.01, rangers * 0.03)));
+  // Gold base = forage rate (rangers × 12 × tacBonus) × turns × race bonus × random 5–30% bonus
+  const foragePerTurn = rangers * 12 * tacBonus * exploreBonus * rangerLvBonus;
+  const randomBonus   = 1 + (rand(5, 30) / 100);
+  const goldBase      = Math.floor(foragePerTurn * expTurns * randomBonus);
+
+  if (type === 'scout') {
+    rewards.push({ text: `+${goldBase.toLocaleString()} gold from foraging` });
+    updates.gold = (k.gold || 0) + goldBase;
+
+    const land = Math.max(1, Math.floor(rand(rangers * 0.01, rangers * 0.03) * exploreBonus));
     rewards.push({ text: `+${land} acre${land > 1 ? 's' : ''} of unclaimed land` });
     updates.land = (k.land || 0) + land;
 
-    // Mana cache — 30% chance
     if (roll(0.30)) {
-      const mana = rand(Math.floor(rangers * 0.2), Math.floor(rangers * 0.8));
+      const mana = rand(Math.floor(rangers * 0.2 * exploreBonus), Math.floor(rangers * 0.8 * exploreBonus));
       rewards.push({ text: `+${mana} mana from a hidden shrine` });
       updates.mana = (k.mana || 0) + mana;
     }
-    // Wandering fighters — 10% chance, small group
     if (roll(0.10)) {
-      const troops = rand(2, Math.max(3, Math.floor(rangers * 0.02)));
+      const troops = rand(2, Math.max(3, Math.floor(rangers * 0.02 * exploreBonus)));
       rewards.push({ text: `${troops} wandering fighter${troops > 1 ? 's' : ''} pledge allegiance to your kingdom` });
       updates.fighters = (k.fighters || 0) + troops;
     }
-    // Ancient map — 3% chance
     if (roll(0.03)) {
-      const bonus = rand(Math.floor(rangers * 0.03), Math.floor(rangers * 0.08));
+      const bonus = rand(Math.floor(rangers * 0.03 * exploreBonus), Math.floor(rangers * 0.08 * exploreBonus));
       rewards.push({ text: `An ancient map reveals ${bonus} additional acres — scouts claim them!` });
       updates.land = (updates.land || k.land || 0) + bonus;
     }
-    // Junk
-    if (roll(0.45)) {
-      rewards.push({ text: `Your rangers also found ${junkPrize()}` });
-    }
+    if (roll(0.45)) rewards.push({ text: `Your rangers also found ${junkPrize()}` });
 
   } else if (type === 'deep') {
-    // Gold: better, still ranger-scaled
-    const gold = Math.floor(rand(rangers * 10, rangers * 30) * tacBonus);
-    rewards.push({ text: `+${gold.toLocaleString()} gold from deep wilderness caches` });
-    updates.gold = (k.gold || 0) + gold;
-
-    // Land: meaningful
-    const land = Math.max(2, Math.floor(rand(rangers * 0.04, rangers * 0.10)));
+    rewards.push({ text: `+${goldBase.toLocaleString()} gold from deep wilderness caches` });
+    updates.gold = (k.gold || 0) + goldBase;
     rewards.push({ text: `+${land} acres of fertile territory` });
     updates.land = (k.land || 0) + land;
 
-    // Mana — 55% chance
     if (roll(0.55)) {
-      const mana = rand(Math.floor(rangers * 0.5), Math.floor(rangers * 2));
+      const mana = rand(Math.floor(rangers * 0.5 * exploreBonus), Math.floor(rangers * 2 * exploreBonus));
       rewards.push({ text: `+${mana} mana from ley lines discovered deep in the wilderness` });
       updates.mana = (k.mana || 0) + mana;
     }
-    // Research scroll — 25% chance, modest boost
     if (roll(0.25)) {
       const disc = ['res_economy','res_weapons','res_armor','res_military','res_entertainment'][rand(0,4)];
-      const boost = rand(1, 5);
+      const boost = rand(1, Math.max(2, Math.floor(5 * exploreBonus)));
       const discLabel = disc.replace('res_','').replace('_',' ');
       rewards.push({ text: `A research scroll found — ${discLabel} +${boost}%` });
       updates[disc] = (k[disc] || 0) + boost;
     }
-    // Mercenaries — 20% chance
     if (roll(0.20)) {
-      const troops = rand(Math.floor(rangers * 0.03), Math.floor(rangers * 0.08));
+      const troops = rand(Math.floor(rangers * 0.03 * exploreBonus), Math.floor(rangers * 0.08 * exploreBonus));
       const ttype = roll(0.5) ? 'fighters' : 'rangers';
       if (troops > 0) {
         rewards.push({ text: `${troops} mercenary ${ttype} join your cause` });
         updates[ttype] = (k[ttype] || 0) + troops;
       }
     }
-    // Ruins land — 8% chance
     if (roll(0.08)) {
-      const bonus = rand(Math.floor(rangers * 0.05), Math.floor(rangers * 0.15));
+      const bonus = rand(Math.floor(rangers * 0.05 * exploreBonus), Math.floor(rangers * 0.15 * exploreBonus));
       rewards.push({ text: `Ruins of an abandoned kingdom found — you claim ${bonus} acres of its former territory` });
       updates.land = (updates.land || k.land || 0) + bonus;
     }
-    // Legendary artifact — 2% chance
     if (roll(0.02)) {
       const disc = ['res_spellbook','res_attack_magic','res_defense_magic','res_war_machines','res_construction'][rand(0,4)];
-      const boost = rand(5, 15);
+      const boost = rand(Math.floor(5 * exploreBonus), Math.floor(15 * exploreBonus));
       const discLabel = disc.replace('res_','').replace('_',' ');
       rewards.push({ text: `⚡ An ancient artifact of ${discLabel} — permanent +${boost}%` });
       updates[disc] = (k[disc] || 0) + boost;
     }
-    // Junk
-    if (roll(0.60)) {
-      rewards.push({ text: `Hidden deep in the wilderness, your rangers also discovered ${junkPrize()}` });
-    }
+    if (roll(0.60)) rewards.push({ text: `Hidden deep in the wilderness, your rangers also discovered ${junkPrize()}` });
 
   } else if (type === 'dungeon') {
-    const power = (rangers + fighters * 2) * tacBonus;
+    const power = (rangers + fighters * 2) * tacBonus * exploreBonus;
     const successChance = Math.min(0.85, 0.25 + (power / 80000));
     const success = roll(successChance);
 
     if (!success) {
-      // Failed — lose some fighters, all rangers still return (minus attrition already applied)
       const fLost = Math.min(fighters, rand(Math.floor(fighters * 0.15), Math.floor(fighters * 0.40)));
       const fReturned = fighters - fLost;
       if (fReturned > 0) updates._fighters_returned = fReturned;
       rewards.push({ text: `The dungeon proved too dangerous — ${fLost} fighters lost in retreat` });
       events.push({ type: 'attack', message: `💀 Dungeon raid FAILED — your forces were overwhelmed. ${fLost.toLocaleString()} fighters lost.` });
     } else {
-      // Success — return all fighters
       updates._fighters_returned = fighters;
 
-      const gold = Math.floor(rand(fighters * 20, fighters * 80) * tacBonus);
-      rewards.push({ text: `+${gold.toLocaleString()} gold plundered from the dungeon` });
-      updates.gold = (k.gold || 0) + gold;
+      const dungeonGold = Math.floor(fighters * 12 * tacBonus * exploreBonus * expTurns * randomBonus);
+      rewards.push({ text: `+${dungeonGold.toLocaleString()} gold plundered from the dungeon` });
+      updates.gold = (k.gold || 0) + dungeonGold;
 
-      const mana = rand(Math.floor(rangers * 1), Math.floor(rangers * 4));
+      const mana = rand(Math.floor(rangers * 1 * exploreBonus), Math.floor(rangers * 4 * exploreBonus));
       rewards.push({ text: `+${mana} mana from dungeon ley stones` });
       updates.mana = (k.mana || 0) + mana;
 
-      // Research boost — always on success
       const disc = ['res_weapons','res_armor','res_military','res_attack_magic','res_spellbook'][rand(0,4)];
-      const boost = rand(3, 12);
+      const boost = rand(3, Math.floor(12 * exploreBonus));
       const discLabel = disc.replace('res_','').replace('_',' ');
       rewards.push({ text: `Dungeon tome found — ${discLabel} permanently +${boost}%` });
       updates[disc] = (k[disc] || 0) + boost;
 
-      // War machines — 12% chance
       if (roll(0.12)) {
-        const wm = rand(1, Math.max(2, Math.floor(fighters / 500)));
+        const wm = rand(1, Math.max(2, Math.floor(fighters / 500 * exploreBonus)));
         rewards.push({ text: `⚡ Ancient war machine${wm > 1 ? 's' : ''} recovered from the dungeon depths — +${wm}` });
         updates.war_machines = (k.war_machines || 0) + wm;
       }
-      // Spellbook legendary — 6% chance
       if (roll(0.06)) {
-        const boost2 = rand(10, 40);
+        const boost2 = rand(10, Math.floor(40 * exploreBonus));
         rewards.push({ text: `⚡ The dungeon's heart pulsed with ancient magic — spellbook permanently +${boost2}` });
         updates.res_spellbook = (updates.res_spellbook || k.res_spellbook || 0) + boost2;
       }
-      if (roll(0.5)) {
-        rewards.push({ text: `Amid the carnage, someone pocketed ${junkPrize()}` });
-      }
+      if (roll(0.5)) rewards.push({ text: `Amid the carnage, someone pocketed ${junkPrize()}` });
     }
+  }
+
+  // ── Ultra-rare prizes (deep: 0.5%, dungeon success: 1%) ──────────────────────
+  const ultraChance = type === 'dungeon' ? 0.01 : type === 'deep' ? 0.005 : 0;
+  if (ultraChance > 0 && roll(ultraChance)) {
+    const prize = ULTRA_RARE_PRIZES[Math.floor(Math.random() * ULTRA_RARE_PRIZES.length)];
+    prize.effect(k, updates);
+    rewards.push({ text: `✨✨✨ ULTRA RARE: ${prize.text}` });
+    updates._ultra_rare = prize.id;
+  }
+
+  // ── Throne of Nazdreg (0.1% on deep/dungeon, unique forever) ────────────────
+  const throneChance = (type === 'deep' || type === 'dungeon') ? 0.001 : 0;
+  if (throneChance > 0 && roll(throneChance)) {
+    updates._check_throne = true; // resolveExpeditions will check server_state and apply if unclaimed
   }
 
   return { rewards, updates, events };
@@ -1554,7 +1745,11 @@ async function resolveExpeditions(db, k, engine) {
   const exps = await db.all('SELECT * FROM expeditions WHERE kingdom_id = ? AND turns_left > 0', [k.id]);
   const expeditionEvents = [];
   for (const exp of exps) {
-    const newTurns = exp.turns_left - 1;
+    // Fetch fresh k for racial bonus check
+    const freshKCheck = await db.get('SELECT race, troop_levels FROM kingdoms WHERE id = ?', [k.id]) || k;
+    const direWolfBonus = racialUnitBonus(freshKCheck, 'rangers');
+    const tickDown = direWolfBonus.earlyReturn ? 2 : 1; // Dire Wolf rangers return 1 turn early
+    const newTurns = exp.turns_left - tickDown;
     console.log(`[expedition] id=${exp.id} turns_left=${exp.turns_left} newTurns=${newTurns} completing=${newTurns <= 0}`);
     if (newTurns > 0) {
       await db.run('UPDATE expeditions SET turns_left = ? WHERE id = ?', [newTurns, exp.id]);
@@ -1567,7 +1762,28 @@ async function resolveExpeditions(db, k, engine) {
     try {
       // Fetch fresh kingdom state to avoid stale merged values
       const freshK = await db.get('SELECT * FROM kingdoms WHERE id = ?', [k.id]) || k;
-      const { rewards, updates, events } = expeditionRewards(exp.type, exp.rangers, exp.fighters, freshK);
+      const { rewards, updates, events } = expeditionRewards(exp.type, exp.rangers, exp.fighters, freshK, db);
+
+      // ── Throne of Nazdreg check ──────────────────────────────────────────────
+      if (updates._check_throne) {
+        delete updates._check_throne;
+        const throneState = await db.get("SELECT value FROM server_state WHERE key = 'throne_found'");
+        if (!throneState || throneState.value !== '1') {
+          // Throne not yet found — award it
+          THRONE_OF_NAZDREG.effect(freshK, updates);
+          await db.run("INSERT OR REPLACE INTO server_state (key, value) VALUES ('throne_found', '1')");
+          rewards.unshift({ text: THRONE_OF_NAZDREG.text });
+          // Broadcast server-wide announcement
+          events.push({ type: 'system', message: `👑 ${freshK.name} has found the Throne of Nazdreg Grishnak. May his memory endure forever.` });
+          updates._server_announce = `👑 The Throne of Nazdreg Grishnak has been found by ${freshK.name}. His name is remembered.`;
+        }
+      }
+      // Strip internal-only flags before applying
+      const serverAnnounce = updates._server_announce || null;
+      const ultraRareId    = updates._ultra_rare || null;
+      delete updates._server_announce;
+      delete updates._ultra_rare;
+
       const label = { scout: '🔭 Scout', deep: '🌲 Deep', dungeon: '⚔️ Dungeon' }[exp.type];
 
       // Apply kingdom updates — use SQL INCREMENT for rangers/fighters to avoid race conditions
@@ -1582,8 +1798,19 @@ async function resolveExpeditions(db, k, engine) {
         'war_machines','weapons_stockpile','armor_stockpile',
         'res_economy','res_weapons','res_armor','res_military','res_attack_magic',
         'res_defense_magic','res_entertainment','res_construction','res_war_machines','res_spellbook',
-        'xp','level',
+        'bld_farms','bld_barracks','bld_markets','bld_cathedrals',
+        'troop_levels','xp','level',
       ]);
+
+      // Award ranger XP for completing expedition (difficulty-scaled)
+      const expXpAmount = { scout: 8, deep: 20, dungeon: 40 }[exp.type] || 8;
+      const rXp = awardTroopXp(freshK, 'rangers', expXpAmount * exp.rangers);
+      updates.troop_levels = rXp.troop_levels;
+      // Award fighter XP for dungeon
+      if (exp.type === 'dungeon' && exp.fighters > 0) {
+        const fXp = awardTroopXp({ ...freshK, troop_levels: updates.troop_levels }, 'fighters', 40 * exp.fighters);
+        updates.troop_levels = fXp.troop_levels;
+      }
       const safeUpdates = Object.fromEntries(
         Object.entries(updates).filter(([k2, v]) => VALID_KINGDOM_COLS.has(k2) && v !== undefined && v !== null && !isNaN(v))
       );
@@ -1608,6 +1835,16 @@ async function resolveExpeditions(db, k, engine) {
         await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)',
           [k.id, ev.type || 'system', ev.message, k.turn || 0]);
         expeditionEvents.push(ev);
+      }
+
+      // Server-wide throne announcement — news to ALL kingdoms
+      if (serverAnnounce) {
+        const allKingdoms = await db.all('SELECT id FROM kingdoms');
+        for (const ak of allKingdoms) {
+          await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)',
+            [ak.id, 'system', serverAnnounce, k.turn || 0]);
+        }
+        if (engine.io) engine.io.emit('chat:system', { message: serverAnnounce, ts: Date.now() });
       }
 
       // Store rewards JSON on the row so frontend can show them in the log, then mark completed (turns_left=0)
@@ -1681,29 +1918,34 @@ function processLibrary(k, events) {
   const magesInLib   = Math.min(k.mages   || 0, Number(alloc.mages)   || 0);
   const scribesInLib = Math.min(k.scribes || 0, Number(alloc.scribes) || 0);
 
-  // Library capacity: each library holds 20 mages or scribes
-  const capacity = libs * 20;
+  const capacity       = libs * 20;
   const effectiveMages   = Math.min(magesInLib,   capacity);
   const effectiveScribes = Math.min(scribesInLib, capacity);
 
-  // Mages produce mana: 1 mana per 10 mages per turn
+  // Level multipliers
+  const mageLvlMult   = unitLevelMult(k, 'mages');
+  const scribeLvlMult = unitLevelMult(k, 'scribes');
+
+  // Mages produce mana (scaled by level)
   if (effectiveMages > 0) {
-    const manaGain = Math.floor(effectiveMages / 10);
+    const manaGain = Math.floor((effectiveMages / 10) * mageLvlMult);
     if (manaGain > 0) {
       updates.mana = (k.mana || 0) + manaGain;
+      // Passive mage XP for mana production
+      const mXp = awardTroopXp({ ...k, troop_levels: updates.troop_levels || k.troop_levels }, 'mages', 2);
+      updates.troop_levels = mXp.troop_levels;
     }
   }
 
-  // Scribes work on queued item (map or blueprint)
-  const scribeQueue = alloc.scribe_craft || null; // 'map' or 'blueprint'
+  // Scribes craft maps/blueprints (scaled by level)
+  const scribeQueue = alloc.scribe_craft || null;
   if (effectiveScribes > 0 && scribeQueue && SCRIBE_ITEMS[scribeQueue]) {
     const req = SCRIBE_ITEMS[scribeQueue];
     const effective = Math.min(effectiveScribes, req.scribes);
     const progressKey = 'scribe_' + scribeQueue;
-    const workDone = effective >= req.scribes ? 1 : effective / req.scribes;
+    const workDone = (effective >= req.scribes ? 1 : effective / req.scribes) * scribeLvlMult;
     const newProg = (progress[progressKey] || 0) + workDone;
     if (newProg >= req.turns) {
-      // Item completed
       progress[progressKey] = 0;
       if (scribeQueue === 'map') {
         updates.maps = (k.maps || 0) + 1;
@@ -1712,24 +1954,34 @@ function processLibrary(k, events) {
         updates.blueprints_stored = (k.blueprints_stored || 0) + 1;
         events.push({ type: 'system', message: `📐 Your scribes completed a blueprint — construction speed bonus applied.` });
       }
+      // Scribe XP for completing an item
+      const sXp = awardTroopXp({ ...k, troop_levels: updates.troop_levels || k.troop_levels }, 'scribes', 15);
+      updates.troop_levels = sXp.troop_levels;
     } else {
       progress[progressKey] = newProg;
     }
   }
 
-  // Mages work on queued scroll
+  // Mages craft scrolls (scaled by level)
   const scrollCraft = alloc.scroll_craft || null;
   if (effectiveMages > 0 && scrollCraft && SCROLL_REQUIREMENTS[scrollCraft]) {
     const req = SCROLL_REQUIREMENTS[scrollCraft];
     const effectiveMagesForScroll = Math.min(effectiveMages, req.mages);
-    const workDone = effectiveMagesForScroll >= req.mages ? 1 : effectiveMagesForScroll / req.mages;
+    const workDone = (effectiveMagesForScroll >= req.mages ? 1 : effectiveMagesForScroll / req.mages) * mageLvlMult;
     const progKey = 'scroll_' + scrollCraft;
     const newProg = (progress[progKey] || 0) + workDone;
     if (newProg >= req.turns) {
       progress[progKey] = 0;
-      scrolls[scrollCraft] = (scrolls[scrollCraft] || 0) + 1;
+      // High Elf racial bonus: level 5+ mages produce 2 scrolls
+      const helfBonus = racialUnitBonus(k, 'mages');
+      const scrollsProduced = helfBonus.doubleScrolls ? 2 : 1;
+      scrolls[scrollCraft] = (scrolls[scrollCraft] || 0) + scrollsProduced;
       updates.scrolls = JSON.stringify(scrolls);
-      events.push({ type: 'system', message: `✨ A ${scrollCraft.replace('_',' ')} scroll has been completed and stored in your library.` });
+      const bonusMsg = helfBonus.doubleScrolls ? ' (High Elf mastery — 2 scrolls produced!)' : '';
+      events.push({ type: 'system', message: `✨ A ${scrollCraft.replace(/_/g,' ')} scroll has been completed.${bonusMsg}` });
+      // Mage XP for scroll completion
+      const mXp2 = awardTroopXp({ ...k, troop_levels: updates.troop_levels || k.troop_levels }, 'mages', 20);
+      updates.troop_levels = mXp2.troop_levels;
     } else {
       progress[progKey] = newProg;
     }
@@ -1781,6 +2033,7 @@ module.exports = {
   covertSpy, covertLoot, covertAssassinate,
   resolveAllianceDefence, resolveExpeditions,
   awardXp, xpForLevel, xpToNextLevel, levelFromXp,
-  awardTroopXp, troopXpForLevel, effectiveTroopLevel,
+  awardTroopXp, awardUnitXp, diluteTroopXp, unitLevelMult, racialUnitBonus,
+  troopXpForLevel, effectiveTroopLevel,
   TROOP_RACE_BONUS, RACE_BONUSES, UNIT_COST, BUILDING_COST, BUILDING_GOLD_COST, BUILDING_LAND_COST, BUILDING_COL, SPELL_DEFS, SCROLL_REQUIREMENTS, SCRIBE_ITEMS, HOUSING_CAP_BY_RACE,
 };
