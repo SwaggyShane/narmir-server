@@ -100,6 +100,15 @@ textarea{width:100%;resize:vertical;min-height:60px}
     </div>
   </div>
 
+  <div class="card">
+    <h2 style="margin-top:0">Promote to admin</h2>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input type="text" id="promote-username" placeholder="Username..." style="flex:1">
+      <button class="btn btn-purple" onclick="promotePlayer()" style="padding:9px 16px">Promote</button>
+    </div>
+    <div id="promote-result" style="margin-top:8px;font-size:13px"></div>
+  </div>
+
   <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
     <h2 style="margin:0;flex:1">Kingdoms</h2>
     <input type="text" id="search-input" placeholder="Search by name or username..." style="width:220px" oninput="filterTable(this.value)">
@@ -440,6 +449,15 @@ async function unban(playerId, username) {
   var r = await api('POST','/api/admin/unban',{playerId:playerId});
   if (r.error) return toast(r.error,'error');
   toast(username+' unbanned','success'); loadData();
+}
+
+async function promotePlayer() {
+  const username = document.getElementById('promote-username').value.trim();
+  const result   = document.getElementById('promote-result');
+  if (!username) { result.textContent = 'Enter a username.'; result.style.color = 'var(--red)'; return; }
+  const res = await api('/api/admin/promote', { username });
+  if (res.error) { result.textContent = '✗ ' + res.error; result.style.color = 'var(--red)'; }
+  else { result.textContent = '✓ ' + username + ' is now an admin.'; result.style.color = 'var(--green)'; }
 }
 
 async function sendAnnouncement() {
