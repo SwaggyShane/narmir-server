@@ -171,6 +171,11 @@ async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_combat_attacker ON combat_log(attacker_id);
     CREATE INDEX IF NOT EXISTS idx_combat_defender ON combat_log(defender_id);
     CREATE INDEX IF NOT EXISTS idx_chat_room       ON chat_messages(room, created_at);
+    CREATE INDEX IF NOT EXISTS idx_kingdoms_player ON kingdoms(player_id);
+    CREATE INDEX IF NOT EXISTS idx_kingdoms_land   ON kingdoms(land DESC);
+    CREATE INDEX IF NOT EXISTS idx_expeditions_kingdom ON expeditions(kingdom_id, turns_left);
+    CREATE INDEX IF NOT EXISTS idx_war_log_defender ON war_log(defender_id);
+    CREATE INDEX IF NOT EXISTS idx_news_turn        ON news(kingdom_id, turn_num DESC);
   `);
 
   // ── Migrations — safe, idempotent, never crash on duplicate ─────────────────
@@ -182,6 +187,14 @@ async function initDb() {
       if (!e.message.includes('duplicate column')) throw e;
     }
   }
+
+  // Ensure key indexes exist
+  await _db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_kingdoms_player ON kingdoms(player_id);
+    CREATE INDEX IF NOT EXISTS idx_kingdoms_land   ON kingdoms(land DESC);
+    CREATE INDEX IF NOT EXISTS idx_news_created    ON news(created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_exp_turns       ON expeditions(turns_left);
+  `);
 
   const cols = (await _db.all('PRAGMA table_info(kingdoms)')).map(c => c.name);
   if (!cols.includes('turns_stored'))        await addColumn('kingdoms', 'turns_stored',        'INTEGER NOT NULL DEFAULT 200');
