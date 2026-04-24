@@ -378,6 +378,17 @@ async function start() {
   app.use('/api/kingdom', turnLimiter,  require('./routes/kingdom')(db));
   app.use('/api/admin',                 require('./routes/admin')(db, io));
 
+  app.get('/api/alliance/list', requireAuth, async (req, res) => {
+    const rows = await db.all(`
+      SELECT a.id, a.name, k.name AS leader_name, COUNT(am.kingdom_id) as member_count
+      FROM alliances a
+      JOIN kingdoms k ON a.leader_id = k.id
+      JOIN alliance_members am ON am.alliance_id = a.id
+      GROUP BY a.id ORDER BY member_count DESC, a.name ASC
+    `);
+    res.json(rows);
+  });
+
   app.get('/api/alliance/my', requireAuth, async (req, res) => {
     const kingdom = await db.get('SELECT id FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
     if (!kingdom) return res.status(404).json({ error: 'Kingdom not found' });
