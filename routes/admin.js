@@ -179,7 +179,7 @@ module.exports = function(db, io) {
 
       // Count war log actions by this AI as attacker
       const attacks   = await db.get('SELECT COUNT(*) as c FROM war_log WHERE attacker_id = ? AND action_type = ?', [k.id, 'attack']);
-      const coverts   = await db.get('SELECT COUNT(*) as c FROM war_log WHERE attacker_id = ? AND action_type IN (?,?,?)', [k.id, 'spy','loot','assassinate','sabotage']);
+      const coverts   = await db.get('SELECT COUNT(*) as c FROM war_log WHERE attacker_id = ? AND action_type IN (?,?,?,?,?)', [k.id, 'spy','loot','assassinate','sabotage','covert']);
       const wins      = await db.get('SELECT COUNT(*) as c FROM war_log WHERE attacker_id = ? AND outcome = ?', [k.id, 'victory']);
       const losses    = await db.get('SELECT COUNT(*) as c FROM war_log WHERE attacker_id = ? AND action_type = ? AND outcome = ?', [k.id, 'attack', 'repelled']);
       const timesHit  = await db.get('SELECT COUNT(*) as c FROM war_log WHERE defender_id = ?', [k.id]);
