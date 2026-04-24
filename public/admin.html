@@ -184,7 +184,7 @@ var EDIT_SECTIONS = [
   { label:'Units', fields:[
     {key:'fighters',label:'Fighters'},{key:'rangers',label:'Rangers'},{key:'clerics',label:'Clerics'},
     {key:'mages',label:'Mages'},{key:'thieves',label:'Thieves'},{key:'ninjas',label:'Ninjas'},
-    {key:'researchers',label:'Researchers'},{key:'engineers',label:'Engineers'},
+    {key:'researchers',label:'Researchers'},{key:'engineers',label:'Engineers'},{key:'scribes',label:'Scribes'},
     {key:'war_machines',label:'War machines'},{key:'weapons_stockpile',label:'Weapons stockpile'},
     {key:'armor_stockpile',label:'Armor stockpile'},
   ]},
@@ -194,7 +194,9 @@ var EDIT_SECTIONS = [
     {key:'bld_armories',label:'Armories'},{key:'bld_vaults',label:'Vaults'},
     {key:'bld_smithies',label:'Smithies'},{key:'bld_markets',label:'Markets'},
     {key:'bld_cathedrals',label:'Mage Towers'},{key:'bld_training',label:'Training fields'},
-    {key:'bld_colosseums',label:'Taverns'},{key:'bld_shrines',label:'Shrines'},{key:'bld_castles',label:'Castles'},
+    {key:'bld_colosseums',label:'Taverns'},{key:'bld_shrines',label:'Shrines'},
+    {key:'bld_castles',label:'Castles'},{key:'bld_libraries',label:'Libraries'},
+    {key:'maps',label:'Maps'},{key:'blueprints_stored',label:'Blueprints'},
   ]},
   { label:'Research', fields:[
     {key:'res_economy',label:'Economy'},{key:'res_weapons',label:'Weapons'},
@@ -280,7 +282,7 @@ function renderTable(rows) {
       +'<td>'+(k.turns_stored||0)+'/200</td>'
       +'<td>'+banned+'</td>'
       +'<td style="display:flex;gap:5px;flex-wrap:wrap">'
-      +'<button class="btn btn-gold" onclick="openEditModal(\''+kData+'\')">Edit</button>'
+      +'<button class="btn btn-gold" onclick="openEditModal('+k.id+',\''+escQ(k.name)+'\')">Edit</button>'
       +'<button class="btn" onclick="resetTurns('+k.id+',\''+escQ(k.name)+'\')">+Turns</button>'
       +(k.is_banned
         ? '<button class="btn btn-green" onclick="unban('+k.player_id+',\''+escQ(k.username)+'\')">Unban</button>'
@@ -298,23 +300,37 @@ function filterTable(q) {
   }));
 }
 
-function openEditModal(kData) {
-  var k = JSON.parse(decodeURIComponent(kData));
+async function openEditModal(kingdomId, kingdomName) {
+  editTarget = null;
+  document.getElementById('edit-kname').textContent = kingdomName || 'Loading...';
+  document.getElementById('edit-fields').innerHTML = '<div style="color:var(--text3);padding:20px;text-align:center;grid-column:1/-1">⏳ Fetching live data...</div>';
+  document.getElementById('edit-modal').classList.add('open');
+
+  var k = await api('GET', '/api/admin/kingdom/' + kingdomId);
+  if (!k || k.error) {
+    document.getElementById('edit-fields').innerHTML = '<div style="color:var(--red);padding:20px;grid-column:1/-1">Error: ' + (k && k.error ? k.error : 'No response') + '</div>';
+    return;
+  }
+
   editTarget = k.id;
-  document.getElementById('edit-kname').textContent = k.name + ' (' + k.username + ')';
+  document.getElementById('edit-kname').textContent = k.name + ' (' + (k.username||'?') + ') — Race: ' + (k.race||'?') + ' · Land: ' + (k.land||0).toLocaleString();
+
   var html = '';
   EDIT_SECTIONS.forEach(function(sec) {
-    html += '<div class="sec-label">'+sec.label+'</div>';
+    html += '<div class="sec-label" style="grid-column:1/-1">' + sec.label + '</div>';
     sec.fields.forEach(function(f) {
-      var val = (k[f.key] !== undefined && k[f.key] !== null) ? k[f.key] : 0;
+      var raw = k[f.key];
+      var val = (raw !== undefined && raw !== null && raw !== '') ? raw : 0;
+      // Only use numeric value — skip JSON columns
+      var numVal = parseFloat(val);
+      if (isNaN(numVal)) numVal = 0;
       html += '<div style="display:flex;flex-direction:column;gap:3px">'
-        +'<label style="font-size:11px;color:var(--text3)">'+f.label+'</label>'
-        +'<input type="number" id="ef-'+f.key+'" value="'+Number(val)+'" style="width:100%">'
-        +'</div>';
+        + '<label style="font-size:11px;color:var(--text3)">' + f.label + '</label>'
+        + '<input type="number" id="ef-' + f.key + '" value="' + numVal + '" style="width:100%">'
+        + '</div>';
     });
   });
   document.getElementById('edit-fields').innerHTML = html;
-  document.getElementById('edit-modal').classList.add('open');
 }
 
 function closeEditModal() {
