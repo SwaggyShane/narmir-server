@@ -368,6 +368,96 @@ module.exports = function(db) {
     });
   });
 
+  // ── Cast spell ───────────────────────────────────────────────────────────────
+  router.post('/spell', requireAuth, async (req, res) => {
+    const { spellId, targetId, obscure } = req.body;
+    if (!spellId) return res.status(400).json({ error: 'spellId required' });
+
+    const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
+    if (!k) return res.status(404).json({ error: 'Kingdom not found' });
+    if ((k.turns_stored || 0) < 1) return res.status(429).json({ error: 'No turns available' });
+
+    const def = engine.SPELL_DEFS[spellId];
+    if (!def) return res.status(400).json({ error: 'Unknown spell' });
+
+    // Friendly spells target yourself; offensive spells require a target + map
+    const isFriendly = def.effect === 'friendly';
+    let target;
+
+    if (isFriendly) {
+      target = k; // cast on self
+    } else {
+      if (!targetId) return res.status(400).json({ error: 'targetId required for offensive spells' });
+      if ((k.maps || 0) < 1) return res.status(400).json({ error: 'You need a map to cast on other kingdoms — craft one in your Library' });
+      target = await db.get('SELECT * FROM kingdoms WHERE id = ?', [targetId]);
+      if (!target) return res.status(404).json({ error: 'Target kingdom not found' });
+      if (target.player_id === k.player_id) return res.status(400).json({ error: 'Cannot cast offensive spells on yourself' });
+    }
+
+    const result = engine.castSpell(k, target, spellId, !!obscure);
+    if (result.error) return res.status(400).json({ error: result.error });
+
+    const VALID = new Set([
+      'gold','mana','land','population','morale','food','fighters','rangers','clerics',
+      'mages','thieves','ninjas','researchers','engineers','war_machines','scrolls',
+      'bld_farms','bld_barracks','bld_guard_towers','bld_markets','bld_castles',
+      'active_effects','res_economy','res_attack_magic','res_defense_magic','res_spellbook',
+    ]);
+
+    async function applySpell(kingdom, updates) {
+      const safe = Object.fromEntries(
+        Object.entries(updates).filter(([c, v]) => VALID.has(c) && v !== undefined && v !== null)
+      );
+      if (Object.keys(safe).length > 0) {
+        const cols = Object.keys(safe).map(c => `${c} = ?`).join(', ');
+        await db.run(`UPDATE kingdoms SET ${cols} WHERE id = ?`, [...Object.values(safe), kingdom.id]);
+      }
+    }
+
+    await applySpell(k, result.casterUpdates);
+    if (!isFriendly) await applySpell(target, result.targetUpdates);
+    await db.run('UPDATE kingdoms SET turns_stored = turns_stored - 1 WHERE id = ?', [k.id]);
+
+    // News
+    if (result.casterEvent) {
+      await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)',
+        [k.id, 'system', result.casterEvent, k.turn]);
+    }
+    if (!isFriendly && result.targetEvent) {
+      await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)',
+        [target.id, 'attack', result.targetEvent, target.turn]);
+    }
+
+    // War log for offensive spells
+    if (!isFriendly) {
+      await db.run(`INSERT INTO war_log (action_type, attacker_id, attacker_name, defender_id, defender_name, outcome, detail, obscured)
+        VALUES (?,?,?,?,?,?,?,?)`, [
+        'spell', k.id, k.name, target.id, target.name,
+        'cast',
+        `${spellId.replace(/_/g,' ')} — ${result.report.damageDesc || ''}`,
+        obscure ? 1 : 0,
+      ]);
+    }
+
+    // Consume map on cast (map is used up like a compass — one per interaction)
+    if (!isFriendly) {
+      await db.run('UPDATE kingdoms SET maps = MAX(0, maps - 1) WHERE id = ?', [k.id]);
+    }
+
+    const freshK = await db.get('SELECT mana, scrolls, maps, active_effects FROM kingdoms WHERE id = ?', [k.id]);
+    res.json({
+      ok: true,
+      report: result.report,
+      updates: {
+        mana:           freshK.mana,
+        scrolls:        JSON.parse(freshK.scrolls || '{}'),
+        maps:           freshK.maps,
+        active_effects: JSON.parse(freshK.active_effects || '{}'),
+        ...result.casterUpdates,
+      },
+    });
+  });
+
   // ── Covert operations ────────────────────────────────────────────────────────
   router.post('/covert', requireAuth, async (req, res) => {
     const { op, targetId, units, lootType, unitType, bldType } = req.body;
@@ -440,7 +530,7 @@ module.exports = function(db) {
     } else if (op === 'assassinate') {
       const ninjasSent = Math.max(1, parseInt(units) || 0);
       if (ninjasSent > k.ninjas) return res.status(400).json({ error: 'Not enough ninjas' });
-      const validTargets = ['fighters','rangers','clerics','mages','thieves','ninjas','researchers','engineers'];
+      const validTargets = ['fighters','rangers','clerics','mages','thieves','ninjas','researchers','engineers','scribes'];
       if (!validTargets.includes(unitType)) return res.status(400).json({ error: 'Invalid target unit type' });
       result = engine.covertAssassinate(k, target, ninjasSent, unitType);
       if (result.error) return res.status(400).json({ error: result.error });
