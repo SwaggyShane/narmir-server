@@ -56,10 +56,10 @@ module.exports = function(db) {
   router.get('/news/list', requireAuth, async (req, res) => {
     const k = await db.get('SELECT id FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
     if (!k) return res.status(404).json({ error: 'Kingdom not found' });
-    const items = await db.all(
-      'SELECT * FROM news WHERE kingdom_id = ? ORDER BY created_at DESC LIMIT 50', [k.id]
-    );
-    await db.run('UPDATE news SET is_read = 1 WHERE kingdom_id = ?', [k.id]);
+    const [items] = await Promise.all([
+      db.all('SELECT * FROM news WHERE kingdom_id = ? ORDER BY created_at DESC LIMIT 50', [k.id]),
+      db.run('UPDATE news SET is_read = 1 WHERE kingdom_id = ? AND is_read = 0', [k.id]),
+    ]);
     res.json(items);
   });
 
@@ -707,4 +707,21 @@ async function applyUpdates(db, kingdomId, updates) {
   const cols = Object.keys(updates).map(k => `${k} = ?`).join(', ');
   const vals = [...Object.values(updates), kingdomId];
   await db.run(`UPDATE kingdoms SET ${cols} WHERE id = ?`, vals);
+}
+
+// Insert multiple news rows in a single query — much faster than N sequential inserts
+async function bulkInsertNews(db, rows) {
+  if (!rows || rows.length === 0) return;
+  const placeholders = rows.map(() => '(?,?,?,?)').join(',');
+  const values = rows.flatMap(r => [r.kingdom_id, r.type || 'system', r.message, r.turn_num || 0]);
+  await db.run(`INSERT INTO news (kingdom_id, type, message, turn_num) VALUES ${placeholders}`, values);
+}
+
+// Prune old news — keep only the most recent N rows per kingdom
+async function pruneNews(db, kingdomId, keep = 200) {
+  await db.run(`
+    DELETE FROM news WHERE kingdom_id = ? AND id NOT IN (
+      SELECT id FROM news WHERE kingdom_id = ? ORDER BY created_at DESC LIMIT ?
+    )
+  `, [kingdomId, kingdomId, keep]);
 }
