@@ -41,6 +41,17 @@ module.exports = function(db) {
     res.json(rows.map((r, i) => ({ ...r, rank: i + 1 })));
   });
 
+  router.get('/war-log', requireAuth, async (_req, res) => {
+    const rows = await db.all(`
+      SELECT id, action_type, attacker_id, attacker_name, defender_id, defender_name,
+             outcome, detail, obscured, created_at
+      FROM war_log
+      ORDER BY created_at DESC
+      LIMIT 100
+    `);
+    res.json(rows);
+  });
+
   router.get('/news/list', requireAuth, async (req, res) => {
     const k = await db.get('SELECT id FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
     if (!k) return res.status(404).json({ error: 'Kingdom not found' });
@@ -332,6 +343,16 @@ module.exports = function(db) {
     await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)',
       [target.id, 'attack', result.defEvent, target.turn]);
 
+    // Global war log
+    await db.run(`INSERT INTO war_log (action_type, attacker_id, attacker_name, defender_id, defender_name, outcome, detail, obscured)
+      VALUES (?,?,?,?,?,?,?,0)`, [
+      'attack',
+      k.id, k.name,
+      target.id, target.name,
+      result.win ? 'victory' : 'repelled',
+      `${result.report.fightersSent.toLocaleString()} fighters · ${result.report.landTransferred > 0 ? '+' + result.report.landTransferred + ' land' : 'no land taken'}`,
+    ]);
+
     // XP event for level-up
     if (result.report.atkLevelUp) {
       await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)',
@@ -387,6 +408,13 @@ module.exports = function(db) {
       await db.run('UPDATE kingdoms SET turns_stored = turns_stored - 1 WHERE id = ?', [k.id]);
       if (result.spyEvent) await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)', [k.id, 'covert', result.spyEvent, k.turn]);
       if (!result.success && result.targetEvent) await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)', [target.id, 'covert', result.targetEvent, target.turn]);
+      // War log: reveal attacker only on failure
+      await db.run(`INSERT INTO war_log (action_type, attacker_id, attacker_name, defender_id, defender_name, outcome, detail, obscured) VALUES (?,?,?,?,?,?,?,?)`, [
+        'spy', k.id, k.name, target.id, target.name,
+        result.success ? 'success' : 'caught',
+        'Intelligence gathering',
+        result.success ? 1 : 0,
+      ]);
       return res.json({ ok: true, success: result.success, report: result.report || null, event: result.spyEvent });
 
     } else if (op === 'loot') {
@@ -400,6 +428,12 @@ module.exports = function(db) {
       await db.run('UPDATE kingdoms SET turns_stored = turns_stored - 1 WHERE id = ?', [k.id]);
       if (result.thiefEvent) await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)', [k.id, 'covert', result.thiefEvent, k.turn]);
       if (result.targetEvent) await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)', [target.id, 'covert', result.targetEvent, target.turn]);
+      await db.run(`INSERT INTO war_log (action_type, attacker_id, attacker_name, defender_id, defender_name, outcome, detail, obscured) VALUES (?,?,?,?,?,?,?,?)`, [
+        'loot', k.id, k.name, target.id, target.name,
+        result.success ? 'success' : 'caught',
+        result.success ? `Stole ${loot.replace('_',' ')}` : 'Thieves captured',
+        result.success ? 1 : 0,
+      ]);
       return res.json({ ok: true, success: result.success, stolen: result.stolen, lootType: result.lootType, event: result.thiefEvent });
 
     } else if (op === 'assassinate') {
@@ -414,6 +448,12 @@ module.exports = function(db) {
       await db.run('UPDATE kingdoms SET turns_stored = turns_stored - 1 WHERE id = ?', [k.id]);
       if (result.assassinEvent) await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)', [k.id, 'covert', result.assassinEvent, k.turn]);
       if (result.targetEvent) await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)', [target.id, 'covert', result.targetEvent, target.turn]);
+      await db.run(`INSERT INTO war_log (action_type, attacker_id, attacker_name, defender_id, defender_name, outcome, detail, obscured) VALUES (?,?,?,?,?,?,?,?)`, [
+        'assassinate', k.id, k.name, target.id, target.name,
+        result.success ? 'success' : 'caught',
+        result.success ? `${(result.killed||0).toLocaleString()} ${unitType} eliminated` : 'Ninjas compromised',
+        result.success ? 1 : 0,
+      ]);
       return res.json({ ok: true, success: result.success, killed: result.killed, event: result.assassinEvent });
 
     } else if (op === 'sabotage') {
@@ -435,6 +475,12 @@ module.exports = function(db) {
         : `Sabotage of ${bldType} in ${target.name} failed — ${ninjasLost} ninjas lost.`;
       await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)', [k.id, 'covert', sabMsg, k.turn]);
       if (success) await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)', [target.id, 'covert', `Enemy ninjas sabotaged ${destroyed} of your ${bldType.replace(/_/g,' ')}.`, target.turn]);
+      await db.run(`INSERT INTO war_log (action_type, attacker_id, attacker_name, defender_id, defender_name, outcome, detail, obscured) VALUES (?,?,?,?,?,?,?,?)`, [
+        'sabotage', k.id, k.name, target.id, target.name,
+        success ? 'success' : 'caught',
+        success ? `${destroyed} ${bldType.replace(/_/g,' ')} destroyed` : 'Ninjas caught',
+        success ? 1 : 0,
+      ]);
       return res.json({ ok: true, success, destroyed, ninjasLost, event: sabMsg });
 
     } else {
