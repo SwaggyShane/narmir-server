@@ -449,6 +449,10 @@ function processTurn(k) {
   const libUpdates = processLibrary({ ...k, ...updates }, events);
   Object.assign(updates, libUpdates);
 
+  // ── 8c. Smithy production — hammers, scaffolding, degradation ────────────────
+  const smithyUpdates = processSmithyProduction({ ...k, ...updates }, events);
+  Object.assign(updates, smithyUpdates);
+
   // ── 8c. Mage tower research — research from mages in towers ──────────────────
   const towerUpdates = processMageTower({ ...k, ...updates }, events);
   Object.assign(updates, towerUpdates);
@@ -804,6 +808,76 @@ const BUILDING_LAND_COST = {
   war_machine: 0, weapons: 0, armor: 0,
 };
 const TOOL_COL       = { hammers: 'tools_hammers', scaffolding: 'tools_scaffolding', blueprints: 'tools_blueprints' };
+const TOOL_GOLD_COST = { hammers: 0, scaffolding: 2500, blueprints: 0 }; // hammers cost 1 turn via smithy; blueprints from library
+
+// Buildings requiring blueprint (base cost >= 100 turns @ 100 engineers)
+const BLUEPRINT_REQUIRED = new Set(['vaults','smithies','markets','cathedrals','training','colosseums','castles','libraries']);
+// Buildings requiring scaffolding (base cost > 100 turns)
+const SCAFFOLDING_REQUIRED = new Set(['cathedrals','training','castles']);
+// Scaffolding also gives a bonus for buildings under 100 turns (consumed on completion)
+const SCAFFOLDING_BONUS_BUILDINGS = new Set(['farms','barracks','outposts','guard_towers','schools','armories','shrines','housing','colosseums']);
+
+// Scaffolding bonus scales inversely with building difficulty: smaller buildings get bigger % boost
+function scaffoldingBonus(building) {
+  const cost = BUILDING_COST[building] || 10000;
+  return Math.max(0.05, Math.floor(50 / (cost / 100)) / 100); // e.g. farm=2.0, barracks=1.0, school=0.67
+}
+
+// ── Smithy production — runs each turn ───────────────────────────────────────
+function processSmithyProduction(k, events) {
+  const updates = {};
+  const smithies = k.bld_smithies || 0;
+  if (smithies === 0) return updates;
+
+  let alloc = {};
+  try { alloc = JSON.parse(k.smithy_allocation || '{}'); } catch {}
+
+  const hammerAlloc    = Math.min(Number(alloc.hammers)    || 0, smithies); // max 1 per smithy per turn
+  const scaffoldAlloc  = Math.min(Number(alloc.scaffolding) || 0, smithies);
+
+  const hammerCap   = smithies * 25;
+  const scaffoldCap = smithies * 10;
+
+  // Produce hammers (1 per allocated engineer slot, max 1 per smithy, cap 25/smithy)
+  if (hammerAlloc > 0 && (k.tools_hammers || 0) < hammerCap) {
+    const canAdd = Math.min(hammerAlloc, hammerCap - (k.tools_hammers || 0));
+    if (canAdd > 0) {
+      updates.tools_hammers = (k.tools_hammers || 0) + canAdd;
+      events.push({ type: 'system', message: `⚒️ Smithy produced ${canAdd} hammer${canAdd > 1 ? 's' : ''}.` });
+    }
+  }
+
+  // Produce scaffolding (costs 2500 gold each, 1 per allocated engineer slot)
+  if (scaffoldAlloc > 0 && (k.tools_scaffolding || 0) < scaffoldCap) {
+    const goldAvail = updates.gold !== undefined ? updates.gold : (k.gold || 0);
+    const canAfford = Math.floor(goldAvail / 2500);
+    const canAdd    = Math.min(scaffoldAlloc, scaffoldCap - (k.tools_scaffolding || 0), canAfford);
+    if (canAdd > 0) {
+      updates.tools_scaffolding = (k.tools_scaffolding || 0) + canAdd;
+      updates.gold = goldAvail - (canAdd * 2500);
+      events.push({ type: 'system', message: `⚒️ Smithy produced ${canAdd} scaffolding for ${(canAdd * 2500).toLocaleString()} gold.` });
+    } else if (canAfford === 0 && scaffoldAlloc > 0) {
+      events.push({ type: 'system', message: `⚠️ Not enough gold to produce scaffolding (need 2,500 GC each).` });
+    }
+  }
+
+  // ── Hammer degradation — each active hammer decays 1 turn of durability ──────
+  const hammerCount = updates.tools_hammers !== undefined ? updates.tools_hammers : (k.tools_hammers || 0);
+  if (hammerCount > 0) {
+    const used = (k.hammer_turns_used || 0) + hammerCount; // each hammer used this turn
+    const breaks = Math.floor(used / 20); // 1 hammer breaks every 20 turns of use
+    if (breaks > 0) {
+      const newCount = Math.max(0, hammerCount - breaks);
+      updates.tools_hammers = newCount;
+      updates.hammer_turns_used = used - (breaks * 20);
+      events.push({ type: 'system', message: `🔨 ${breaks} hammer${breaks > 1 ? 's' : ''} wore out and broke.` });
+    } else {
+      updates.hammer_turns_used = used;
+    }
+  }
+
+  return updates;
+}
 
 // Add buildings to the queue — charges gold, no turn cost
 function queueBuildings(k, orders) {
@@ -846,15 +920,24 @@ function processBuildQueue(k, events) {
   try { progress = JSON.parse(k.build_progress || '{}'); } catch { progress = {}; }
 
   // Tool bonuses
-  const hammerBonus     = 1 + (k.tools_hammers     || 0) * 0.05;
-  const scaffoldBonus   = 1 + (k.tools_scaffolding  || 0) * 0.15;
-  const blueprintBonus  = 1 + (k.tools_blueprints   || 0) * 0.25;
-  const smithyBonus     = 1 + (Math.floor((k.bld_smithies||0) / 15) * 0.02);
+  const hammerBonus  = 1 + (k.tools_hammers || 0) * 0.05;
+  const smithyBonus  = 1 + (Math.floor((k.bld_smithies||0) / 15) * 0.02);
   const raceConstr   = raceBonus(k, 'construction');
   const engLevelMult = unitLevelMult(k, 'engineers');
-  const toolMult     = hammerBonus * scaffoldBonus * blueprintBonus * smithyBonus * raceConstr * engLevelMult;
+  const baseToolMult = hammerBonus * smithyBonus * raceConstr * engLevelMult;
 
-  // Get engineer allocation — keys are building types like 'farm', 'barracks', etc.
+  // Consumable tool pools — tracked across the building loop this turn
+  let blueprintsLeft  = k.blueprints_stored || 0;
+  let scaffoldingLeft = k.tools_scaffolding  || 0;
+  let blueprintsUsed  = 0;
+  let scaffoldingUsed = 0;
+
+  // Smithy caps
+  const smithies     = k.bld_smithies || 0;
+  const blueprintCap = smithies * 25;
+  const scaffoldCap  = smithies * 10;
+
+  // Get engineer allocation
   let allocation = {};
   try { allocation = JSON.parse(k.build_allocation || '{}'); } catch { allocation = {}; }
 
@@ -875,34 +958,67 @@ function processBuildQueue(k, events) {
     const cost = BUILDING_COST[building];
     if (!cost) continue;
 
+    // ── Blueprint gate — required for buildings with base cost >= 100 turns ──
+    if (BLUEPRINT_REQUIRED.has(building) && blueprintsLeft <= 0) {
+      updates._blueprint_needed = updates._blueprint_needed || [];
+      if (!updates._blueprint_needed.includes(building)) updates._blueprint_needed.push(building);
+      continue; // skip this building entirely this turn
+    }
+
+    // ── Scaffolding gate — required for buildings > 100 turns base ──────────
+    if (SCAFFOLDING_REQUIRED.has(building) && scaffoldingLeft <= 0) {
+      updates._scaffolding_needed = updates._scaffolding_needed || [];
+      if (!updates._scaffolding_needed.includes(building)) updates._scaffolding_needed.push(building);
+      continue;
+    }
+
+    // ── Per-building tool multiplier ─────────────────────────────────────────
+    let toolMult = baseToolMult;
+    // Scaffolding bonus for sub-100-turn buildings (optional, stacks)
+    if (SCAFFOLDING_BONUS_BUILDINGS.has(building) && scaffoldingLeft > 0) {
+      toolMult = toolMult * (1 + scaffoldingBonus(building));
+    }
+
     const workDone = Math.floor(engAssigned * toolMult);
     if (workDone <= 0) continue;
 
-    const prevProgress = progress[building] || 0;
+    const prevProgress  = progress[building] || 0;
     const totalProgress = prevProgress + workDone;
-    const completed = Math.floor(totalProgress / cost);
+    const completed     = Math.floor(totalProgress / cost);
 
     if (completed > 0) {
       const col = BUILDING_COL[building];
       if (col) {
         const current = updates[col] !== undefined ? updates[col] : (k[col] || 0);
-        const cap = getCap(col, k.level || 1);
-        const canAdd = Math.max(0, Math.min(completed, cap - current));
-        updates[col] = current + canAdd;
+        const cap     = getCap(col, k.level || 1);
+        const canAdd  = Math.max(0, Math.min(completed, cap - current));
+        updates[col]  = current + canAdd;
         if (canAdd < completed && canAdd === 0) {
           events.push({ type: 'system', message: `⚠️ ${building} cap reached at level ${k.level||1} (max ${cap.toLocaleString()}) — level up to build more.` });
         }
         if (canAdd > 0) {
           completedItems.push(`${canAdd.toLocaleString()} ${building.replace(/_/g, ' ')}`);
-          // Deduct land
           const landCost = (BUILDING_LAND_COST[building] || 0) * canAdd;
           if (landCost > 0) {
             updates.land = Math.max(0, (updates.land !== undefined ? updates.land : (k.land || 0)) - landCost);
           }
+
+          // ── Consume blueprint on completion ─────────────────────────────
+          if (BLUEPRINT_REQUIRED.has(building)) {
+            const consume = Math.min(canAdd, blueprintsLeft);
+            blueprintsLeft  -= consume;
+            blueprintsUsed  += consume;
+          }
+
+          // ── Consume scaffolding on completion ───────────────────────────
+          if (SCAFFOLDING_REQUIRED.has(building) || SCAFFOLDING_BONUS_BUILDINGS.has(building)) {
+            const consume = Math.min(canAdd, scaffoldingLeft);
+            scaffoldingLeft -= consume;
+            scaffoldingUsed += consume;
+          }
         }
       }
       progress[building] = totalProgress - (completed * cost);
-      // Reduce queue count if this was a queued item
       if (queue[building] > 0) {
         queue[building] = Math.max(0, queue[building] - completed);
         if (queue[building] <= 0) delete queue[building];
@@ -910,6 +1026,20 @@ function processBuildQueue(k, events) {
     } else {
       progress[building] = totalProgress;
     }
+  }
+
+  // Persist consumable tool totals
+  if (blueprintsUsed  > 0) updates.blueprints_stored = Math.max(0, (k.blueprints_stored || 0) - blueprintsUsed);
+  if (scaffoldingUsed > 0) updates.tools_scaffolding  = Math.max(0, scaffoldingLeft);
+
+  // News notices for missing tools
+  if (updates._blueprint_needed) {
+    events.push({ type: 'system', message: `📐 Blueprint required to build: ${updates._blueprint_needed.join(', ')}. Craft one in your Library using scribes.` });
+    delete updates._blueprint_needed;
+  }
+  if (updates._scaffolding_needed) {
+    events.push({ type: 'system', message: `🪜 Scaffolding required to build: ${updates._scaffolding_needed.join(', ')}. Produce it in your Smithy.` });
+    delete updates._scaffolding_needed;
   }
 
   // Clean up zero progress entries for inactive buildings
@@ -1641,6 +1771,12 @@ function expeditionRewards(type, rangers, fighters, k, db) {
     }
     if (roll(0.45)) rewards.push({ text: `Your rangers also found ${junkPrize()}` });
 
+    // Map drop — 5% chance on scout
+    if (roll(0.05)) {
+      updates.maps = (k.maps || 0) + 1;
+      rewards.push({ text: `🗺️ A map was found — you can now interact with other kingdoms` });
+    }
+
   } else if (type === 'deep') {
     rewards.push({ text: `+${goldBase.toLocaleString()} gold from deep wilderness caches` });
     updates.gold = (k.gold || 0) + goldBase;
@@ -1681,6 +1817,12 @@ function expeditionRewards(type, rangers, fighters, k, db) {
     }
     if (roll(0.60)) rewards.push({ text: `Hidden deep in the wilderness, your rangers also discovered ${junkPrize()}` });
 
+    // Map drop — 15% chance on deep
+    if (roll(0.15)) {
+      updates.maps = (updates.maps || k.maps || 0) + 1;
+      rewards.push({ text: `🗺️ A map was discovered in the deep wilderness` });
+    }
+
   } else if (type === 'dungeon') {
     const power = (rangers + fighters * 2) * tacBonus * exploreBonus;
     const successChance = Math.min(0.85, 0.25 + (power / 80000));
@@ -1720,6 +1862,21 @@ function expeditionRewards(type, rangers, fighters, k, db) {
         updates.res_spellbook = (updates.res_spellbook || k.res_spellbook || 0) + boost2;
       }
       if (roll(0.5)) rewards.push({ text: `Amid the carnage, someone pocketed ${junkPrize()}` });
+
+      // Map drop — 25% chance on dungeon
+      if (roll(0.25)) {
+        updates.maps = (updates.maps || k.maps || 0) + 1;
+        rewards.push({ text: `🗺️ A map was found among the dungeon spoils` });
+      }
+      // Blueprint drop — 20% chance on dungeon
+      if (roll(0.20)) {
+        const smithyCap = (k.bld_smithies || 0) * 25;
+        const curBP = updates.blueprints_stored !== undefined ? updates.blueprints_stored : (k.blueprints_stored || 0);
+        if (smithyCap === 0 || curBP < smithyCap) {
+          updates.blueprints_stored = curBP + 1;
+          rewards.push({ text: `📐 A blueprint was recovered from the dungeon depths` });
+        }
+      }
     }
   }
 
@@ -2035,5 +2192,8 @@ module.exports = {
   awardXp, xpForLevel, xpToNextLevel, levelFromXp,
   awardTroopXp, awardUnitXp, diluteTroopXp, unitLevelMult, racialUnitBonus,
   troopXpForLevel, effectiveTroopLevel,
-  TROOP_RACE_BONUS, RACE_BONUSES, UNIT_COST, BUILDING_COST, BUILDING_GOLD_COST, BUILDING_LAND_COST, BUILDING_COL, SPELL_DEFS, SCROLL_REQUIREMENTS, SCRIBE_ITEMS, HOUSING_CAP_BY_RACE,
+  TROOP_RACE_BONUS, RACE_BONUSES, UNIT_COST, BUILDING_COST, BUILDING_GOLD_COST, BUILDING_LAND_COST, BUILDING_COL,
+  SPELL_DEFS, SCROLL_REQUIREMENTS, SCRIBE_ITEMS, HOUSING_CAP_BY_RACE,
+  TOOL_COL, TOOL_GOLD_COST, BLUEPRINT_REQUIRED, SCAFFOLDING_REQUIRED, SCAFFOLDING_BONUS_BUILDINGS,
+  processSmithyProduction,
 };
