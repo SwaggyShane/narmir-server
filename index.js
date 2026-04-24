@@ -86,19 +86,18 @@ async function processAiTurns(db) {
   const aiPlayers = await db.all('SELECT id FROM players WHERE is_ai = 1');
   if (aiPlayers.length === 0) return;
 
-  for (const player of aiPlayers) {
-    try {
-      await runAiKingdom(db, engine, player.id);
-    } catch (e) {
-      console.error(`[ai] error for player ${player.id}:`, e.message);
-    }
-  }
+  // Run all AI kingdoms in parallel
+  await Promise.all(aiPlayers.map(p =>
+    runAiKingdom(db, engine, p.id).catch(e =>
+      console.error(`[ai] error for player ${p.id}:`, e.message)
+    )
+  ));
   console.log(`[ai] Processed ${aiPlayers.length} AI kingdoms`);
 }
 
 async function runAiKingdom(db, engine, playerId) {
-  const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [playerId]);
-  if (!k || k.turns_stored < 1) return;
+  let ai = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [playerId]);
+  if (!ai || ai.turns_stored < 1) return;
 
   const VALID_COLS = new Set([
     'gold','mana','land','population','morale','food','turn','turns_stored',
@@ -108,7 +107,7 @@ async function runAiKingdom(db, engine, playerId) {
     'res_defense_magic','res_entertainment','res_construction','res_war_machines','res_spellbook',
     'bld_farms','bld_barracks','bld_schools','bld_armories','bld_vaults','bld_smithies',
     'bld_markets','bld_cathedrals','bld_training','bld_colosseums','bld_castles',
-    'bld_shrines','bld_libraries','bld_housing',
+    'bld_shrines','bld_libraries',
     'build_allocation','build_progress','research_allocation','mage_tower_allocation',
     'build_queue','xp','level','troop_levels','maps','scrolls','active_effects',
     'library_progress','library_allocation',
@@ -122,56 +121,49 @@ async function runAiKingdom(db, engine, playerId) {
       const cols = Object.keys(safe).map(c => `${c} = ?`).join(', ');
       await db.run(`UPDATE kingdoms SET ${cols} WHERE id = ?`, [...Object.values(safe), kingdom.id]);
     }
+    return safe;
   }
 
-  // Spend ALL stored turns
-  const turnsToSpend = k.turns_stored;
+  const turnsToSpend = ai.turns_stored;
   for (let i = 0; i < turnsToSpend; i++) {
-    const ai = await db.get('SELECT * FROM kingdoms WHERE id = ?', [k.id]);
-    if (!ai || ai.turns_stored < 1) break;
+    if ((ai.turns_stored || 0) < 1) break;
 
-    // ── Process base turn ──
+    // ── Process base turn — use in-memory ai state, no re-read needed ──
     const { updates } = engine.processTurn(ai);
     updates.turns_stored = ai.turns_stored - 1;
 
     // ── Engineer allocation — race-aware ──
     const eng = ai.engineers || 0;
     if (eng > 0) {
-      // All races need housing and farms first, then vary
-      const needsHousing = (ai.population || 0) > (ai.bld_housing || 0) * 450;
-      const needsFarms   = (ai.bld_farms   || 0) < Math.floor((ai.land || 0) / 4);
-      const housingPct   = needsHousing ? 0.35 : 0.15;
-      const farmPct      = needsFarms   ? 0.30 : 0.15;
-      const barPct       = 0.15;
-      const schoolPct    = 0.10;
-      const restPct      = 1 - housingPct - farmPct - barPct - schoolPct;
+      const needsFarms = (ai.bld_farms || 0) < Math.floor((ai.land || 0) / 4);
+      const farmPct    = needsFarms ? 0.30 : 0.15;
+      const barPct     = 0.15;
+      const schoolPct  = 0.10;
+      const restPct    = Math.max(0, 1 - farmPct - barPct - schoolPct);
       updates.build_allocation = JSON.stringify({
-        farms:    Math.floor(eng * farmPct),
-        housing:  Math.floor(eng * housingPct),
-        barracks: Math.floor(eng * barPct),
-        schools:  Math.floor(eng * schoolPct),
-        cathedrals: ai.race === 'high_elf' || ai.race === 'dark_elf' ? Math.floor(eng * restPct) : 0,
-        markets:  ai.race === 'dwarf' || ai.race === 'human' ? Math.floor(eng * restPct) : 0,
-        training: ai.race === 'dire_wolf' || ai.race === 'orc' ? Math.floor(eng * restPct) : 0,
+        farms:      Math.floor(eng * farmPct),
+        barracks:   Math.floor(eng * barPct),
+        schools:    Math.floor(eng * schoolPct),
+        cathedrals: (ai.race === 'high_elf' || ai.race === 'dark_elf') ? Math.floor(eng * restPct) : 0,
+        markets:    (ai.race === 'dwarf'    || ai.race === 'human')     ? Math.floor(eng * restPct) : 0,
+        training:   (ai.race === 'dire_wolf'|| ai.race === 'orc')       ? Math.floor(eng * restPct) : 0,
       });
     }
 
-    // ── Research allocation — race-aware ──
+    // ── Research allocation ──
     const researchers = ai.researchers || 0;
     if (researchers > 0) {
-      const schools = ai.bld_schools || 0;
-      const cap = schools * 100;
-      const eff = Math.min(researchers, cap);
+      const cap  = (ai.bld_schools || 0) * 100;
+      const eff  = Math.min(researchers, cap);
       const base = Math.floor(eff / 10);
-      const extra = eff - (base * 10);
-      // Each race focuses their strengths
+      const extra = eff - base * 10;
       const focus = {
-        high_elf:  { spellbook: base+extra, attack_magic: base, defense_magic: base, economy: base, weapons: base, armor: base, military: base, entertainment: base, construction: base, war_machines: base },
-        dwarf:     { economy: base+extra, construction: base, war_machines: base, weapons: base, armor: base, military: base, defense_magic: base, entertainment: base, spellbook: 0, attack_magic: base },
-        dire_wolf: { military: base+extra, weapons: base, armor: base, economy: base, construction: base, war_machines: base, entertainment: base, defense_magic: base, attack_magic: base, spellbook: 0 },
-        dark_elf:  { attack_magic: base+extra, spellbook: base, defense_magic: base, economy: base, weapons: base, armor: base, military: base, entertainment: base, construction: base, war_machines: base },
-        human:     { economy: base, weapons: base, armor: base, military: base, attack_magic: base, defense_magic: base, entertainment: base+extra, construction: base, war_machines: base, spellbook: base },
-        orc:       { military: base+extra, weapons: base, armor: base, economy: base, war_machines: base, construction: base, entertainment: base, defense_magic: base, attack_magic: base, spellbook: 0 },
+        high_elf:  { spellbook:base+extra, attack_magic:base, defense_magic:base, economy:base, weapons:base, armor:base, military:base, entertainment:base, construction:base, war_machines:base },
+        dwarf:     { economy:base+extra, construction:base, war_machines:base, weapons:base, armor:base, military:base, defense_magic:base, entertainment:base, spellbook:0, attack_magic:base },
+        dire_wolf: { military:base+extra, weapons:base, armor:base, economy:base, construction:base, war_machines:base, entertainment:base, defense_magic:base, attack_magic:base, spellbook:0 },
+        dark_elf:  { attack_magic:base+extra, spellbook:base, defense_magic:base, economy:base, weapons:base, armor:base, military:base, entertainment:base, construction:base, war_machines:base },
+        human:     { economy:base, weapons:base, armor:base, military:base, attack_magic:base, defense_magic:base, entertainment:base+extra, construction:base, war_machines:base, spellbook:base },
+        orc:       { military:base+extra, weapons:base, armor:base, economy:base, war_machines:base, construction:base, entertainment:base, defense_magic:base, attack_magic:base, spellbook:0 },
       };
       updates.research_allocation = JSON.stringify(focus[ai.race] || focus.human);
     }
@@ -180,19 +172,18 @@ async function runAiKingdom(db, engine, playerId) {
     const towers = ai.bld_cathedrals || 0;
     const mages  = ai.mages || 0;
     if (towers > 0 && mages > 0) {
-      const cap = towers * 20;
-      updates.mage_tower_allocation = JSON.stringify({ mages: Math.min(mages, cap) });
+      updates.mage_tower_allocation = JSON.stringify({ mages: Math.min(mages, towers * 20) });
     }
 
-    await applyK(ai, updates);
-    await engine.resolveExpeditions(db, { ...ai, ...updates }, engine);
+    // Apply updates and merge back into ai state (avoids re-read)
+    const applied = await applyK(ai, updates);
+    Object.assign(ai, applied);
 
-    // ── Hire troops — use gold surplus ──
-    const freshAi = await db.get('SELECT * FROM kingdoms WHERE id = ?', [k.id]);
-    if (freshAi) {
-      await aiHire(db, engine, freshAi);
-      await aiAction(db, engine, freshAi);
-    }
+    await engine.resolveExpeditions(db, ai, engine);
+
+    // Hire and act using current in-memory state
+    await aiHire(db, engine, ai);
+    await aiAction(db, engine, ai);
   }
 }
 
