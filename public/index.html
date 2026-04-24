@@ -2885,7 +2885,9 @@ function syncUI() {
   document.getElementById('m-gold').textContent = trunc(state.gold || 0);
   document.getElementById('m-mana').textContent = trunc(state.mana || 0);
   document.getElementById('m-pop').textContent  = trunc(state.pop  || 0);
-  var housingCap = (state.bld_housing || 0) * 500;
+  var HOUSING_CAP_BY_RACE = { dwarf:650, orc:600, human:500, dark_elf:450, high_elf:350, dire_wolf:700 };
+  var capPerBuilding = HOUSING_CAP_BY_RACE[state.race] || 500;
+  var housingCap = (state.bld_housing || 0) * capPerBuilding;
   var popCapEl = document.getElementById('m-pop-cap');
   if (popCapEl) popCapEl.textContent = trunc(housingCap);
   if (popCapEl && (state.pop || 0) > housingCap && housingCap > 0) {
