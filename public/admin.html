@@ -455,7 +455,7 @@ async function promotePlayer() {
   const username = document.getElementById('promote-username').value.trim();
   const result   = document.getElementById('promote-result');
   if (!username) { result.textContent = 'Enter a username.'; result.style.color = 'var(--red)'; return; }
-  const res = await api('/api/admin/promote', { username });
+  const res = await api('POST', '/api/admin/promote', { username });
   if (res.error) { result.textContent = '✗ ' + res.error; result.style.color = 'var(--red)'; }
   else { result.textContent = '✓ ' + username + ' is now an admin.'; result.style.color = 'var(--green)'; }
 }
