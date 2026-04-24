@@ -2612,7 +2612,11 @@ function syncUI() {
   if (th) th.textContent = fmt(state.tools_hammers || 0);
   if (ts) ts.textContent = fmt(state.tools_scaffolding || 0);
   if (tb) tb.textContent = fmt(state.tools_blueprints || 0);
-  renderBuildQueue();
+  // Only rebuild heavy panels when they're visible
+  var buildPanel = document.getElementById('build');
+  if (buildPanel && buildPanel.style.display !== 'none') renderBuildQueue();
+  var libPanel = document.getElementById('library');
+  if (libPanel && libPanel.style.display !== 'none') renderLibraryPanel();
   updateXpDisplay();
   updateTroopLevelDisplay();
   populateInputs();
