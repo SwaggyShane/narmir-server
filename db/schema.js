@@ -135,6 +135,7 @@ async function initDb() {
       created_at      INTEGER NOT NULL DEFAULT (unixepoch())
     );
     CREATE INDEX IF NOT EXISTS idx_war_log_time ON war_log(created_at DESC);
+    CREATE TABLE IF NOT EXISTS expeditions (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
       kingdom_id  INTEGER NOT NULL REFERENCES kingdoms(id),
       type        TEXT    NOT NULL,
@@ -222,6 +223,23 @@ async function initDb() {
   if (!cols.includes('maps'))                await addColumn('kingdoms', 'maps',                'INTEGER NOT NULL DEFAULT 0');
   if (!cols.includes('blueprints_stored'))   await addColumn('kingdoms', 'blueprints_stored',   'INTEGER NOT NULL DEFAULT 0');
   if (!cols.includes('active_effects'))      await addColumn('kingdoms', 'active_effects',      "TEXT NOT NULL DEFAULT '{}'");
+
+  // Ensure war_log table exists on older DBs
+  await _db.exec(`
+    CREATE TABLE IF NOT EXISTS war_log (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      action_type     TEXT    NOT NULL,
+      attacker_id     INTEGER REFERENCES kingdoms(id),
+      attacker_name   TEXT,
+      defender_id     INTEGER REFERENCES kingdoms(id),
+      defender_name   TEXT,
+      outcome         TEXT    NOT NULL,
+      detail          TEXT,
+      obscured        INTEGER NOT NULL DEFAULT 0,
+      created_at      INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+    CREATE INDEX IF NOT EXISTS idx_war_log_time ON war_log(created_at DESC);
+  `);
 
   // Seed default server_state row for regen tracking
   await _db.run(`
