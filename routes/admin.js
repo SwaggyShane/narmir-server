@@ -110,11 +110,32 @@ module.exports = function(db, io) {
     res.json({ ok: true });
   });
 
+  // GET /api/admin/kingdom-detail/:id — fetch single kingdom with all fields
+  router.get('/kingdom-detail/:id', async (req, res) => {
+    try {
+      const k = await db.get(`
+        SELECT k.*, p.username, p.is_admin, p.is_banned
+        FROM kingdoms k JOIN players p ON k.player_id = p.id
+        WHERE k.id = ?
+      `, [req.params.id]);
+      if (!k) return res.status(404).json({ error: 'Kingdom not found' });
+      res.json(k);
+    } catch(e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // POST /api/admin/promote — make a player admin
   router.post('/promote', async (req, res) => {
-    const { playerId } = req.body;
-    if (!playerId) return res.status(400).json({ error: 'playerId required' });
-    await db.run('UPDATE players SET is_admin = 1 WHERE id = ?', [playerId]);
+    const { playerId, username } = req.body;
+    if (!playerId && !username) return res.status(400).json({ error: 'playerId or username required' });
+    let player;
+    if (username) {
+      player = await db.get('SELECT id FROM players WHERE username = ?', [username]);
+      if (!player) return res.status(404).json({ error: `Player "${username}" not found` });
+    }
+    const id = playerId || player.id;
+    await db.run('UPDATE players SET is_admin = 1 WHERE id = ?', [id]);
     res.json({ ok: true });
   });
 
