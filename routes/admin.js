@@ -110,6 +110,37 @@ module.exports = function(db, io) {
     res.json({ ok: true });
   });
 
+  // GET /api/admin/chat-mods
+  router.get('/chat-mods', async (_req, res) => {
+    const mods = await db.all('SELECT username FROM players WHERE is_chat_mod = 1 AND is_ai = 0 ORDER BY username');
+    res.json(mods);
+  });
+
+  // GET /api/admin/chat-bans
+  router.get('/chat-bans', async (_req, res) => {
+    const banned = await db.all('SELECT username, chat_ban_reason FROM players WHERE chat_banned = 1 AND is_ai = 0 ORDER BY username');
+    res.json(banned);
+  });
+
+  // POST /api/admin/chat-mod — promote/demote
+  router.post('/chat-mod', async (req, res) => {
+    const { username, action } = req.body; // action: 'promote' | 'demote'
+    if (!username || !action) return res.status(400).json({ error: 'username and action required' });
+    const val = action === 'promote' ? 1 : 0;
+    const p = await db.get('SELECT id FROM players WHERE username = ?', [username]);
+    if (!p) return res.status(404).json({ error: `Player "${username}" not found` });
+    await db.run('UPDATE players SET is_chat_mod = ? WHERE id = ?', [val, p.id]);
+    res.json({ ok: true });
+  });
+
+  // POST /api/admin/chat-unban
+  router.post('/chat-unban', async (req, res) => {
+    const { username } = req.body;
+    if (!username) return res.status(400).json({ error: 'username required' });
+    await db.run('UPDATE players SET chat_banned = 0, chat_ban_reason = NULL WHERE username = ?', [username]);
+    res.json({ ok: true });
+  });
+
   // GET /api/admin/kingdom-detail/:id — fetch single kingdom with all fields
   router.get('/kingdom-detail/:id', async (req, res) => {
     try {
