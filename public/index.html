@@ -73,7 +73,7 @@
   }
   /* Compact kingdom header on mobile */
   .kingdom-header > div:first-child > div { margin-top: 3px !important; }
-  /* Stack two-column grids vertically on mobile */
+  /* Stack two-column and three-column grids vertically on mobile */
   .exp-grid,
   #library > div,
   #shrine > div,
@@ -128,6 +128,7 @@
   .card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 13px 14px; margin-bottom: 12px; }
   .card-title { font-size: 11px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 12px; }
   .two-col { display: grid; grid-template-columns: 1fr; gap: 0; }
+  .three-col { display: grid; grid-template-columns: 1fr; gap: 14px; }
 
   /* ── Table rows — stack desc below name on mobile ── */
   .trow { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
@@ -249,7 +250,7 @@
     .sidebar { display: flex; flex-direction: column; gap: 4px; background: var(--bg2); border-right: 1px solid var(--border); padding: 16px 12px; overflow-y: auto; }
     .main { padding: 24px; }
     .bottom-nav { display: none; }
-    /* Restore two-col grids on desktop */
+    /* Restore two-col and three-col grids on desktop */
     .exp-grid,
     #library > div,
     #shrine > div,
@@ -272,6 +273,7 @@
     .card { padding: 16px 18px; margin-bottom: 16px; }
     .card-title { font-size: 13px; }
     .two-col { grid-template-columns: 1fr 1fr; gap: 16px; }
+    .three-col { grid-template-columns: 1fr 1fr 1fr; gap: 14px; align-items: start; }
     .trow .desc { display: block; }
     .kingdom-header h1 { font-size: 26px; }
     #toast { bottom: 24px; left: auto; right: 24px; transform: translateY(8px); white-space: nowrap; text-align: left; max-width: 320px; }
@@ -407,41 +409,53 @@
 
     <!-- STATUS -->
     <div id="status" class="panel active">
-      <div class="two-col">
-        <div>
-          <div class="card">
-            <div class="card-title">Military &amp; support</div>
-            <div class="trow"><span class="name">Fighters</span><span class="count" id="s-fighters">0</span><span class="badge badge-red">Combat</span></div>
-            <div class="trow"><span class="name">Rangers</span><span class="count" id="s-rangers">0</span><span class="badge badge-blue">Scout</span></div>
-            <div class="trow"><span class="name">Clerics</span><span class="count" id="s-clerics">0</span><span class="badge badge-green">Heal</span></div>
-            <div class="trow"><span class="name">Mages</span><span class="count" id="s-mages">0</span><span class="badge badge-amber">Magic</span></div>
-            <div class="trow"><span class="name">Thieves</span><span class="count" id="s-thieves">0</span><span class="badge badge-amber">Covert</span></div>
-            <div class="trow"><span class="name">Ninjas</span><span class="count" id="s-ninjas">0</span><span class="badge badge-amber">Covert</span></div>
-            <div class="trow"><span class="name">Researchers</span><span class="count" id="s-researchers">500</span><span class="badge badge-blue">Study</span></div>
-            <div class="trow"><span class="name">Engineers</span><span class="count" id="s-engineers">0</span><span class="badge badge-blue">Build</span></div>
-          </div>
+      <div class="three-col" id="status-grid">
+
+        <!-- Col 1: Military & support -->
+        <div class="card">
+          <div class="card-title">Military &amp; support</div>
+          <div class="trow"><span class="name">Fighters</span><span class="count" id="s-fighters">0</span><span class="badge badge-red">Combat</span></div>
+          <div class="trow"><span class="name">Rangers</span><span class="count" id="s-rangers">0</span><span class="badge badge-blue">Scout</span></div>
+          <div class="trow"><span class="name">Clerics</span><span class="count" id="s-clerics">0</span><span class="badge badge-green">Heal</span></div>
+          <div class="trow"><span class="name">Mages</span><span class="count" id="s-mages">0</span><span class="badge badge-amber">Magic</span></div>
+          <div class="trow"><span class="name">Thieves</span><span class="count" id="s-thieves">0</span><span class="badge badge-amber">Covert</span></div>
+          <div class="trow"><span class="name">Ninjas</span><span class="count" id="s-ninjas">0</span><span class="badge badge-amber">Covert</span></div>
+          <div class="trow"><span class="name">Scribes</span><span class="count" id="s-scribes">0</span><span class="badge badge-blue">Library</span></div>
+          <div class="trow"><span class="name">Researchers</span><span class="count" id="s-researchers">500</span><span class="badge badge-blue">Study</span></div>
+          <div class="trow"><span class="name">Engineers</span><span class="count" id="s-engineers">0</span><span class="badge badge-blue">Build</span></div>
+          <div class="trow" style="border-bottom:none"><span class="name">War machines</span><span class="count" id="s-war_machines">0</span><span class="badge">WM</span></div>
         </div>
-        <div>
-          <div class="card">
-            <div class="card-title">Research levels</div>
-            <div class="trow"><span class="name">Economy</span><div class="prog-wrap"><div class="prog-bar eco" id="pb-eco-st" style="width:0%"></div></div></div>
-            <div class="trow"><span class="name">Weapons</span><div class="prog-wrap"><div class="prog-bar wep" id="pb-wep-st" style="width:0%"></div></div></div>
-            <div class="trow"><span class="name">Armor</span><div class="prog-wrap"><div class="prog-bar arm" id="pb-arm-st" style="width:0%"></div></div></div>
-            <div class="trow"><span class="name">Military tactics</span><div class="prog-wrap"><div class="prog-bar mil" id="pb-mil-st" style="width:0%"></div></div></div>
-            <div class="trow"><span class="name">Spellbook</span><div class="prog-wrap"><div class="prog-bar spell" id="pb-spell-st" style="width:0%"></div></div></div>
-            <div class="trow"><span class="name">Mana</span><div class="prog-wrap"><div class="prog-bar mana" id="pb-mana-s" style="width:0%"></div></div></div>
-            <div class="trow"><span class="name">Entertainment</span><div class="prog-wrap"><div class="prog-bar" id="pb-ent-s" style="width:0%;background:var(--green)"></div></div></div>
-          </div>
-          <div class="card">
-            <div class="card-title">Key buildings</div>
-            <div class="trow"><span class="name">Farms</span><span class="count" id="kb-farms">0</span></div>
-            <div class="trow"><span class="name">Barracks</span><span class="count" id="kb-barracks">0</span></div>
-            <div class="trow"><span class="name">Smithies</span><span class="count" id="kb-smithies">0</span></div>
-            <div class="trow"><span class="name">Mage Towers</span><span class="count" id="kb-cathedrals">0</span></div>
-            <div class="trow"><span class="name">Castles</span><span class="count" id="kb-castles">0</span></div>
-            <div class="trow"><span class="name">Guard towers</span><span class="count" id="kb-guard_towers">0</span></div>
-          </div>
+
+        <!-- Col 2: Research levels -->
+        <div class="card">
+          <div class="card-title">Research levels</div>
+          <div class="trow"><span class="name">Economy</span><div class="prog-wrap"><div class="prog-bar eco" id="pb-eco-st" style="width:0%"></div></div></div>
+          <div class="trow"><span class="name">Weapons</span><div class="prog-wrap"><div class="prog-bar wep" id="pb-wep-st" style="width:0%"></div></div></div>
+          <div class="trow"><span class="name">Armor</span><div class="prog-wrap"><div class="prog-bar arm" id="pb-arm-st" style="width:0%"></div></div></div>
+          <div class="trow"><span class="name">Military</span><div class="prog-wrap"><div class="prog-bar mil" id="pb-mil-st" style="width:0%"></div></div></div>
+          <div class="trow"><span class="name">Spellbook</span><div class="prog-wrap"><div class="prog-bar spell" id="pb-spell-st" style="width:0%"></div></div></div>
+          <div class="trow"><span class="name">Atk magic</span><div class="prog-wrap"><div class="prog-bar" id="pb-atk-st" style="width:0%;background:var(--red)"></div></div></div>
+          <div class="trow"><span class="name">Def magic</span><div class="prog-wrap"><div class="prog-bar arm" id="pb-def-st" style="width:0%"></div></div></div>
+          <div class="trow"><span class="name">Mana</span><div class="prog-wrap"><div class="prog-bar mana" id="pb-mana-s" style="width:0%"></div></div></div>
+          <div class="trow"><span class="name">Entertainment</span><div class="prog-wrap"><div class="prog-bar" id="pb-ent-s" style="width:0%;background:var(--green)"></div></div></div>
+          <div class="trow" style="border-bottom:none"><span class="name">Construction</span><div class="prog-wrap"><div class="prog-bar" id="pb-con-st" style="width:0%;background:var(--amber)"></div></div></div>
         </div>
+
+        <!-- Col 3: Key buildings -->
+        <div class="card">
+          <div class="card-title">Key buildings</div>
+          <div class="trow"><span class="name">Farms</span><span class="count" id="kb-farms">0</span></div>
+          <div class="trow"><span class="name">Barracks</span><span class="count" id="kb-barracks">0</span></div>
+          <div class="trow"><span class="name">Schools</span><span class="count" id="kb-schools">0</span></div>
+          <div class="trow"><span class="name">Libraries</span><span class="count" id="kb-libraries">0</span></div>
+          <div class="trow"><span class="name">Mage Towers</span><span class="count" id="kb-cathedrals">0</span></div>
+          <div class="trow"><span class="name">Smithies</span><span class="count" id="kb-smithies">0</span></div>
+          <div class="trow"><span class="name">Markets</span><span class="count" id="kb-markets">0</span></div>
+          <div class="trow"><span class="name">Guard towers</span><span class="count" id="kb-guard_towers">0</span></div>
+          <div class="trow"><span class="name">Training fields</span><span class="count" id="kb-training">0</span></div>
+          <div class="trow" style="border-bottom:none"><span class="name">Castles</span><span class="count" id="kb-castles">0</span></div>
+        </div>
+
       </div>
 
       <!-- Tax rate -->
@@ -2555,12 +2569,15 @@ function syncUI() {
   if (buildEngEl) buildEngEl.textContent = fmt(state.engineers || 0);
   var expRangers = document.getElementById('exp-rangers-avail');
   if (expRangers) expRangers.textContent = fmt(state.rangers || 0);
-  // Sync status panel unit counts
+  // Sync status panel unit counts — includes scribes and war_machines
   ['fighters','rangers','clerics','mages','thieves','ninjas','researchers','engineers','scribes'].forEach(function(u){
     var el = document.getElementById('s-' + u);
     if (el) el.textContent = fmt(state[u]||0);
   });
-  // Sync research bar widths — both status panel (-st) and school panel
+  var wmEl = document.getElementById('s-war_machines');
+  if (wmEl) wmEl.textContent = fmt(state.war_machines || 0);
+
+  // Sync research bar widths — status panel (-st) and school panel
   var resDisplay = {
     res_economy:'eco', res_weapons:'wep', res_armor:'arm', res_military:'mil',
     res_spellbook:'spell', res_attack_magic:'atk', res_defense_magic:'def',
@@ -2570,19 +2587,23 @@ function syncUI() {
     var id = resDisplay[key];
     var val = state[key] || 0;
     var pct = Math.min(100, val / 10) + '%';
-    // Status panel bars
     var stBar = document.getElementById('pb-' + id + '-st');
     if (stBar) stBar.style.width = pct;
-    // School panel bars (primary — used by updateAllocationDisplay too)
     var bar = document.getElementById('pb-' + id);
     if (bar) bar.style.width = pct;
   });
-  // Status panel mana bar
-  var manaPct = Math.min(100, (state.mana || 0) / 500);
+  // Mana bar
+  var manaPct = Math.min(100, (state.mana || 0) / 500) + '%';
   var manaBar = document.getElementById('pb-mana-s');
-  if (manaBar) manaBar.style.width = manaPct + '%';
-  // Key buildings in status panel
-  var kbMap = { farms:'bld_farms', barracks:'bld_barracks', smithies:'bld_smithies', cathedrals:'bld_cathedrals', castles:'bld_castles', guard_towers:'bld_guard_towers' };
+  if (manaBar) manaBar.style.width = manaPct;
+
+  // Key buildings in status panel — expanded set
+  var kbMap = {
+    farms:'bld_farms', barracks:'bld_barracks', schools:'bld_schools',
+    libraries:'bld_libraries', cathedrals:'bld_cathedrals', smithies:'bld_smithies',
+    markets:'bld_markets', guard_towers:'bld_guard_towers', training:'bld_training',
+    castles:'bld_castles'
+  };
   Object.keys(kbMap).forEach(function(bld) {
     var el = document.getElementById('kb-' + bld);
     if (el) el.textContent = fmt(state[kbMap[bld]] || 0);
