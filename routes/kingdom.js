@@ -70,16 +70,11 @@ module.exports = function(db) {
     res.json({ ok: true });
   });
 
-  // ── Take turn (advance game state) ───────────────────────────────────────────
-  router.post('/turn', requireAuth, async (req, res) => {
-    const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
-    if (!k) return res.status(404).json({ error: 'Kingdom not found' });
-    if (k.turns_stored < 1) return res.status(429).json({ error: 'No turns available — next 5 turns in 15 minutes' });
-
+  // ── Shared turn runner — used by ALL routes that consume a turn ──────────────
+  async function runTurn(db, k) {
     const { updates, events } = engine.processTurn(k);
-    updates.turns_stored = k.turns_stored - 1;
+    updates.turns_stored = (k.turns_stored || 0) - 1;
 
-    // Apply turn updates and tick expeditions in a single transaction
     await db.run('BEGIN');
     try {
       await applyUpdates(db, k.id, updates);
@@ -90,22 +85,32 @@ module.exports = function(db) {
           kingdom_id: k.id, type: ev.type || 'system',
           message: ev.message, turn_num: updates.turn || k.turn || 0,
         })));
-        // Prune news periodically — every ~20 turns on average
         if (Math.random() < 0.05) await pruneNews(db, k.id, 200);
       }
       await db.run('COMMIT');
-
-      // Fetch only the fields that expeditions may have changed via SQL INCREMENT
+      // Refresh fields that resolveExpeditions may have updated via SQL
       const refreshed = await db.get(
-        'SELECT rangers, fighters, mana, scrolls, maps, blueprints_stored, library_progress FROM kingdoms WHERE id = ?',
+        'SELECT rangers, fighters, gold, mana, land, scrolls, maps, blueprints_stored, troop_levels, library_progress FROM kingdoms WHERE id = ?',
         [k.id]
       );
       if (refreshed) Object.assign(updates, refreshed);
-
-      res.json({ ok: true, updates, events: allEvents, turns_stored: updates.turns_stored });
+      return { updates, events: allEvents };
     } catch (err) {
       await db.run('ROLLBACK');
-      console.error('[turn] transaction failed:', err.message);
+      throw err;
+    }
+  }
+
+  // ── Take turn (advance game state) ───────────────────────────────────────────
+  router.post('/turn', requireAuth, async (req, res) => {
+    const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
+    if (!k) return res.status(404).json({ error: 'Kingdom not found' });
+    if (k.turns_stored < 1) return res.status(429).json({ error: 'No turns available — next 5 turns in 15 minutes' });
+    try {
+      const { updates, events } = await runTurn(db, k);
+      res.json({ ok: true, updates, events, turns_stored: updates.turns_stored });
+    } catch (err) {
+      console.error('[turn] failed:', err.message);
       res.status(500).json({ error: 'Turn processing failed — please try again' });
     }
   });
@@ -117,19 +122,24 @@ module.exports = function(db) {
     if (!k) return res.status(404).json({ error: 'Kingdom not found' });
     if (k.turns_stored < 1) return res.status(429).json({ error: 'No turns available' });
 
-    // Run full turn first
-    const { updates: turnUpdates, events } = engine.processTurn(k);
-    turnUpdates.turns_stored = k.turns_stored - 1;
+    // Pre-validate hire against current state before running turn
+    const hireCheck = engine.hireUnits(k, unit, Number(amount));
+    if (hireCheck.error) return res.status(400).json({ error: hireCheck.error });
 
-    // Apply hire on top of turn state
-    const kAfterTurn = { ...k, ...turnUpdates };
-    const hireResult = engine.hireUnits(kAfterTurn, unit, Number(amount));
-    if (hireResult.error) return res.status(400).json({ error: hireResult.error });
-
-    const finalUpdates = { ...turnUpdates, ...hireResult.updates };
-    await applyUpdates(db, k.id, finalUpdates);
-    await bulkInsertNews(db, events.map(ev => ({ kingdom_id: k.id, type: ev.type || 'system', message: ev.message, turn_num: turnUpdates.turn || k.turn || 0 })));
-    res.json({ ok: true, updates: finalUpdates, events, turns_stored: finalUpdates.turns_stored });
+    try {
+      const { updates, events } = await runTurn(db, k);
+      // Apply hire on top of resolved turn state
+      const kAfterTurn = { ...k, ...updates };
+      const hireResult = engine.hireUnits(kAfterTurn, unit, Number(amount));
+      if (hireResult.error) return res.status(400).json({ error: hireResult.error });
+      const hireUpdates = hireResult.updates;
+      await applyUpdates(db, k.id, hireUpdates);
+      const finalUpdates = { ...updates, ...hireUpdates };
+      res.json({ ok: true, updates: finalUpdates, events, turns_stored: finalUpdates.turns_stored });
+    } catch (err) {
+      console.error('[hire] failed:', err.message);
+      res.status(500).json({ error: 'Hire failed — please try again' });
+    }
   });
 
   // ── Research ──────────────────────────────────────────────────────────────────
@@ -191,15 +201,35 @@ module.exports = function(db) {
     res.json({ ok: true });
   });
 
-  // ── Forge tools — costs gold only, no turn ───────────────────────────────────
+  // ── Forge tools — costs 1 turn + gold for scaffolding ───────────────────────
   router.post('/forge-tools', requireAuth, async (req, res) => {
     const { toolType, quantity } = req.body;
     const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
     if (!k) return res.status(404).json({ error: 'Kingdom not found' });
-    const result = engine.forgeTools(k, toolType, Number(quantity));
-    if (result.error) return res.status(400).json({ error: result.error });
-    await applyUpdates(db, k.id, result.updates);
-    res.json({ ok: true, updates: result.updates, totalCost: result.totalCost });
+    if (k.turns_stored < 1) return res.status(429).json({ error: 'No turns available' });
+    const smithies = k.bld_smithies || 0;
+    if (smithies === 0) return res.status(400).json({ error: 'Need at least 1 smithy' });
+    // Validate caps and cost before running turn
+    if (toolType === 'hammers') {
+      const cap = smithies * 25;
+      if ((k.tools_hammers || 0) >= cap) return res.status(400).json({ error: `Hammer storage full (${cap}/${cap})` });
+    } else if (toolType === 'scaffolding') {
+      const cap = smithies * 10;
+      if ((k.tools_scaffolding || 0) >= cap) return res.status(400).json({ error: `Scaffolding storage full (${cap}/${cap})` });
+      if ((k.gold || 0) < 2500) return res.status(400).json({ error: 'Need 2,500 gold to make scaffolding' });
+    }
+    try {
+      const { updates, events } = await runTurn(db, k);
+      const kAfterTurn = { ...k, ...updates };
+      const toolResult = engine.forgeTools(kAfterTurn, toolType, Number(quantity) || 1);
+      if (toolResult.error) return res.status(400).json({ error: toolResult.error });
+      await applyUpdates(db, k.id, toolResult.updates);
+      const finalUpdates = { ...updates, ...toolResult.updates };
+      res.json({ ok: true, updates: finalUpdates, events, turns_stored: finalUpdates.turns_stored });
+    } catch (err) {
+      console.error('[forge-tools] failed:', err.message);
+      res.status(500).json({ error: 'Forging failed — please try again' });
+    }
   });
 
   router.post('/smithy-allocation', requireAuth, async (req, res) => {
@@ -224,56 +254,49 @@ module.exports = function(db) {
     if (r <= 0) return res.status(400).json({ error: 'Send at least some rangers' });
     if (r > k.rangers) return res.status(400).json({ error: 'Not enough rangers' });
 
-    // Run full turn first
-    const { updates: turnUpdates, events } = engine.processTurn(k);
-    turnUpdates.turns_stored = k.turns_stored - 1;
+    try {
+      const { updates, events } = await runTurn(db, k);
+      const kAfterTurn = { ...k, ...updates };
+      const tacticsMult = 1 + ((kAfterTurn.res_military || 0) / 1000);
+      let searchResult = {};
+      let searchMessage = '';
 
-    // Apply search on top of turn state
-    const kAfterTurn = { ...k, ...turnUpdates };
-    const tacticsMult = 1 + ((kAfterTurn.res_military || 0) / 1000);
-    let searchResult = {};
-    let searchMessage = '';
+      if (type === 'land') {
+        const found = Math.floor(r * 0.04 * tacticsMult);
+        updates.land = (kAfterTurn.land || 0) + found;
+        searchResult = { found, unit: 'acres' };
+        searchMessage = `🗺️ Rangers discovered +${found.toLocaleString()} acres of unclaimed land.`;
+      } else if (type === 'gold') {
+        const found = Math.floor(r * 12 * tacticsMult);
+        updates.gold = (updates.gold || kAfterTurn.gold || 0) + found;
+        searchResult = { found, unit: 'GC' };
+        searchMessage = `💰 Rangers returned with ${found.toLocaleString()} gold from foraging.`;
+      } else if (type === 'targets') {
+        const found = Math.floor(r * 0.002) + 2;
+        searchResult = { found, unit: 'kingdoms' };
+        searchMessage = `👁️ Rangers scouted ${found} new target kingdoms.`;
+      } else {
+        return res.status(400).json({ error: 'Invalid search type' });
+      }
 
-    if (type === 'land') {
-      const found = Math.floor(r * 0.04 * tacticsMult);
-      turnUpdates.land = (kAfterTurn.land || 0) + found;
-      searchResult = { found, unit: 'acres' };
-      searchMessage = `🗺️ Rangers discovered +${found.toLocaleString()} acres of unclaimed land.`;
-    } else if (type === 'gold') {
-      const found = Math.floor(r * 12 * tacticsMult);
-      turnUpdates.gold = (turnUpdates.gold || kAfterTurn.gold || 0) + found;
-      searchResult = { found, unit: 'GC' };
-      searchMessage = `💰 Rangers returned with ${found.toLocaleString()} gold from foraging.`;
-    } else if (type === 'targets') {
-      const found = Math.floor(r * 0.002) + 2;
-      searchResult = { found, unit: 'kingdoms' };
-      searchMessage = `👁️ Rangers scouted ${found} new target kingdoms.`;
-    } else {
-      return res.status(400).json({ error: 'Invalid search type' });
+      await applyUpdates(db, k.id, { land: updates.land, gold: updates.gold });
+
+      const turnNum = updates.turn || k.turn || 0;
+      await bulkInsertNews(db, [{ kingdom_id: k.id, type: 'system', message: searchMessage, turn_num: turnNum }]);
+
+      const xpResult = engine.awardXp(kAfterTurn, 'exploration', type === 'land' ? searchResult.found : (type === 'gold' ? Math.floor(searchResult.found / 1000) : 5));
+      updates.xp = xpResult.xp; updates.level = xpResult.level;
+      if (xpResult.levelled) {
+        await bulkInsertNews(db, xpResult.events.map(ev => ({ kingdom_id: k.id, type: 'system', message: ev.message, turn_num: turnNum })));
+        events.push(...xpResult.events);
+      }
+      await applyUpdates(db, k.id, { xp: updates.xp, level: updates.level });
+
+      res.json({ ok: true, type, result: searchResult, message: searchMessage, updates, events: [...events, { type: 'system', message: searchMessage }], turns_stored: updates.turns_stored });
+    } catch (err) {
+      console.error('[search] failed:', err.message);
+      res.status(500).json({ error: 'Search failed — please try again' });
     }
-
-    await applyUpdates(db, k.id, turnUpdates);
-
-    const allNewsRows = [
-      ...events.map(ev => ({ kingdom_id: k.id, type: ev.type||'system', message: ev.message, turn_num: turnUpdates.turn||k.turn||0 })),
-      { kingdom_id: k.id, type: 'system', message: searchMessage, turn_num: turnUpdates.turn||k.turn||0 },
-    ];
-
-    // Award exploration XP
-    const kForXp = { ...k, ...turnUpdates };
-    const xpAmount = type === 'land' ? searchResult.found : (type === 'gold' ? Math.floor(searchResult.found / 1000) : 5);
-    const xpResult = engine.awardXp(kForXp, 'exploration', xpAmount);
-    turnUpdates.xp    = xpResult.xp;
-    turnUpdates.level = xpResult.level;
-    if (xpResult.levelled) {
-      xpResult.events.forEach(ev => allNewsRows.push({ kingdom_id: k.id, type: 'system', message: ev.message, turn_num: turnUpdates.turn||k.turn||0 }));
-    }
-    await bulkInsertNews(db, allNewsRows);
-    await applyUpdates(db, k.id, { xp: turnUpdates.xp, level: turnUpdates.level });
-
-    const allEvents = [...events, { type: 'system', message: searchMessage }];
-    if (xpResult.levelled) allEvents.push(...xpResult.events);
-    res.json({ ok: true, type, result: searchResult, message: searchMessage, updates: turnUpdates, events: allEvents, turns_stored: turnUpdates.turns_stored });
   });
 
   // ── Mage tower allocation ────────────────────────────────────────────────────
@@ -652,36 +675,29 @@ module.exports = function(db) {
     const existing = await db.get('SELECT id FROM expeditions WHERE kingdom_id = ? AND type = ?', [k.id, type]);
     if (existing) return res.status(400).json({ error: `A ${type} expedition is already underway` });
 
-    // Run processTurn and consume 1 turn
-    const { updates: turnUpdates, events } = engine.processTurn(k);
-    turnUpdates.turns_stored = (k.turns_stored || 0) - 1;
-    // Deduct troops before saving
-    turnUpdates.rangers  = (turnUpdates.rangers  !== undefined ? turnUpdates.rangers  : k.rangers)  - r;
-    turnUpdates.fighters = (turnUpdates.fighters !== undefined ? turnUpdates.fighters : k.fighters) - f;
+    try {
+      const { updates, events } = await runTurn(db, k);
+      // Deduct troops from resolved state
+      updates.rangers  = Math.max(0, (updates.rangers  !== undefined ? updates.rangers  : k.rangers)  - r);
+      updates.fighters = Math.max(0, (updates.fighters !== undefined ? updates.fighters : k.fighters) - f);
+      await applyUpdates(db, k.id, { rangers: updates.rangers, fighters: updates.fighters });
 
-    await applyUpdates(db, k.id, turnUpdates);
+      await db.run('INSERT INTO expeditions (kingdom_id, type, turns_left, rangers, fighters) VALUES (?, ?, ?, ?, ?)',
+        [k.id, type, EXP_TURNS[type], r, f]);
 
-    // Insert expedition AFTER turn update so resolveExpeditions doesn't pick it up this same turn
-    await db.run('INSERT INTO expeditions (kingdom_id, type, turns_left, rangers, fighters) VALUES (?, ?, ?, ?, ?)',
-      [k.id, type, EXP_TURNS[type], r, f]);
+      const label  = { scout: 'Scout', deep: 'Deep', dungeon: 'Dungeon' }[type];
+      const troops = `${r.toLocaleString()} rangers${f > 0 ? ', ' + f.toLocaleString() + ' fighters' : ''}`;
 
-    // Turn events go to news feed; expedition launch does NOT — it shows in the exploration log only
-    const turnNum = turnUpdates.turn || k.turn || 0;
-    if (events.length > 0) {
-      await bulkInsertNews(db, events.map(ev => ({ kingdom_id: k.id, type: ev.type||'system', message: ev.message, turn_num: turnNum })));
+      res.json({
+        ok: true, turns_left: EXP_TURNS[type],
+        turns_stored: updates.turns_stored,
+        updates, events,
+        message: `🧭 ${label} expedition launched — ${troops} deployed for ${EXP_TURNS[type]} turns.`,
+      });
+    } catch (err) {
+      console.error('[expedition/start] failed:', err.message);
+      res.status(500).json({ error: 'Expedition failed — please try again' });
     }
-
-    const label  = { scout: 'Scout', deep: 'Deep', dungeon: 'Dungeon' }[type];
-    const troops = `${r.toLocaleString()} rangers${f > 0 ? ', ' + f.toLocaleString() + ' fighters' : ''}`;
-
-    res.json({
-      ok: true,
-      turns_left: EXP_TURNS[type],
-      turns_stored: turnUpdates.turns_stored,
-      updates: turnUpdates,
-      events,
-      message: `🧭 ${label} expedition launched — ${troops} deployed for ${EXP_TURNS[type]} turns.`,
-    });
   });
 
   router.get('/expedition/list', requireAuth, async (req, res) => {
