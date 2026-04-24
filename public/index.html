@@ -358,6 +358,7 @@
   <!-- Main content -->
   <main class="main">
 
+    <div id="kd-top">
     <!-- Kingdom header -->
     <div class="kingdom-header" style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
       <div>
@@ -409,6 +410,7 @@
         <div class="sub">200 farms</div>
       </div>
     </div>
+    </div><!-- end kd-top -->
 
     <!-- Panels -->
 
@@ -2684,13 +2686,16 @@ function switchTab(id, btn) {
     if (mapWarn) mapWarn.style.display = (state.maps || 0) < 1 ? 'block' : 'none';
     updateAtkEstimate();
   }
+  var kdTop = document.getElementById('kd-top');
   if (id === 'globalchat') {
+    if (kdTop) kdTop.style.display = 'none';
+    document.querySelector('.main').style.padding = '0';
     var badge = document.getElementById('chat-badge');
     if (badge) badge.style.display = 'none';
-    document.querySelector('.main').style.padding = '0';
     if (!socket) initSocket();
     else loadGlobalChatHistory();
   } else {
+    if (kdTop) kdTop.style.display = '';
     document.querySelector('.main').style.padding = '';
   }
   if (id === 'alliances') {
