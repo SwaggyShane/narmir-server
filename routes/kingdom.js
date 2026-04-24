@@ -642,6 +642,7 @@ module.exports = function(db) {
     if (!EXP_TURNS[type]) return res.status(400).json({ error: 'Invalid expedition type' });
     const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
     if (!k) return res.status(404).json({ error: 'Kingdom not found' });
+    if (k.turns_stored < 1) return res.status(429).json({ error: 'No turns available' });
     const r = Math.max(0, parseInt(rangers) || 0);
     const f = Math.max(0, parseInt(fighters) || 0);
     if (r < 1) return res.status(400).json({ error: 'Send at least 1 ranger' });
@@ -651,17 +652,36 @@ module.exports = function(db) {
     const existing = await db.get('SELECT id FROM expeditions WHERE kingdom_id = ? AND type = ?', [k.id, type]);
     if (existing) return res.status(400).json({ error: `A ${type} expedition is already underway` });
 
+    // Run processTurn and consume 1 turn
+    const { updates: turnUpdates, events } = engine.processTurn(k);
+    turnUpdates.turns_stored = (k.turns_stored || 0) - 1;
+    // Deduct troops before saving
+    turnUpdates.rangers  = (turnUpdates.rangers  !== undefined ? turnUpdates.rangers  : k.rangers)  - r;
+    turnUpdates.fighters = (turnUpdates.fighters !== undefined ? turnUpdates.fighters : k.fighters) - f;
+
+    await applyUpdates(db, k.id, turnUpdates);
+
+    // Insert expedition AFTER turn update so resolveExpeditions doesn't pick it up this same turn
     await db.run('INSERT INTO expeditions (kingdom_id, type, turns_left, rangers, fighters) VALUES (?, ?, ?, ?, ?)',
       [k.id, type, EXP_TURNS[type], r, f]);
-    await db.run('UPDATE kingdoms SET rangers = rangers - ?, fighters = fighters - ? WHERE id = ?', [r, f, k.id]);
 
-    const label = { scout: 'Scout', deep: 'Deep', dungeon: 'Dungeon' }[type];
+    // Turn events go to news feed; expedition launch does NOT — it shows in the exploration log only
+    const turnNum = turnUpdates.turn || k.turn || 0;
+    if (events.length > 0) {
+      await bulkInsertNews(db, events.map(ev => ({ kingdom_id: k.id, type: ev.type||'system', message: ev.message, turn_num: turnNum })));
+    }
+
+    const label  = { scout: 'Scout', deep: 'Deep', dungeon: 'Dungeon' }[type];
     const troops = `${r.toLocaleString()} rangers${f > 0 ? ', ' + f.toLocaleString() + ' fighters' : ''}`;
-    await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)',
-      [k.id, 'system', `🧭 ${label} expedition launched — ${troops} deployed for ${EXP_TURNS[type]} turns.`, k.turn || 0]);
 
-    const updated = await db.get('SELECT rangers, fighters FROM kingdoms WHERE id = ?', [k.id]);
-    res.json({ ok: true, turns_left: EXP_TURNS[type], updated });
+    res.json({
+      ok: true,
+      turns_left: EXP_TURNS[type],
+      turns_stored: turnUpdates.turns_stored,
+      updates: turnUpdates,
+      events,
+      message: `🧭 ${label} expedition launched — ${troops} deployed for ${EXP_TURNS[type]} turns.`,
+    });
   });
 
   router.get('/expedition/list', requireAuth, async (req, res) => {
