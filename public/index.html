@@ -192,11 +192,14 @@
   .badge-amber { background: rgba(240,168,50,.15); color: var(--amber); }
 
   /* ── News ── */
-  .news-item { padding: 7px 10px; font-size: 13px; color: var(--text2); line-height: 1.6; border-radius: var(--radius); }
+  .news-item { display:flex; align-items:flex-start; gap:10px; padding:7px 10px; font-size:13px; color:var(--text2); line-height:1.6; border-radius:var(--radius); }
   .news-item:hover { background: var(--bg3); }
+  .news-item .news-icon { flex-shrink:0; font-size:16px; line-height:1.4; }
+  .news-item .news-body { flex:1; min-width:0; }
   .news-item .time { font-size: 11px; color: var(--text3); margin-right: 6px; }
   .news-expedition { background: rgba(232,184,75,.07); border: 1px solid rgba(232,184,75,.25); border-radius: var(--radius); padding: 8px 12px; margin: 2px 0; color: var(--text); }
-  .news-turn-group { margin-bottom: 14px; }
+  .news-turn-group { margin-bottom: 16px; }
+  .news-filter.active { background: var(--purple); color:#fff; border-color:var(--purple); }
   .bld-icon { display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;font-size:15px;flex-shrink:0;margin-right:4px; }
   .news-turn-header {
     display: flex; align-items: center; gap: 10px;
@@ -911,12 +914,19 @@
     <!-- NEWS -->
     <div id="news" class="panel">
       <div class="card">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
-          <div class="card-title" style="margin-bottom:0" id="news-card-title">Kingdom news — Turn <span id="news-turn-num">0</span></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+          <div class="card-title" style="margin-bottom:0">📰 Kingdom news — Turn <span id="news-turn-num">0</span></div>
           <div style="display:flex;gap:8px">
-            <button class="btn" onclick="loadNews()">Refresh</button>
+            <button class="btn" onclick="loadNews()">↻ Refresh</button>
             <button class="btn btn-red" onclick="clearNews()">Clear all</button>
           </div>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
+          <button class="btn news-filter active" data-filter="all" onclick="setNewsFilter('all',this)" style="font-size:12px;padding:4px 10px">All</button>
+          <button class="btn news-filter" data-filter="attack" onclick="setNewsFilter('attack',this)" style="font-size:12px;padding:4px 10px">⚔️ Combat</button>
+          <button class="btn news-filter" data-filter="spell" onclick="setNewsFilter('spell',this)" style="font-size:12px;padding:4px 10px">✨ Spells</button>
+          <button class="btn news-filter" data-filter="covert" onclick="setNewsFilter('covert',this)" style="font-size:12px;padding:4px 10px">🕵️ Covert</button>
+          <button class="btn news-filter" data-filter="system" onclick="setNewsFilter('system',this)" style="font-size:12px;padding:4px 10px">📋 System</button>
         </div>
         <div id="news-list">
           <div style="color:var(--text3);font-size:13px;padding:8px 0">Loading news...</div>
@@ -3245,63 +3255,89 @@ async function loadKingdom() {
   initSocket();
 }
 
+var newsCache = [];
+var newsFilter = 'all';
+
+function setNewsFilter(filter, btn) {
+  newsFilter = filter;
+  document.querySelectorAll('.news-filter').forEach(function(b){ b.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+  renderNewsList(newsCache);
+}
+
+var NEWS_META = {
+  attack:  { icon:'⚔️', color:'var(--red)',    label:'Combat'     },
+  spell:   { icon:'✨', color:'var(--purple)', label:'Spell'      },
+  covert:  { icon:'🕵️', color:'var(--amber)',  label:'Covert'     },
+  system:  { icon:'📋', color:'var(--text2)',  label:'System'     },
+  alliance:{ icon:'🤝', color:'var(--blue)',   label:'Alliance'   },
+  expedition:{ icon:'🧭', color:'var(--gold)', label:'Expedition' },
+};
+
 async function loadNews() {
   var items = await apiCall('GET', '/api/kingdom/news/list');
-  var list = document.getElementById('news-list');
   var titleTurn = document.getElementById('news-turn-num');
   if (titleTurn) titleTurn.textContent = state.turn || 0;
+  if (!Array.isArray(items)) return;
+  newsCache = items;
+  renderNewsList(items);
+  ['news-badge','bnav-news-badge'].forEach(function(id) {
+    var b = document.getElementById(id); if (b) b.remove();
+  });
+}
+
+function renderNewsList(items) {
+  var list = document.getElementById('news-list');
   if (!list) return;
-  if (!Array.isArray(items) || items.length === 0) {
-    if (!list.querySelector('.news-turn-group')) {
-      list.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:8px 0">No news yet — take some turns!</div>';
-    }
+
+  // Apply filter
+  var filtered = newsFilter === 'all' ? items : items.filter(function(item) {
+    if (newsFilter === 'system') return !item.type || item.type === 'system';
+    return item.type === newsFilter;
+  });
+
+  if (!filtered || filtered.length === 0) {
+    list.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:16px 0;text-align:center">'
+      + (newsFilter === 'all' ? 'No news yet — take some turns!' : 'No ' + newsFilter + ' events yet.')
+      + '</div>';
     return;
   }
 
-  var typeClass = { attack:'news-attack', spell:'news-magic', alliance:'news-hl', covert:'news-hl' };
-
-  // Group strictly by turn_num
+  // Group by turn_num
   var turnMap = {};
   var turnOrder = [];
-  items.forEach(function(item) {
+  filtered.forEach(function(item) {
     var t = item.turn_num || 0;
     if (!turnMap[t]) { turnMap[t] = []; turnOrder.push(t); }
     turnMap[t].push(item);
   });
-  // turnOrder is newest-first since items come newest-first
-  // dedupe and sort descending
-  turnOrder = turnOrder.filter(function(v,i,a){ return a.indexOf(v)===i; });
-  turnOrder.sort(function(a,b){ return b-a; });
+  turnOrder = [...new Set(turnOrder)].sort(function(a,b){ return b-a; });
 
-  list.innerHTML = turnOrder.map(function(t, gi) {
+  list.innerHTML = turnOrder.map(function(t) {
     var groupItems = turnMap[t];
     var turnLabel = t > 0 ? 'Turn ' + t : 'Before game start';
     var timeLabel = timeAgo(groupItems[0].created_at);
     var rows = groupItems.map(function(item) {
-      var isExpedition = item.message && (
-        item.message.startsWith('🔭') || item.message.startsWith('🌲') ||
-        item.message.startsWith('⚔️') || item.message.startsWith('🧭') ||
-        item.message.startsWith('•')
-      );
-      var cls = typeClass[item.type] || 'news-hl';
-      var msgHtml = item.message.replace(/\n/g, '<br>');
-      if (isExpedition) {
-        return '<div class="news-item news-expedition">' + msgHtml + '</div>';
-      }
-      return '<div class="news-item"><span class="' + cls + '">' + msgHtml + '</span></div>';
+      var type = item.type || 'system';
+      // Detect expedition items by message prefix
+      if (item.message && /^[🔭🌲⚔️🧭•]/.test(item.message)) type = 'expedition';
+      var meta = NEWS_META[type] || NEWS_META.system;
+      var msgHtml = escHtml(item.message || '').replace(/\n/g, '<br>');
+      var isBorderType = type === 'attack' || type === 'spell' || type === 'covert';
+      var borderStyle = isBorderType ? 'border-left:3px solid ' + meta.color + ';padding-left:10px;' : '';
+      return '<div class="news-item" style="' + borderStyle + '">'
+        + '<span class="news-icon">' + meta.icon + '</span>'
+        + '<span class="news-body" style="color:' + (isBorderType ? 'var(--text)' : 'var(--text2)') + '">' + msgHtml + '</span>'
+        + '</div>';
     }).join('');
     return '<div class="news-turn-group">'
       + '<div class="news-turn-header">'
-      + '<span class="turn-label">&#9670; ' + turnLabel + '</span>'
+      + '<span class="turn-label">◆ ' + turnLabel + '</span>'
       + '<span class="turn-time">' + timeLabel + '</span>'
       + '</div>'
       + rows
       + '</div>';
   }).join('');
-
-  ['news-badge','bnav-news-badge'].forEach(function(id) {
-    var b = document.getElementById(id); if (b) b.remove();
-  });
 }
 
 function timeAgo(unixTs) {
@@ -3325,25 +3361,36 @@ function appendNewsItems(events) {
   if (!events || !events.length) return;
   var list = document.getElementById('news-list');
   if (!list) return;
-  // Remove placeholder
+
+  // Push to cache
+  var now = Math.floor(Date.now() / 1000);
+  events.forEach(function(ev) {
+    newsCache.unshift({ type: ev.type || 'system', message: ev.message || ev, turn_num: state.turn || 0, created_at: now });
+  });
+
+  // Remove placeholder text node
   Array.from(list.children).forEach(function(child) {
     if (!child.classList.contains('news-turn-group')) child.remove();
   });
 
-  var typeClass = { attack:'news-attack', spell:'news-magic', covert:'news-hl', alliance:'news-hl' };
   var rows = events.map(function(ev) {
+    var type = ev.type || 'system';
+    var meta = NEWS_META[type] || NEWS_META.system;
     var msg = ev.message || ev;
-    var cls = typeClass[ev.type] || 'news-hl';
-    return '<div class="news-item"><span class="' + cls + '">' + msg + '</span></div>';
+    var isBorderType = type === 'attack' || type === 'spell' || type === 'covert';
+    var borderStyle = isBorderType ? 'border-left:3px solid ' + meta.color + ';padding-left:10px;' : '';
+    return '<div class="news-item" style="' + borderStyle + '">'
+      + '<span class="news-icon">' + meta.icon + '</span>'
+      + '<span class="news-body" style="color:' + (isBorderType ? 'var(--text)' : 'var(--text2)') + '">' + escHtml(String(msg)) + '</span>'
+      + '</div>';
   }).join('');
 
   var group = '<div class="news-turn-group">'
     + '<div class="news-turn-header">'
-    + '<span class="turn-label">&#9670; Turn ' + (state.turn || '—') + '</span>'
+    + '<span class="turn-label">◆ Turn ' + (state.turn || '—') + '</span>'
     + '<span class="turn-time">Just now</span>'
     + '</div>'
-    + rows
-    + '</div>';
+    + rows + '</div>';
 
   list.insertAdjacentHTML('afterbegin', group);
 
@@ -3351,16 +3398,12 @@ function appendNewsItems(events) {
   var count = events.length;
   var sideBtn = document.querySelector('.nav-item[onclick*="\'news\'"]');
   var sideB = document.getElementById('news-badge');
-  if (sideB) { sideB.textContent = (parseInt(sideB.textContent) || 0) + count; }
+  if (sideB) { sideB.textContent = (parseInt(sideB.textContent)||0) + count; }
   else if (sideBtn) {
-    var b = document.createElement('span'); b.id = 'news-badge'; b.className = 'nav-badge'; b.textContent = count; sideBtn.appendChild(b);
+    var b = document.createElement('span'); b.id='news-badge'; b.className='nav-badge'; b.textContent=count; sideBtn.appendChild(b);
   }
-  var bnavBtn = document.querySelector('.bnav-item[onclick*="\'news\'"]');
   var bnavB = document.getElementById('bnav-news-badge');
-  if (bnavB) { bnavB.textContent = (parseInt(bnavB.textContent) || 0) + count; }
-  else if (bnavBtn) {
-    var bb = document.createElement('span'); bb.id = 'bnav-news-badge'; bb.className = 'bnav-badge'; bb.textContent = count; bnavBtn.appendChild(bb);
-  }
+  if (bnavB) { bnavB.textContent = (parseInt(bnavB.textContent)||0) + count; }
 }
 
 // ── War Log ───────────────────────────────────────────────────────────────────
