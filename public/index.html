@@ -496,7 +496,9 @@
         <div class="card-title">Hire units — 250 GC each · Population: <span id="hire-pop">50,000</span></div>
         <div style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.8">
           Barracks capacity: <span id="hire-barracks-cap" style="color:var(--gold)">0</span> troops (<span id="hire-barracks-used" style="color:var(--text2)">0</span> used) &nbsp;·&nbsp;
-          School capacity: <span id="hire-school-cap" style="color:var(--gold)">0</span> researchers (<span id="hire-school-used" style="color:var(--text2)">0</span> used)
+          School capacity: <span id="hire-school-cap" style="color:var(--gold)">0</span> researchers (<span id="hire-school-used" style="color:var(--text2)">0</span> used) &nbsp;·&nbsp;
+          Smithy capacity: <span id="hire-smithy-cap" style="color:var(--gold)">0</span> engineers (<span id="hire-smithy-used" style="color:var(--text2)">0</span> used) &nbsp;·&nbsp;
+          Library capacity: <span id="hire-library-cap" style="color:var(--gold)">0</span> scribes (<span id="hire-library-used" style="color:var(--text2)">0</span> used)
         </div>
         <div class="trow">
           <span class="name">Fighters</span><span class="desc">Main attack &amp; defense force</span>
@@ -2930,9 +2932,27 @@ function syncUI() {
   var barracksUsed = BARRACKS_UNITS.reduce(function(s,u){ return s + (state[u]||0); }, 0);
   var bcEl = document.getElementById('hire-barracks-cap'); if (bcEl) bcEl.textContent = fmt(barracksCap);
   var buEl = document.getElementById('hire-barracks-used'); if (buEl) buEl.textContent = fmt(barracksUsed);
-  var schoolCap = (state.bld_schools || 0) * 100;
-  var scEl = document.getElementById('hire-school-cap'); if (scEl) scEl.textContent = fmt(schoolCap);
+  var SUPPORT_CAP_RACE_JS = {
+    high_elf:  { researcher:1.5, engineer:1.0, scribe:1.5 },
+    dwarf:     { researcher:0.9, engineer:1.5, scribe:1.0 },
+    dire_wolf: { researcher:0.7, engineer:1.0, scribe:0.7 },
+    dark_elf:  { researcher:1.2, engineer:0.9, scribe:1.3 },
+    human:     { researcher:1.0, engineer:1.0, scribe:1.0 },
+    orc:       { researcher:0.8, engineer:1.2, scribe:0.8 },
+  };
+  var capR = SUPPORT_CAP_RACE_JS[state.race] || { researcher:1.0, engineer:1.0, scribe:1.0 };
+  var schoolCap  = Math.floor((state.bld_schools   || 0) * 100 * capR.researcher);
+  var smithyCap  = Math.floor((state.bld_smithies  || 0) * 50  * capR.engineer);
+  var libCap     = Math.floor((state.bld_libraries || 0) * 20  * capR.scribe);
+  var scEl = document.getElementById('hire-school-cap');  if (scEl) scEl.textContent = fmt(schoolCap);
   var suEl = document.getElementById('hire-school-used'); if (suEl) suEl.textContent = fmt(state.researchers || 0);
+  if (suEl) suEl.style.color = (state.researchers||0) > schoolCap ? 'var(--red)' : 'var(--text2)';
+  var smEl = document.getElementById('hire-smithy-cap');  if (smEl) smEl.textContent = fmt(smithyCap);
+  var smUEl= document.getElementById('hire-smithy-used'); if (smUEl) smUEl.textContent = fmt(state.engineers || 0);
+  if (smUEl) smUEl.style.color = (state.engineers||0) > smithyCap ? 'var(--red)' : 'var(--text2)';
+  var lbEl = document.getElementById('hire-library-cap');  if (lbEl) lbEl.textContent = fmt(libCap);
+  var lbUEl= document.getElementById('hire-library-used'); if (lbUEl) lbUEl.textContent = fmt(state.scribes || 0);
+  if (lbUEl) lbUEl.style.color = (state.scribes||0) > libCap ? 'var(--red)' : 'var(--text2)';
   // Update covert panel unit counts
   var spyAvail = document.getElementById('spy-thieves-avail');
   if (spyAvail) spyAvail.textContent = fmt((state.thieves||0) + (state.ninjas||0));
