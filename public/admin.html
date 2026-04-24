@@ -109,6 +109,17 @@ textarea{width:100%;resize:vertical;min-height:60px}
     <button class="btn btn-amber" onclick="resetAi()" style="margin-left:4px">🔄 Reset AI kingdoms</button>
   </div>
 
+  <!-- AI Synopsis -->
+  <div class="card" style="margin-bottom:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <h2 style="margin:0;font-size:15px">🤖 AI Kingdom Synopsis</h2>
+      <button class="btn" onclick="loadAiSynopsis()" style="font-size:11px;padding:5px 10px">Refresh</button>
+    </div>
+    <div id="ai-synopsis" style="overflow-x:auto">
+      <div style="color:var(--text3);font-size:12px">Click Refresh to load AI status.</div>
+    </div>
+  </div>
+
   <div style="overflow-x:auto">
     <table>
       <thead>
@@ -236,6 +247,7 @@ async function loadData() {
   if (kingdoms.error) { toast('Kingdoms error: '+kingdoms.error,'error'); return; }
   allKingdoms = kingdoms;
   renderTable(kingdoms);
+  loadAiSynopsis();
 }
 
 function renderTable(rows) {
@@ -320,6 +332,63 @@ async function resetTurns(kingdomId, name) {
   if (r.error) return toast(r.error,'error');
   toast('Turns reset for '+name,'success'); loadData();
 }
+
+async function loadAiSynopsis() {
+  var el = document.getElementById('ai-synopsis');
+  if (el) el.innerHTML = '<div style="color:var(--text3);font-size:12px">Loading...</div>';
+  var rows = await api('GET', '/api/admin/ai-synopsis');
+  if (!Array.isArray(rows) || rows.length === 0) {
+    if (el) el.innerHTML = '<div style="color:var(--text3);font-size:12px">No AI kingdoms found. Seed them first.</div>';
+    return;
+  }
+
+  var RACE_ICONS = { high_elf:'🧝', dwarf:'⛏️', dire_wolf:'🐺', dark_elf:'🗡️', human:'👑', orc:'💀' };
+
+  var html = '<table style="width:100%;border-collapse:collapse;font-size:12px">'
+    + '<thead><tr style="color:var(--text3);border-bottom:1px solid var(--border);font-size:11px;text-transform:uppercase">'
+    + '<th style="padding:6px 8px;text-align:left">Kingdom</th>'
+    + '<th style="padding:6px 8px;text-align:right">Land</th>'
+    + '<th style="padding:6px 8px;text-align:right">Pop</th>'
+    + '<th style="padding:6px 8px;text-align:right">Gold</th>'
+    + '<th style="padding:6px 8px;text-align:right">Morale</th>'
+    + '<th style="padding:6px 8px;text-align:right">Food</th>'
+    + '<th style="padding:6px 8px;text-align:right">Military</th>'
+    + '<th style="padding:6px 8px;text-align:right">⚔️ W/L</th>'
+    + '<th style="padding:6px 8px;text-align:right">🕵️ Ops</th>'
+    + '<th style="padding:6px 8px;text-align:right">🛡️ Hit</th>'
+    + '<th style="padding:6px 8px;text-align:right">Turns</th>'
+    + '<th style="padding:6px 8px;text-align:left;min-width:140px">Top Build</th>'
+    + '<th style="padding:6px 8px;text-align:left;min-width:140px">Top Research</th>'
+    + '</tr></thead><tbody>';
+
+  rows.forEach(function(r) {
+    var icon = RACE_ICONS[r.race] || '?';
+    var moraleColor = r.morale < 50 ? 'var(--red)' : r.morale < 80 ? 'var(--amber)' : 'var(--green)';
+    var foodColor   = r.food < 0   ? 'var(--red)' : 'var(--text2)';
+    var wlColor     = r.wins > r.losses ? 'var(--green)' : r.losses > r.wins ? 'var(--red)' : 'var(--text2)';
+
+    html += '<tr style="border-bottom:1px solid var(--border)">'
+      + '<td style="padding:8px 8px;white-space:nowrap"><span style="font-size:14px">' + icon + '</span> <strong style="color:var(--text)">' + r.name + '</strong><br><span style="color:var(--text3);font-size:10px">Lv ' + r.level + ' · ' + r.race.replace(/_/g,' ') + '</span></td>'
+      + '<td style="padding:8px;text-align:right;color:var(--gold)">' + (r.land||0).toLocaleString() + '</td>'
+      + '<td style="padding:8px;text-align:right;color:var(--text2)">' + fmt(r.population||0) + '</td>'
+      + '<td style="padding:8px;text-align:right;color:var(--text2)">' + fmt(r.gold||0) + '</td>'
+      + '<td style="padding:8px;text-align:right;color:' + moraleColor + '">' + (r.morale||0) + '</td>'
+      + '<td style="padding:8px;text-align:right;color:' + foodColor + '">' + (r.food||0).toLocaleString() + '</td>'
+      + '<td style="padding:8px;text-align:right;color:var(--text2)">' + (r.fighters||0).toLocaleString() + 'f / ' + (r.ninjas||0) + 'n</td>'
+      + '<td style="padding:8px;text-align:right;color:' + wlColor + '">' + r.wins + '/' + r.losses + '</td>'
+      + '<td style="padding:8px;text-align:right;color:var(--text2)">' + r.covert_ops + '</td>'
+      + '<td style="padding:8px;text-align:right;color:var(--text2)">' + r.times_hit + '</td>'
+      + '<td style="padding:8px;text-align:right;color:' + (r.turns_stored > 0 ? 'var(--red)' : 'var(--green)') + '">' + r.turns_stored + '</td>'
+      + '<td style="padding:8px;color:var(--text3);font-size:11px">' + (r.top_build||'—') + '</td>'
+      + '<td style="padding:8px;color:var(--text3);font-size:11px">' + (r.top_research||'—') + '</td>'
+      + '</tr>';
+  });
+
+  html += '</tbody></table>';
+  if (el) el.innerHTML = html;
+}
+
+function fmt(n) { if (n >= 1e6) return (n/1e6).toFixed(1)+'M'; if (n >= 1e3) return (n/1e3).toFixed(1)+'k'; return String(n||0); }
 
 async function seedAi() {
   var r = await api('POST', '/api/admin/seed-ai');
