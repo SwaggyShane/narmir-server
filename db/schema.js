@@ -225,8 +225,14 @@ async function initDb() {
   const nCols = (await _db.all('PRAGMA table_info(news)')).map(c => c.name);
   if (!nCols.includes('turn_num')) await addColumn('news', 'turn_num', 'INTEGER NOT NULL DEFAULT 0');
 
-  const expCols = (await _db.all('PRAGMA table_info(expeditions)')).map(c => c.name);
-  if (!expCols.includes('rewards')) await addColumn('expeditions', 'rewards', 'TEXT');
+  if (!pCols.includes('is_chat_mod'))  await addColumn('players', 'is_chat_mod',  'INTEGER NOT NULL DEFAULT 0');
+  if (!pCols.includes('chat_banned'))  await addColumn('players', 'chat_banned',  'INTEGER NOT NULL DEFAULT 0');
+  if (!pCols.includes('chat_ban_reason')) await addColumn('players', 'chat_ban_reason', 'TEXT');
+
+  const cmCols = (await _db.all('PRAGMA table_info(chat_messages)')).map(c => c.name);
+  if (!cmCols.includes('username')) await addColumn('chat_messages', 'username', 'TEXT NOT NULL DEFAULT \'\'');
+  if (!cmCols.includes('player_id')) await addColumn('chat_messages', 'player_id', 'INTEGER NOT NULL DEFAULT 0');
+  if (!cmCols.includes('deleted'))  await addColumn('chat_messages', 'deleted',  'INTEGER NOT NULL DEFAULT 0');
 
   if (!cols.includes('bld_shrines'))             await addColumn('kingdoms', 'bld_shrines',             'INTEGER NOT NULL DEFAULT 0');
   if (!cols.includes('bld_housing'))             await addColumn('kingdoms', 'bld_housing',             'INTEGER NOT NULL DEFAULT 100');
