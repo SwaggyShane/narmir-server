@@ -583,9 +583,13 @@ function xpToNextLevel(level) {
 }
 
 function levelFromXp(totalXp) {
-  let level = 1;
-  while (level < 1000 && totalXp >= xpForLevel(level + 1)) level++;
-  return level;
+  let lo = 1, hi = 1000;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (xpForLevel(mid) <= totalXp) lo = mid;
+    else hi = mid - 1;
+  }
+  return lo;
 }
 
 // Race XP multipliers per activity type
