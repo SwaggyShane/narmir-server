@@ -78,30 +78,36 @@ module.exports = function(db) {
 
     const { updates, events } = engine.processTurn(k);
     updates.turns_stored = k.turns_stored - 1;
-    await applyUpdates(db, k.id, updates);
 
-    // Tick active expeditions
-    const expeditionEvents = await engine.resolveExpeditions(db, { ...k, ...updates }, engine);
+    // Apply turn updates and tick expeditions in a single transaction
+    await db.run('BEGIN');
+    try {
+      await applyUpdates(db, k.id, updates);
+      const expeditionEvents = await engine.resolveExpeditions(db, { ...k, ...updates }, engine);
+      const allEvents = [...events, ...expeditionEvents];
+      if (allEvents.length > 0) {
+        await bulkInsertNews(db, allEvents.map(ev => ({
+          kingdom_id: k.id, type: ev.type || 'system',
+          message: ev.message, turn_num: updates.turn || k.turn || 0,
+        })));
+        // Prune news periodically — every ~20 turns on average
+        if (Math.random() < 0.05) await pruneNews(db, k.id, 200);
+      }
+      await db.run('COMMIT');
 
-    // Re-fetch rangers and fighters in case expeditions returned troops via SQL INCREMENT
-    const refreshed = await db.get('SELECT rangers, fighters, mana, scrolls, maps, blueprints_stored, library_progress FROM kingdoms WHERE id = ?', [k.id]);
-    if (refreshed) {
-      updates.rangers            = refreshed.rangers;
-      updates.fighters           = refreshed.fighters;
-      updates.mana               = refreshed.mana;
-      updates.scrolls            = refreshed.scrolls;
-      updates.maps               = refreshed.maps;
-      updates.blueprints_stored  = refreshed.blueprints_stored;
-      updates.library_progress   = refreshed.library_progress;
+      // Fetch only the fields that expeditions may have changed via SQL INCREMENT
+      const refreshed = await db.get(
+        'SELECT rangers, fighters, mana, scrolls, maps, blueprints_stored, library_progress FROM kingdoms WHERE id = ?',
+        [k.id]
+      );
+      if (refreshed) Object.assign(updates, refreshed);
+
+      res.json({ ok: true, updates, events: allEvents, turns_stored: updates.turns_stored });
+    } catch (err) {
+      await db.run('ROLLBACK');
+      console.error('[turn] transaction failed:', err.message);
+      res.status(500).json({ error: 'Turn processing failed — please try again' });
     }
-
-    // Merge expedition events into the response
-    const allEvents = [...events, ...expeditionEvents];
-
-    for (const ev of events)
-      await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)', [k.id, ev.type || 'system', ev.message, updates.turn || k.turn || 0]);
-
-    res.json({ ok: true, updates, events: allEvents, turns_stored: updates.turns_stored });
   });
 
   // ── Hire units ────────────────────────────────────────────────────────────────
@@ -122,9 +128,7 @@ module.exports = function(db) {
 
     const finalUpdates = { ...turnUpdates, ...hireResult.updates };
     await applyUpdates(db, k.id, finalUpdates);
-    for (const ev of events)
-      await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)', [k.id, ev.type || 'system', ev.message, turnUpdates.turn || k.turn || 0]);
-
+    await bulkInsertNews(db, events.map(ev => ({ kingdom_id: k.id, type: ev.type || 'system', message: ev.message, turn_num: turnUpdates.turn || k.turn || 0 })));
     res.json({ ok: true, updates: finalUpdates, events, turns_stored: finalUpdates.turns_stored });
   });
 
@@ -149,12 +153,8 @@ module.exports = function(db) {
 
     const resCol = Object.keys(resResult.updates).find(k => k.startsWith('res_'));
     const newVal = resCol ? finalUpdates[resCol] : '?';
-    const resEvent = { type: 'system', message: `📚 Studied ${discipline} with ${Number(researchers).toLocaleString()} researchers · +${resResult.increment} → now ${newVal}${discipline !== 'spellbook' ? '%' : ''}.` };
-    events.push(resEvent);
-
-    for (const ev of events)
-      await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)', [k.id, ev.type || 'system', ev.message, turnUpdates.turn || k.turn || 0]);
-
+    events.push({ type: 'system', message: `📚 Studied ${discipline} with ${Number(researchers).toLocaleString()} researchers · +${resResult.increment} → now ${newVal}${discipline !== 'spellbook' ? '%' : ''}.` });
+    await bulkInsertNews(db, events.map(ev => ({ kingdom_id: k.id, type: ev.type || 'system', message: ev.message, turn_num: turnUpdates.turn || k.turn || 0 })));
     res.json({ ok: true, increment: resResult.increment, updates: finalUpdates, events, turns_stored: finalUpdates.turns_stored });
   });
 
@@ -242,9 +242,11 @@ module.exports = function(db) {
     }
 
     await applyUpdates(db, k.id, turnUpdates);
-    for (const ev of events)
-      await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)', [k.id, ev.type || 'system', ev.message, turnUpdates.turn || k.turn || 0]);
-    await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)', [k.id, 'system', searchMessage, turnUpdates.turn || k.turn || 0]);
+
+    const allNewsRows = [
+      ...events.map(ev => ({ kingdom_id: k.id, type: ev.type||'system', message: ev.message, turn_num: turnUpdates.turn||k.turn||0 })),
+      { kingdom_id: k.id, type: 'system', message: searchMessage, turn_num: turnUpdates.turn||k.turn||0 },
+    ];
 
     // Award exploration XP
     const kForXp = { ...k, ...turnUpdates };
@@ -253,9 +255,9 @@ module.exports = function(db) {
     turnUpdates.xp    = xpResult.xp;
     turnUpdates.level = xpResult.level;
     if (xpResult.levelled) {
-      for (const ev of xpResult.events)
-        await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)', [k.id, 'system', ev.message, turnUpdates.turn||k.turn||0]);
+      xpResult.events.forEach(ev => allNewsRows.push({ kingdom_id: k.id, type: 'system', message: ev.message, turn_num: turnUpdates.turn||k.turn||0 }));
     }
+    await bulkInsertNews(db, allNewsRows);
     await applyUpdates(db, k.id, { xp: turnUpdates.xp, level: turnUpdates.level });
 
     const allEvents = [...events, { type: 'system', message: searchMessage }];
