@@ -338,6 +338,7 @@
     <button class="nav-item" onclick="switchTab('covert',this)"><span class="icon">&#128373;</span>Covert</button>
 
     <div class="nav-section">Social</div>
+    <button class="nav-item" onclick="switchTab('rankings',this)"><span class="icon">🏆</span>Rankings</button>
     <button class="nav-item" onclick="switchTab('alliances',this)"><span class="icon">&#9876;</span>Alliances</button>
     <button class="nav-item" onclick="switchTab('news',this)"><span class="icon">&#9741;</span>News <span id="news-badge" class="nav-badge">3</span></button>
     <button class="nav-item" onclick="toast('Chat will connect via Socket.io in the next build','warn');this.classList.remove('active')"><span class="icon">&#9650;</span>Chat</button>
@@ -1419,6 +1420,19 @@
   </div>
 </div>
 
+<!-- RANKINGS -->
+<div id="rankings" class="panel" style="display:none">
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <div class="card-title" style="margin:0">Kingdom Rankings</div>
+      <button class="btn" onclick="loadRankings(true)">↻ Refresh</button>
+    </div>
+    <div id="rankings-list">
+      <div style="color:var(--text3);font-size:13px;text-align:center;padding:24px 0">Loading rankings...</div>
+    </div>
+  </div>
+</div>
+
 <!-- LIBRARY -->
 <div id="library" class="panel" style="display:none">
 
@@ -2217,6 +2231,10 @@ function switchTab(id, btn) {
     updateAllocationDisplay();
     loadAllocationFromState();
   }
+  if (id === 'rankings') {
+    if (rankingsCache.length > 0) renderRankingsPanel(rankingsCache);
+    else loadRankings(true);
+  }
   if (id === 'shrine') {
     renderShrinePanel();
   }
@@ -2496,6 +2514,7 @@ function updateTurnsDisplay() {
   <button class="bnav-item" onclick="switchTabMobile('spells',this)"><span class="bicon">✨</span>Spells</button>
   <button class="bnav-item" onclick="switchTabMobile('covert',this)"><span class="bicon">🕵️</span>Covert</button>
   <div class="bnav-sep"></div>
+  <button class="bnav-item" onclick="switchTabMobile('rankings',this)"><span class="bicon">🏆</span>Ranks</button>
   <button class="bnav-item" onclick="switchTabMobile('alliances',this)"><span class="bicon">🤝</span>Allies</button>
   <button class="bnav-item" onclick="switchTabMobile('news',this)"><span class="bicon">📰</span>News<span id="bnav-news-badge" class="bnav-badge">3</span></button>
   <div class="bnav-sep"></div>
@@ -2881,14 +2900,70 @@ function appendNewsItems(events) {
   }
 }
 
-async function loadRankings() {
+var rankingsCache = [];
+
+var RACE_ICONS = {
+  high_elf:'🧝', dwarf:'⛏️', dire_wolf:'🐺', dark_elf:'🗡️', human:'👑', orc:'💀'
+};
+
+async function loadRankings(forceRefresh) {
   var rankings = await apiCall('GET', '/api/kingdom/rankings');
   if (!Array.isArray(rankings)) return;
+
+  rankingsCache = rankings;
+
+  // Populate attack/covert target lists (exclude self)
   targets = rankings
     .filter(function(r) { return r.id !== state.kingdomId; })
-    .map(function(r) { return { id: r.id, name: r.name, race: r.race, rank: r.rank, land: r.land, fighters: 0, mages: 0, status: 'unknown' }; });
+    .map(function(r) { return { id: r.id, name: r.name, race: r.race, rank: r.rank, land: r.land, population: r.population || 0, fighters: 0, mages: 0, is_ai: r.is_ai || 0 }; });
   renderTargets(targets, 'target-list', 'selectTarget');
   renderTargets(targets, 'covert-target-list', 'selectCovertTarget');
+
+  // If rankings panel is visible or force refresh, render it
+  var panel = document.getElementById('rankings');
+  if (panel && (panel.style.display !== 'none' || forceRefresh)) {
+    renderRankingsPanel(rankings);
+  }
+}
+
+function renderRankingsPanel(rankings) {
+  var el = document.getElementById('rankings-list');
+  if (!el) return;
+
+  var html = '<table style="width:100%;border-collapse:collapse;font-size:13px">'
+    + '<thead><tr style="color:var(--text3);font-size:11px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border)">'
+    + '<th style="padding:8px 6px;text-align:left;width:32px">#</th>'
+    + '<th style="padding:8px 6px;text-align:left">Kingdom</th>'
+    + '<th style="padding:8px 6px;text-align:right">Land</th>'
+    + '<th style="padding:8px 6px;text-align:right">Population</th>'
+    + '<th style="padding:8px 6px;text-align:right">Turn</th>'
+    + '</tr></thead><tbody>';
+
+  rankings.forEach(function(r) {
+    var isMe = r.id === state.kingdomId;
+    var isAi = r.is_ai;
+    var raceIcon = RACE_ICONS[r.race] || '👤';
+    var raceName = r.race ? r.race.replace('_', ' ') : '?';
+    var rowBg = isMe ? 'background:rgba(124,106,245,.08);' : '';
+    var nameColor = isMe ? 'color:var(--purple);font-weight:700' : 'color:var(--text)';
+
+    html += '<tr style="border-bottom:1px solid var(--border);' + rowBg + '">'
+      + '<td style="padding:10px 6px;color:var(--text3);font-weight:600">' + r.rank + '</td>'
+      + '<td style="padding:10px 6px">'
+      + '<div style="display:flex;align-items:center;gap:8px">'
+      + '<span style="font-size:18px">' + raceIcon + '</span>'
+      + '<div>'
+      + '<div style="' + nameColor + '">' + r.name + (isMe ? ' <span style="font-size:10px;color:var(--purple)">(you)</span>' : '') + (isAi ? ' <span style="font-size:10px;color:var(--text3)">🤖</span>' : '') + '</div>'
+      + '<div style="font-size:11px;color:var(--text3);text-transform:capitalize">' + raceName + (r.username ? ' · ' + r.username : '') + '</div>'
+      + '</div></div></td>'
+      + '<td style="padding:10px 6px;text-align:right;color:var(--gold);font-weight:600">' + fmt(r.land) + '</td>'
+      + '<td style="padding:10px 6px;text-align:right;color:var(--text2)">' + fmt(r.population || 0) + '</td>'
+      + '<td style="padding:10px 6px;text-align:right;color:var(--text3)">' + fmt(r.turn || 0) + '</td>'
+      + '</tr>';
+  });
+
+  html += '</tbody></table>';
+  el.innerHTML = html;
 }
 
 // Central helper — remaps server update keys to frontend state keys
