@@ -58,13 +58,17 @@ textarea{width:100%;resize:vertical;min-height:60px}
 .modal-btns{display:flex;gap:8px;margin-top:18px;justify-content:flex-end}
 .sec-label{grid-column:1/-1;font-size:11px;font-weight:700;color:var(--purple);text-transform:uppercase;letter-spacing:.6px;padding:10px 0 2px;border-bottom:1px solid var(--border);margin-bottom:2px}
 #auth-screen{max-width:360px;margin:80px auto}
-.admin-tab { background:none; border:none; border-bottom:3px solid transparent; color:var(--text3); cursor:pointer; font-size:13px; font-weight:600; padding:8px 16px; margin-bottom:-2px; transition:all .2s; }
+.admin-tab { background:none; border:none; border-bottom:3px solid transparent; color:var(--text3); cursor:pointer; font-size:13px; font-weight:600; padding:8px 14px; margin-bottom:-2px; transition:all .2s; white-space:nowrap; }
 .admin-tab:hover { color:var(--text); }
 .admin-tab.active { color:var(--gold); border-bottom-color:var(--gold); }
 .atab { display:block; }
 .cl-section { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.8px; color:var(--text3); margin:14px 0 6px; padding-bottom:4px; border-bottom:1px solid var(--border); }
 .cl-item { font-size:12px; color:var(--text2); padding:3px 0 3px 4px; line-height:1.6; }
 .cl-item.wish { color:var(--text3); }
+.stats-grid .stat { padding:10px 14px; }
+.stats-grid .val { font-size:22px; }
+.mod-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+@media(max-width:600px) { .mod-grid { grid-template-columns:1fr; } }
 </style>
 </head>
 <body>
@@ -103,7 +107,7 @@ textarea{width:100%;resize:vertical;min-height:60px}
   <div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:2px solid var(--border2);padding-bottom:0">
     <button class="admin-tab active" onclick="showAdminTab('manage',this)">⚙️ Manage</button>
     <button class="admin-tab" onclick="showAdminTab('kingdoms',this)">🏰 Kingdoms</button>
-    <button class="admin-tab" onclick="showAdminTab('changelog',this)">📋 Changelog &amp; Wishlist</button>
+    <button class="admin-tab" onclick="showAdminTab('changelog',this)">📋 Changelog</button>
   </div>
 
   <!-- TAB: Manage -->
@@ -119,7 +123,7 @@ textarea{width:100%;resize:vertical;min-height:60px}
 
   <div class="card">
     <h2 style="margin-top:0">Chat moderation</h2>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="mod-grid">
 
       <div>
         <h3 style="font-size:13px;color:var(--text3);margin:0 0 8px">Promote chat moderator</h3>
