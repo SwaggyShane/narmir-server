@@ -2563,8 +2563,21 @@ async function loadAllianceChatHistory(allianceId) {
 async function loadAllianceSearch() {
   var el = document.getElementById('ally-search-list');
   if (!el) return;
-  // List all alliances from rankings kingdoms grouped by alliance (rough approach)
-  el.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:8px 0">Feature coming soon — ask a leader to invite you directly.</div>';
+  // Refresh rankings if needed
+  if (!rankingsCache || rankingsCache.length === 0) await loadRankings();
+  // Get all distinct alliances visible from rankings (kingdoms that are in an alliance)
+  // We can fetch a list of alliances from the server
+  var alliances = await apiCall('GET', '/api/alliance/list');
+  if (!Array.isArray(alliances) || alliances.length === 0) {
+    el.innerHTML = '<div style="color:var(--text3);padding:6px 0">No alliances found — be the first to found one!</div>';
+    return;
+  }
+  el.innerHTML = alliances.map(function(a) {
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">'
+      + '<div><div style="color:var(--text);font-weight:500">' + escHtml(a.name) + '</div>'
+      + '<div style="font-size:11px;color:var(--text3)">' + a.member_count + ' member' + (a.member_count===1?'':'s') + ' · Leader: ' + escHtml(a.leader_name||'?') + '</div></div>'
+      + '</div>';
+  }).join('');
 }
 
 async function foundAlliance() {
@@ -2933,6 +2946,7 @@ function syncUI() {
   if (tb) tb.textContent = fmt(state.tools_blueprints || 0);
   var pb = document.getElementById('protection-badge');
   if (pb) pb.style.display = (state.turn || 0) < 200 ? 'inline' : 'none';
+  renderActiveEffects();
   // Only rebuild heavy panels when they're visible
   var buildPanel = document.getElementById('build');
   if (buildPanel && buildPanel.style.display !== 'none') renderBuildQueue();
@@ -3486,13 +3500,6 @@ function renderWarLog(rows) {
   el.innerHTML = html;
 }
 
-function timeAgo(unixTs) {
-  var diff = Math.floor(Date.now() / 1000) - unixTs;
-  if (diff < 60)   return 'just now';
-  if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
-  if (diff < 86400)return Math.floor(diff / 3600) + 'h ago';
-  return Math.floor(diff / 86400) + 'd ago';
-}
 
 // ── Rankings ──────────────────────────────────────────────────────────────────
 
