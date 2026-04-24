@@ -164,6 +164,65 @@ module.exports = function(db, io) {
     res.json({ ok: true });
   });
 
+  // GET /api/admin/ai-synopsis — snapshot of all AI kingdom states
+  router.get('/ai-synopsis', async (_req, res) => {
+    const aiPlayers = await db.all('SELECT id, username FROM players WHERE is_ai = 1');
+    if (aiPlayers.length === 0) return res.json([]);
+
+    const rows = [];
+    for (const p of aiPlayers) {
+      const k = await db.get(`
+        SELECT k.*, p.username
+        FROM kingdoms k JOIN players p ON k.player_id = p.id
+        WHERE k.player_id = ?`, [p.id]);
+      if (!k) continue;
+
+      // Count war log actions by this AI as attacker
+      const attacks   = await db.get('SELECT COUNT(*) as c FROM war_log WHERE attacker_id = ? AND action_type = ?', [k.id, 'attack']);
+      const coverts   = await db.get('SELECT COUNT(*) as c FROM war_log WHERE attacker_id = ? AND action_type IN (?,?,?)', [k.id, 'spy','loot','assassinate','sabotage']);
+      const wins      = await db.get('SELECT COUNT(*) as c FROM war_log WHERE attacker_id = ? AND outcome = ?', [k.id, 'victory']);
+      const losses    = await db.get('SELECT COUNT(*) as c FROM war_log WHERE attacker_id = ? AND action_type = ? AND outcome = ?', [k.id, 'attack', 'repelled']);
+      const timesHit  = await db.get('SELECT COUNT(*) as c FROM war_log WHERE defender_id = ?', [k.id]);
+
+      // Parse JSON fields safely
+      let buildAlloc = {};
+      let resAlloc = {};
+      try { buildAlloc = JSON.parse(k.build_allocation || '{}'); } catch {}
+      try { resAlloc   = JSON.parse(k.research_allocation || '{}'); } catch {}
+
+      const topBuild = Object.entries(buildAlloc)
+        .filter(([,v]) => v > 0)
+        .sort((a,b) => b[1]-a[1])
+        .slice(0,3)
+        .map(([k,v]) => `${k}:${v}`)
+        .join(', ') || 'none';
+
+      const topResearch = Object.entries(resAlloc)
+        .filter(([,v]) => v > 0)
+        .sort((a,b) => b[1]-a[1])
+        .slice(0,3)
+        .map(([k,v]) => `${k}:${v}`)
+        .join(', ') || 'none';
+
+      rows.push({
+        id: k.id, name: k.name, race: k.race, level: k.level || 1,
+        land: k.land, gold: k.gold, population: k.population,
+        turns_stored: k.turns_stored, morale: k.morale, food: k.food,
+        fighters: k.fighters, rangers: k.rangers, mages: k.mages,
+        thieves: k.thieves, ninjas: k.ninjas,
+        bld_farms: k.bld_farms, bld_barracks: k.bld_barracks,
+        bld_housing: k.bld_housing, bld_schools: k.bld_schools,
+        res_military: k.res_military, res_economy: k.res_economy,
+        res_spellbook: k.res_spellbook,
+        top_build: topBuild, top_research: topResearch,
+        attacks: attacks?.c || 0, covert_ops: coverts?.c || 0,
+        wins: wins?.c || 0, losses: losses?.c || 0,
+        times_hit: timesHit?.c || 0,
+      });
+    }
+    res.json(rows);
+  });
+
   // DELETE /api/admin/kingdom/:id — delete a kingdom (soft — just wipes stats)
   router.delete('/kingdom/:id', async (req, res) => {
     await db.run('DELETE FROM kingdoms WHERE id = ?', [req.params.id]);
