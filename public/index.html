@@ -294,6 +294,7 @@
     input[type=range]::-webkit-slider-thumb { width: 16px; height: 16px; }
   }
 </style>
+<script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
 
@@ -343,6 +344,7 @@
     <button class="nav-item" onclick="switchTab('rankings',this)"><span class="icon">🏆</span>Rankings</button>
     <button class="nav-item" onclick="switchTab('war_panel',this)"><span class="icon">⚔️</span>War Log</button>
     <button class="nav-item" onclick="switchTab('alliances',this)"><span class="icon">&#9876;</span>Alliances</button>
+    <button class="nav-item" onclick="switchTab('globalchat',this)"><span class="icon">💬</span>Chat <span id="chat-badge" style="display:none;background:var(--red);color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px">!</span></button>
     <button class="nav-item" onclick="switchTab('news',this)"><span class="icon">&#9741;</span>News <span id="news-badge" class="nav-badge">3</span></button>
     <button class="nav-item" onclick="toast('Chat will connect via Socket.io in the next build','warn');this.classList.remove('active')"><span class="icon">&#9650;</span>Chat</button>
 
@@ -1348,76 +1350,112 @@
 </div>
 
 <!-- ═══════════════════════════════════════════ ALLIANCES PANEL ══ -->
-<div id="alliances" class="panel" style="display:none">
-  <div style="display:grid;grid-template-columns:1fr 300px;gap:16px;align-items:start">
-    <div>
-      <div class="card">
-        <div class="card-title">Your alliance — <span style="color:var(--purple)">—</span></div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
-          <div style="font-size:13px;color:var(--text2)">— members · Combined land: <span style="color:var(--gold)">— acres</span></div>
-          <div style="display:flex;gap:8px">
-            <span class="badge badge-green">Active</span>
-            <button class="btn btn-red" onclick="toast('Left alliance — you are now kingdomless','warn')">Leave</button>
-          </div>
-        </div>
-        <div id="ally-list">
-          <!-- populated by JS -->
+<!-- GLOBAL CHAT -->
+<div id="globalchat" class="panel" style="display:none">
+  <div style="max-width:720px;margin:0 auto">
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div class="card-title" style="margin:0">🌍 Global Chat</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span id="chat-online-count" style="font-size:12px;color:var(--green)">● 1 online</span>
         </div>
       </div>
-
-      <div class="card">
-        <div class="card-title">Alliance message board</div>
-        <div id="alliance-chat" style="height:160px;overflow-y:auto;margin-bottom:10px;font-size:13px;display:flex;flex-direction:column;gap:6px"></div>
-        <div style="display:flex;gap:8px">
-          <input type="text" id="ally-msg" placeholder="Message allies..." style="flex:1;width:auto;padding:7px 10px">
-          <button class="btn btn-purple" onclick="sendAllyMsg()">Send</button>
-        </div>
+      <div id="global-chat-messages" style="height:440px;overflow-y:auto;display:flex;flex-direction:column;gap:2px;margin-bottom:14px;padding-right:4px">
+        <div style="text-align:center;color:var(--text3);font-size:13px;padding:40px 0">Connecting to chat...</div>
       </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" id="global-chat-input" placeholder="Message the world..." style="flex:1;width:auto" maxlength="300" onkeydown="if(event.key==='Enter')sendGlobalChat()">
+        <button class="btn btn-purple" onclick="sendGlobalChat()" style="white-space:nowrap">Send ↵</button>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:6px">Max 300 characters · Be civil · Chat is visible to all players</div>
     </div>
+  </div>
+</div>
 
-    <div>
+<div id="alliances" class="panel" style="display:none">
+
+  <!-- Not in alliance -->
+  <div id="ally-none" style="display:none">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:600px;margin:0 auto">
       <div class="card">
-        <div class="card-title">Pledge level</div>
-        <div style="font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.7">
-          When an ally is attacked, this % of your troops auto-deploy to their defence. If all 6 members are hit simultaneously, this multiplies.
-        </div>
-        <div class="spell-slider-wrap">
-          <span class="spell-slider-label">Pledge</span>
-          <input type="range" id="pledge-slider" min="1" max="10" step="1" value="3" oninput="updatePledge(this.value)">
-          <span class="spell-slider-val" id="pledge-val">3%</span>
-        </div>
-        <div style="font-size:12px;color:var(--text3);margin-bottom:12px">At 3%: up to 37,200 fighters could deploy if all allies are hit at once.</div>
-        <button class="btn btn-purple" onclick="toast('Pledge updated to ' + document.getElementById(\'pledge-slider\').value + \'%\', \'success\')">Save pledge</button>
+        <div class="card-title">Found an alliance</div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:12px">Create a new alliance and become its leader. Up to 6 members.</div>
+        <input type="text" id="new-ally-name" placeholder="Alliance name..." style="width:100%;margin-bottom:10px;text-align:left;padding:7px 10px" maxlength="40">
+        <button class="btn btn-gold" style="width:100%" onclick="foundAlliance()">Found alliance</button>
       </div>
-
       <div class="card">
-        <div class="card-title">Invite / dismiss members</div>
-        <div style="margin-bottom:12px">
-          <div style="font-size:12px;color:var(--text3);margin-bottom:6px">Invite by kingdom name</div>
-          <div style="display:flex;gap:8px">
-            <input type="text" id="invite-name" placeholder="Kingdom name..." style="flex:1;width:auto">
-            <button class="btn btn-purple" onclick="inviteAlly()">Invite</button>
-          </div>
-        </div>
-        <div>
-          <div style="font-size:12px;color:var(--text3);margin-bottom:6px">Dismiss member</div>
-          <div style="display:flex;gap:8px">
-            <select id="dismiss-sel" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);padding:6px 8px;font-size:12px">
-              <option>— no members —</option>
-            </select>
-            <button class="btn btn-red" onclick="dismissAlly()">Dismiss</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Found new alliance</div>
-        <div style="font-size:13px;color:var(--text2);margin-bottom:12px">Leave your current alliance and start a new one.</div>
-        <input type="text" id="new-ally-name" placeholder="Alliance name..." style="width:100%;margin-bottom:8px;text-align:left;padding:7px 10px">
-        <button class="btn" style="width:100%" onclick="foundAlliance()">Found alliance</button>
+        <div class="card-title">Open alliances</div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:10px">Ask a leader to invite you, or find alliances accepting members.</div>
+        <div id="ally-search-list" style="max-height:180px;overflow-y:auto;font-size:13px;color:var(--text3)">No alliances found.</div>
+        <button class="btn" style="width:100%;margin-top:10px" onclick="loadAllianceSearch()">&#8635; Refresh</button>
       </div>
     </div>
   </div>
+
+  <!-- In alliance -->
+  <div id="ally-active" style="display:none">
+    <div style="display:grid;grid-template-columns:1fr 300px;gap:16px;align-items:start">
+
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+            <div>
+              <div class="card-title" style="margin-bottom:2px">&#9876; <span id="ally-name">—</span></div>
+              <div style="font-size:12px;color:var(--text3)"><span id="ally-member-count">0</span> members &middot; Combined land: <span id="ally-combined-land" style="color:var(--gold)">0</span> acres</div>
+            </div>
+            <button class="btn btn-red" onclick="leaveAlliance()">Leave alliance</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Members</div>
+          <div id="ally-list"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Alliance message board</div>
+          <div id="alliance-chat" style="height:220px;overflow-y:auto;margin-bottom:10px;font-size:13px;display:flex;flex-direction:column;gap:4px;padding-right:4px">
+            <div style="text-align:center;color:var(--text3);padding:20px 0">Loading messages...</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="ally-msg" placeholder="Message your alliance..." style="flex:1;width:auto" maxlength="300" onkeydown="if(event.key==='Enter')sendAllyMsg()">
+            <button class="btn btn-purple" onclick="sendAllyMsg()">Send</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="card">
+          <div class="card-title">Pledge level</div>
+          <div style="font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.7">When an ally is attacked, this % of your troops auto-deploy to their defence.</div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+            <input type="range" id="pledge-slider" min="0" max="10" step="1" value="3" oninput="updatePledge(this.value)" style="flex:1">
+            <span id="pledge-val" style="color:var(--gold);font-weight:700;min-width:32px">3%</span>
+          </div>
+          <div style="font-size:12px;color:var(--text3);margin-bottom:12px" id="pledge-desc">At 3%: your fighters deploy to defend allies when attacked.</div>
+          <button class="btn btn-purple" style="width:100%" onclick="savePledge()">Save pledge</button>
+        </div>
+        <div class="card" id="ally-invite-card" style="display:none">
+          <div class="card-title">Manage members</div>
+          <div style="margin-bottom:12px">
+            <div style="font-size:12px;color:var(--text3);margin-bottom:6px">Invite by kingdom name</div>
+            <div style="display:flex;gap:8px">
+              <input type="text" id="invite-name" placeholder="Kingdom name..." style="flex:1;width:auto">
+              <button class="btn btn-purple" onclick="inviteAlly()">Invite</button>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:12px;color:var(--text3);margin-bottom:6px">Dismiss member</div>
+            <div style="display:flex;gap:8px">
+              <select id="dismiss-sel" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);padding:6px 8px;font-size:12px">
+                <option>— no members —</option>
+              </select>
+              <button class="btn btn-red" onclick="dismissAlly()">Dismiss</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <!-- SHRINE -->
@@ -2330,67 +2368,267 @@ function closeBattle() {
 }
 
 /* ── Alliance ── */
-function renderAllies() {
+// ── Socket.io connection ──────────────────────────────────────────────────────
+var socket = null;
+var globalChatMessages = [];
+var allianceChatMessages = [];
+
+function initSocket() {
+  if (socket) return;
+  socket = io({ auth: { token: localStorage.getItem('narmir_token') || '' } });
+
+  socket.on('connect', function() {
+    console.log('[socket] connected:', socket.id);
+    loadGlobalChatHistory();
+  });
+
+  socket.on('connect_error', function(err) {
+    console.warn('[socket] connection error:', err.message);
+  });
+
+  socket.on('chat:message', function(data) {
+    if (data.room === 'global') {
+      appendChatMessage('global-chat-messages', data);
+      // Badge if not on chat tab
+      var panel = document.getElementById('globalchat');
+      if (!panel || panel.style.display === 'none') {
+        var badge = document.getElementById('chat-badge');
+        if (badge) badge.style.display = 'inline';
+      }
+    } else if (data.room === 'alliance') {
+      appendChatMessage('alliance-chat', data);
+    }
+  });
+
+  socket.on('event:attack_received', function(data) {
+    toast('⚔️ ' + (data.from || 'Someone') + ' attacked your kingdom!', 'error');
+    loadNews();
+  });
+
+  socket.on('event:spell_received', function(data) {
+    toast('⚡ A spell struck your kingdom!', 'error');
+    loadNews();
+  });
+
+  socket.on('event:covert', function(data) {
+    toast('🕵️ Covert activity detected in your kingdom!', 'warn');
+    loadNews();
+  });
+
+  socket.on('unread_news', function(data) {
+    if (data.count > 0) showNewsBadge(data.count);
+  });
+}
+
+function appendChatMessage(containerId, data) {
+  var el = document.getElementById(containerId);
+  if (!el) return;
+  var raceIcon = RACE_ICONS[data.race] || '👤';
+  var time = new Date(data.ts || Date.now());
+  var timeStr = time.getHours().toString().padStart(2,'0') + ':' + time.getMinutes().toString().padStart(2,'0');
+  var isMe = data.from === state.kingdomName;
+  var div = document.createElement('div');
+  div.style.cssText = 'display:flex;gap:8px;align-items:flex-start;padding:4px 0;' + (isMe ? 'flex-direction:row-reverse' : '');
+  div.innerHTML = '<span style="flex-shrink:0;font-size:16px">' + raceIcon + '</span>'
+    + '<div style="max-width:80%;' + (isMe ? 'text-align:right' : '') + '">'
+    + '<div style="font-size:11px;color:var(--text3);margin-bottom:2px">'
+    + '<strong style="color:' + (isMe ? 'var(--purple)' : 'var(--text2)') + '">' + (data.from || '?') + '</strong>'
+    + ' <span style="color:var(--text3)">' + timeStr + '</span></div>'
+    + '<div style="background:' + (isMe ? 'rgba(124,106,245,.15)' : 'var(--bg3)') + ';border-radius:8px;padding:6px 10px;font-size:13px;color:var(--text);word-break:break-word">'
+    + escHtml(data.message) + '</div></div>';
+  // Remove placeholder
+  var placeholder = el.querySelector('[data-placeholder]');
+  if (placeholder) placeholder.remove();
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function loadGlobalChatHistory() {
+  var msgs = await apiCall('GET', '/api/chat/global');
+  var el = document.getElementById('global-chat-messages');
+  if (!el) return;
+  if (!Array.isArray(msgs) || msgs.length === 0) {
+    el.innerHTML = '<div data-placeholder style="text-align:center;color:var(--text3);font-size:13px;padding:40px 0">No messages yet — say hello! 👋</div>';
+    return;
+  }
+  el.innerHTML = '';
+  msgs.forEach(function(m) {
+    appendChatMessage('global-chat-messages', { room:'global', from:m.kingdom_name, race:m.race, message:m.message, ts:new Date(m.created_at).getTime() });
+  });
+}
+
+function sendGlobalChat() {
+  var inp = document.getElementById('global-chat-input');
+  var msg = (inp.value || '').trim();
+  if (!msg || !socket) return;
+  socket.emit('chat:global', { message: msg }, function(res) {
+    if (res && res.error) toast(res.error, 'error');
+  });
+  inp.value = '';
+}
+
+// ── Alliance system ───────────────────────────────────────────────────────────
+var myAllianceData = null;
+var isAllianceLeader = false;
+
+async function loadAlliancePanel() {
+  var data = await apiCall('GET', '/api/alliance/my');
+  if (data.error) return;
+  myAllianceData = data;
+
+  if (!data.alliance) {
+    document.getElementById('ally-none').style.display = 'block';
+    document.getElementById('ally-active').style.display = 'none';
+    loadAllianceSearch();
+    return;
+  }
+
+  document.getElementById('ally-none').style.display = 'none';
+  document.getElementById('ally-active').style.display = 'block';
+
+  isAllianceLeader = data.isLeader;
+  document.getElementById('ally-name').textContent = data.alliance.name;
+  document.getElementById('ally-member-count').textContent = data.members.length;
+  var totalLand = data.members.reduce(function(s,m){ return s + (m.land||0); }, 0);
+  document.getElementById('ally-combined-land').textContent = fmt(totalLand);
+
+  // Pledge
+  var slider = document.getElementById('pledge-slider');
+  if (slider) slider.value = data.myPledge || 3;
+  updatePledge(data.myPledge || 3);
+
+  // Leader controls
+  var invCard = document.getElementById('ally-invite-card');
+  if (invCard) invCard.style.display = isAllianceLeader ? 'block' : 'none';
+
+  renderAllyList(data.members);
+  populateDismissList(data.members);
+  loadAllianceChatHistory(data.alliance.id);
+}
+
+function renderAllyList(members) {
   var el = document.getElementById('ally-list');
-  el.innerHTML = allies.map(function(a){
-    return '<div class="ally-row">'
-      + '<span class="a-name">' + a.name + '</span>'
-      + '<span class="a-race">' + a.race + '</span>'
-      + '<span style="font-size:12px;color:var(--gold);width:60px;text-align:right">' + fmt(a.land) + ' ac</span>'
-      + '<span style="font-size:12px;color:var(--text3);width:60px;text-align:right">Pledge ' + a.pledge + '%</span>'
-      + '<span class="a-rank">#' + a.rank + '</span>'
+  if (!el) return;
+  el.innerHTML = members.map(function(m) {
+    var raceIcon = RACE_ICONS[m.race] || '👤';
+    var isMe = m.id === state.kingdomId;
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">'
+      + '<span style="font-size:18px">' + raceIcon + '</span>'
+      + '<span style="flex:1;color:' + (isMe?'var(--purple)':'var(--text)') + ';font-weight:' + (isMe?'700':'400') + '">'
+      + m.name + (isMe?' (you)':'') + '<div style="font-size:11px;color:var(--text3)">' + (m.race||'').replace('_',' ') + ' · Lv ' + (m.level||1) + '</div></span>'
+      + '<span style="color:var(--gold);font-weight:600">' + fmt(m.land) + ' ac</span>'
+      + '<span style="color:var(--text3);font-size:12px">' + fmt(m.fighters||0) + ' ⚔️</span>'
+      + '<span style="color:var(--text3);font-size:11px">' + (m.pledge||3) + '% pledge</span>'
       + '</div>';
   }).join('');
 }
 
-function renderAllyChat() {
+function populateDismissList(members) {
+  var sel = document.getElementById('dismiss-sel');
+  if (!sel) return;
+  sel.innerHTML = members
+    .filter(function(m){ return m.id !== state.kingdomId; })
+    .map(function(m){ return '<option value="' + m.id + '">' + m.name + '</option>'; })
+    .join('') || '<option>— no other members —</option>';
+}
+
+async function loadAllianceChatHistory(allianceId) {
+  var msgs = await apiCall('GET', '/api/chat/' + allianceId);
   var el = document.getElementById('alliance-chat');
-  el.innerHTML = allyMessages.map(function(m){
-    return '<div style="font-size:13px"><span style="color:var(--purple);font-weight:600">' + m.from + '</span>: <span style="color:var(--text2)">' + m.text + '</span></div>';
-  }).join('');
-  el.scrollTop = el.scrollHeight;
+  if (!el) return;
+  if (!Array.isArray(msgs) || msgs.length === 0) {
+    el.innerHTML = '<div data-placeholder style="text-align:center;color:var(--text3);padding:20px 0">No messages yet.</div>';
+    return;
+  }
+  el.innerHTML = '';
+  msgs.forEach(function(m) {
+    appendChatMessage('alliance-chat', { room:'alliance', from:m.kingdom_name, race:m.race, message:m.message, ts:new Date(m.created_at).getTime() });
+  });
+}
+
+async function loadAllianceSearch() {
+  var el = document.getElementById('ally-search-list');
+  if (!el) return;
+  // List all alliances from rankings kingdoms grouped by alliance (rough approach)
+  el.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:8px 0">Feature coming soon — ask a leader to invite you directly.</div>';
+}
+
+async function foundAlliance() {
+  var name = document.getElementById('new-ally-name').value.trim();
+  if (!name) return toast('Enter an alliance name', 'error');
+  var result = await apiCall('POST', '/api/alliance/create', { name });
+  if (result.error) return toast(result.error, 'error');
+  toast('Alliance "' + name + '" founded!', 'success');
+  loadAlliancePanel();
+}
+
+async function leaveAlliance() {
+  if (!confirm('Leave your alliance? This cannot be undone.')) return;
+  var result = await apiCall('POST', '/api/alliance/leave', {});
+  if (result.error) return toast(result.error, 'error');
+  myAllianceData = null;
+  toast('You have left the alliance', 'warn');
+  loadAlliancePanel();
+}
+
+async function inviteAlly() {
+  var name = document.getElementById('invite-name').value.trim();
+  if (!name) return toast('Enter a kingdom name', 'error');
+  var target = targets.find(function(t){ return t.name.toLowerCase() === name.toLowerCase(); });
+  if (!target) return toast('Kingdom "' + name + '" not found in rankings', 'error');
+  var result = await apiCall('POST', '/api/alliance/invite', { targetKingdomId: target.id });
+  if (result.error) return toast(result.error, 'error');
+  toast(name + ' has been invited to the alliance', 'success');
+  document.getElementById('invite-name').value = '';
+  loadAlliancePanel();
+}
+
+async function dismissAlly() {
+  var sel = document.getElementById('dismiss-sel');
+  var id = parseInt(sel.value);
+  var name = sel.options[sel.selectedIndex].text;
+  if (!id || isNaN(id)) return toast('Select a member to dismiss', 'error');
+  var result = await apiCall('POST', '/api/alliance/dismiss', { targetKingdomId: id });
+  if (result.error) return toast(result.error, 'error');
+  toast(name + ' dismissed from the alliance', 'warn');
+  loadAlliancePanel();
+}
+
+async function savePledge() {
+  var pledge = parseInt(document.getElementById('pledge-slider').value) || 3;
+  var result = await apiCall('POST', '/api/alliance/pledge', { pledge });
+  if (result.error) return toast(result.error, 'error');
+  toast('Pledge set to ' + pledge + '%', 'success');
+}
+
+function updatePledge(v) {
+  var vn = parseInt(v) || 0;
+  var el = document.getElementById('pledge-val');
+  var desc = document.getElementById('pledge-desc');
+  if (el) el.textContent = vn + '%';
+  if (desc) {
+    var troops = Math.floor((state.fighters||0) * (vn/100));
+    desc.textContent = 'At ' + vn + '%: up to ' + fmt(troops) + ' fighters would deploy to defend an ally.';
+  }
 }
 
 function sendAllyMsg() {
   var inp = document.getElementById('ally-msg');
-  var msg = inp.value.trim();
-  if (!msg) return;
-  allyMessages.push({ from: document.getElementById('kingdom-name').textContent, text: msg });
+  var msg = (inp.value || '').trim();
+  if (!msg || !socket) return;
+  socket.emit('chat:alliance', { message: msg }, function(res) {
+    if (res && res.error) toast(res.error, 'error');
+  });
   inp.value = '';
-  renderAllyChat();
-}
-
-function updatePledge(v) {
-  document.getElementById('pledge-val').textContent = v + '%';
-  var total = Math.floor(state.fighters * (v / 100) * allies.length);
-  document.querySelector('#alliances .card:nth-child(1) .card-title + div + div + div').textContent = 'At ' + v + '%: up to ' + fmt(total) + ' fighters could deploy if all allies are hit at once.';
-}
-
-function inviteAlly() {
-  var name = document.getElementById('invite-name').value.trim();
-  if (!name) return toast('Enter a kingdom name', 'error');
-  toast('Invitation sent to ' + name, 'success');
-  document.getElementById('invite-name').value = '';
-}
-
-function dismissAlly() {
-  var sel = document.getElementById('dismiss-sel');
-  var name = sel.options[sel.selectedIndex].text;
-  toast('Dismissed ' + name + ' from the alliance', 'warn');
-}
-
-function foundAlliance() {
-  var name = document.getElementById('new-ally-name').value.trim();
-  if (!name) return toast('Enter an alliance name', 'error');
-  toast('Founded new alliance: ' + name, 'success');
-  document.querySelector('.card-title span[style*="purple"]').textContent = name;
 }
 
 /* ── Init ── */
 renderTargets(targets, 'target-list', 'selectTarget');
 renderTargets(targets, 'covert-target-list', 'selectCovertTarget');
-renderAllies();
-renderAllyChat();
 updateSpellCalc();
 
 var toastTimer;
@@ -2426,8 +2664,18 @@ function switchTab(id, btn) {
     if (mapWarn) mapWarn.style.display = (state.maps || 0) < 1 ? 'block' : 'none';
     updateAtkEstimate();
   }
+  if (id === 'globalchat') {
+    var badge = document.getElementById('chat-badge');
+    if (badge) badge.style.display = 'none';
+    if (!socket) initSocket();
+    else loadGlobalChatHistory();
+  }
+  if (id === 'alliances') {
+    loadAlliancePanel();
+  }
   if (id === 'rankings') {
-    loadRankings(true);
+    if (rankingsCache && rankingsCache.length > 0) renderRankingsPanel(rankingsCache);
+    else loadRankings(true);
   }
   if (id === 'spells') {
     renderSpells();
@@ -2451,10 +2699,6 @@ function switchTab(id, btn) {
     renderSchoolPanel();
     updateAllocationDisplay();
     loadAllocationFromState();
-  }
-  if (id === 'rankings') {
-    if (rankingsCache.length > 0) renderRankingsPanel(rankingsCache);
-    else loadRankings(true);
   }
   if (id === 'war_panel') { loadWarLog(); }
   if (id === 'shrine') {
@@ -2732,6 +2976,7 @@ function updateTurnsDisplay() {
   <button class="bnav-item" onclick="switchTabMobile('rankings',this)"><span class="bicon">🏆</span>Ranks</button>
   <button class="bnav-item" onclick="switchTabMobile('war_panel',this)"><span class="bicon">⚔️</span>War Log</button>
   <button class="bnav-item" onclick="switchTabMobile('alliances',this)"><span class="bicon">🤝</span>Allies</button>
+  <button class="bnav-item" onclick="switchTabMobile('globalchat',this)"><span class="bicon">💬</span>Chat</button>
   <button class="bnav-item" onclick="switchTabMobile('news',this)"><span class="bicon">📰</span>News<span id="bnav-news-badge" class="bnav-badge">3</span></button>
   <div class="bnav-sep"></div>
   <button class="bnav-item" onclick="doLogout()" style="color:var(--red)"><span class="bicon">🚪</span>Logout</button>
@@ -2996,6 +3241,7 @@ async function loadKingdom() {
   renderMageTowerPanel();
   renderSchoolPanel();
   renderShrinePanel();
+  initSocket();
 }
 
 async function loadNews() {
