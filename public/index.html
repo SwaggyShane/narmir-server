@@ -884,25 +884,23 @@
 
         <!-- Smithy allocation -->
         <div style="background:var(--bg4);border-radius:var(--radius);padding:12px;margin-bottom:12px">
-          <div style="font-size:12px;color:var(--text2);font-weight:600;margin-bottom:10px">Smithy production allocation <span style="color:var(--text3);font-weight:400">— engineers assigned per smithy per turn</span></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div style="font-size:12px;color:var(--text2);font-weight:600;margin-bottom:10px">Smithy production <span style="color:var(--text3);font-weight:400">— costs 1 turn each</span></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div>
-              <div style="font-size:12px;color:var(--text3);margin-bottom:4px">🔨 Hammers (1 turn each)</div>
-              <div style="display:flex;align-items:center;gap:8px">
+              <div style="font-size:12px;color:var(--text3);margin-bottom:6px">🔨 Hammers (free)</div>
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
                 <input type="range" id="smithy-hammer-alloc" min="0" max="1" step="1" value="0" oninput="updateSmithyDisplay()" style="flex:1">
                 <span id="smithy-hammer-val" style="color:var(--gold);font-weight:600;min-width:20px">0</span>
               </div>
+              <button class="btn btn-amber" style="width:100%;font-size:12px" onclick="forgeHammer()">⚒️ Make 1 hammer (1 turn)</button>
             </div>
             <div>
-              <div style="font-size:12px;color:var(--text3);margin-bottom:4px">🏗️ Scaffolding (1 turn · 2,500 GC each)</div>
-              <div style="display:flex;align-items:center;gap:8px">
-                <input type="range" id="smithy-scaffold-alloc" min="0" max="1" step="1" value="0" oninput="updateSmithyDisplay()" style="flex:1">
-                <span id="smithy-scaffold-val" style="color:var(--gold);font-weight:600;min-width:20px">0</span>
-              </div>
+              <div style="font-size:12px;color:var(--text3);margin-bottom:6px">🏗️ Scaffolding (2,500 GC)</div>
+              <div style="font-size:12px;color:var(--text3);margin-bottom:10px" id="scaffold-cost-note">Costs 2,500 GC · uses 1 turn</div>
+              <button class="btn btn-amber" style="width:100%;font-size:12px" onclick="forgeScaffolding()">🏗️ Make 1 scaffolding (1 turn)</button>
             </div>
           </div>
           <div style="font-size:11px;color:var(--text3);margin-top:8px" id="smithy-alloc-note">You need at least 1 smithy to produce tools.</div>
-          <button class="btn btn-amber" style="width:100%;margin-top:10px" onclick="saveSmithyAllocation()">Save production allocation</button>
         </div>
       </div>
     </div>
@@ -4201,42 +4199,42 @@ async function saveResearchAllocation() {
 
 function updateSmithyDisplay() {
   var smithies = state.bld_smithies || 0;
-  var hv = parseInt(document.getElementById('smithy-hammer-alloc')?.value) || 0;
-  var sv = parseInt(document.getElementById('smithy-scaffold-alloc')?.value) || 0;
-  var hEl = document.getElementById('smithy-hammer-val');
-  var sEl = document.getElementById('smithy-scaffold-val');
   var note = document.getElementById('smithy-alloc-note');
-  if (hEl) hEl.textContent = hv;
-  if (sEl) sEl.textContent = sv;
   if (note) {
-    if (smithies === 0) {
-      note.textContent = 'You need at least 1 smithy to produce tools.';
-    } else {
-      var scaffoldCost = sv * 2500;
-      note.textContent = 'Produces up to ' + hv + ' hammer' + (hv !== 1 ? 's' : '') + ' and ' + sv + ' scaffolding'
-        + (sv > 0 ? ' (' + fmt(scaffoldCost) + ' GC/turn)' : '') + ' per turn.';
-    }
+    if (smithies === 0) note.textContent = 'You need at least 1 smithy to produce tools.';
+    else note.textContent = smithies + ' smithy · ' + fmt(smithies * 25) + ' hammer cap · ' + fmt(smithies * 10) + ' scaffolding cap';
   }
 }
 
-async function saveSmithyAllocation() {
-  var h = parseInt(document.getElementById('smithy-hammer-alloc')?.value) || 0;
-  var s = parseInt(document.getElementById('smithy-scaffold-alloc')?.value) || 0;
-  var result = await apiCall('POST', '/api/kingdom/smithy-allocation', { hammers: h, scaffolding: s });
+async function forgeHammer() {
+  var smithies = state.bld_smithies || 0;
+  if (smithies === 0) return toast('You need at least 1 smithy', 'error');
+  var cap = smithies * 25;
+  if ((state.tools_hammers || 0) >= cap) return toast('Hammer storage full (' + cap + '/' + cap + ')', 'error');
+  var result = await apiCall('POST', '/api/kingdom/forge-tools', { toolType: 'hammers', quantity: 1 });
   if (result.error) return toast(result.error, 'error');
-  state.smithy_allocation = { hammers: h, scaffolding: s };
-  toast('Smithy allocation saved', 'success');
+  if (result.updates) applyServerUpdates(result.updates);
+  if (result.turns_stored !== undefined) state.turns_stored = result.turns_stored;
+  if (result.events && result.events.length) appendNewsItems(result.events);
+  syncUI();
+  await loadActiveExpeditions();
+  toast('⚒️ 1 hammer forged', 'success');
 }
 
-function loadSmithyAllocation() {
-  var alloc = state.smithy_allocation || {};
-  var h = alloc.hammers || 0;
-  var s = alloc.scaffolding || 0;
-  var hSlider = document.getElementById('smithy-hammer-alloc');
-  var sSlider = document.getElementById('smithy-scaffold-alloc');
-  if (hSlider) { hSlider.max = state.bld_smithies || 0; hSlider.value = h; }
-  if (sSlider) { sSlider.max = state.bld_smithies || 0; sSlider.value = s; }
-  updateSmithyDisplay();
+async function forgeScaffolding() {
+  var smithies = state.bld_smithies || 0;
+  if (smithies === 0) return toast('You need at least 1 smithy', 'error');
+  var cap = smithies * 10;
+  if ((state.tools_scaffolding || 0) >= cap) return toast('Scaffolding storage full (' + cap + '/' + cap + ')', 'error');
+  if ((state.gold || 0) < 2500) return toast('Need 2,500 gold to make scaffolding', 'error');
+  var result = await apiCall('POST', '/api/kingdom/forge-tools', { toolType: 'scaffolding', quantity: 1 });
+  if (result.error) return toast(result.error, 'error');
+  if (result.updates) applyServerUpdates(result.updates);
+  if (result.turns_stored !== undefined) state.turns_stored = result.turns_stored;
+  if (result.events && result.events.length) appendNewsItems(result.events);
+  syncUI();
+  await loadActiveExpeditions();
+  toast('🏗️ 1 scaffolding built', 'success');
 }
 
 async function forgeTools() {
