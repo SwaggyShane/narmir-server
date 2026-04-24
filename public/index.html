@@ -1300,7 +1300,10 @@
 
     <!-- Right col: expedition log -->
     <div class="card" style="display:flex;flex-direction:column">
-      <div class="card-title">Expedition log</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div class="card-title" style="margin-bottom:0">Expedition log</div>
+        <button class="btn" style="font-size:11px;padding:4px 10px" onclick="clearAllExpeditions()" title="Returns all troops from any stuck expeditions">🔄 Clear stuck</button>
+      </div>
       <div id="exploration-log" style="flex:1;overflow-y:auto;max-height:700px;display:flex;flex-direction:column;gap:8px">
         <div style="font-size:13px;color:var(--text3);padding:12px 0">No expeditions sent yet.</div>
       </div>
@@ -1624,7 +1627,6 @@ var allyMessages = [];
 var selectedTarget = null;
 var selectedCovertTarget = null;
 var selectedSpell = null;
-var allyMessages = [];
 
 /* ── Target list renderer ── */
 function renderTargets(list, containerId, selectFn) {
@@ -1925,6 +1927,7 @@ async function loadActiveExpeditions() {
       + '<span style="color:var(--text2)">' + exp.turns_left + ' turn' + (exp.turns_left === 1 ? '' : 's') + ' remaining</span>'
       + '<span style="color:var(--text3)">·</span>'
       + '<span style="color:var(--text3)">' + exp.rangers.toLocaleString() + ' rangers' + (exp.fighters > 0 ? ', ' + exp.fighters.toLocaleString() + ' fighters' : '') + '</span>'
+      + '<button class="btn btn-red" style="font-size:11px;padding:3px 8px;margin-left:4px" onclick="cancelExpedition(' + exp.id + ')">Cancel</button>'
       + '</div>';
   }).join('');
 
@@ -2436,25 +2439,6 @@ async function fire(unit) {
   toast('Fired ' + fmt(n) + ' ' + unit + ' — returned to population', 'success');
 }
 
-async function study(name) {
-  var disciplineMap = {
-    Economy:'economy', Weapons:'weapons', Armor:'armor', 'Military tactics':'military',
-    Spellbook:'spellbook', 'Attack magic':'attack_magic', 'Defense magic':'defense_magic',
-    Entertainment:'entertainment', 'Construction skills':'construction', 'War machines':'war_machines'
-  };
-  var n = parseInt(document.getElementById('r-amount')?.value) || 0;
-  if (n <= 0) return toast('Enter a number of researchers to assign', 'error');
-  if (state.turns_stored < 1) return toast('No turns available', 'warn');
-  var disc = disciplineMap[name];
-  if (!disc) return toast('Unknown discipline: ' + name, 'error');
-  var result = await apiCall('POST', '/api/kingdom/research', { discipline: disc, researchers: n });
-  if (result.error) return toast(result.error, 'error');
-  applyServerUpdates(result.updates);
-  if (result.turns_stored !== undefined) { state.turns_stored = result.turns_stored; updateTurnsDisplay(); }
-  syncUI();
-  if (result.events && result.events.length) appendNewsItems(result.events);
-  toast('+' + result.increment + ' to ' + name + ' · ' + state.turns_stored + ' turns left', 'success');
-}
 
 
 function updateTax(v) {
@@ -3388,52 +3372,6 @@ async function saveBuildAllocation() {
   state.build_allocation = allocation;
   updateBuildDisplay();
   toast('Engineer allocation saved — builds each turn automatically', 'success');
-}
-
-async function buildAll() {
-  var hasAny = BUILD_FIELDS.some(function(f) {
-    return (parseInt(document.getElementById(f.id)?.value) || 0) > 0;
-  });
-  if (!hasAny) return toast('Enter quantities to queue first', 'error');
-
-  var GOLD_COSTS = {
-    farm:50, barracks:200, outpost:150, tower:150, school:500, armory:400, vault:400,
-    smithy:800, market:2000, cathedral:1500, training:3000, colosseum:1500, castle:25000,
-    war_machine:5000, weapons:100, armor:150
-  };
-  var buildingKeyMap = {
-    farm:'farms', barracks:'barracks', outpost:'outposts', tower:'guard_towers',
-    school:'schools', armory:'armories', vault:'vaults', smithy:'smithies',
-    market:'markets', cathedral:'cathedrals', training:'training',
-    colosseum:'colosseums', shrine:'shrines', castle:'castles', library:'libraries', housing:'housing', war_machine:'war_machines',
-    weapons:'weapons', armor:'armor'
-  };
-
-  var orders = {};
-  var totalCost = 0;
-  BUILD_FIELDS.forEach(function(f) {
-    var qty = parseInt(document.getElementById(f.id)?.value) || 0;
-    if (qty > 0) {
-      var key = buildingKeyMap[f.key] || f.key;
-      orders[key] = qty;
-      totalCost += (GOLD_COSTS[f.key] || 100) * qty;
-    }
-  });
-
-  if (totalCost > state.gold) {
-    return toast('Need ' + fmt(totalCost) + ' gold but only have ' + fmt(state.gold) + ' gold', 'error');
-  }
-
-  var qResult = await apiCall('POST', '/api/kingdom/build-queue', { orders: orders });
-  if (qResult.error) return toast(qResult.error, 'error');
-
-  state.build_queue = qResult.queue || {};
-  if (qResult.gold !== undefined) state.gold = qResult.gold;
-  BUILD_FIELDS.forEach(function(f) { document.getElementById(f.id).value = 0; });
-  syncUI();
-  updateBuildDisplay();
-  renderBuildQueue();
-  toast('Queued for ' + fmt(totalCost) + ' gold — engineers will build each turn', 'success');
 }
 
 function renderBuildQueue() {
