@@ -58,6 +58,13 @@ textarea{width:100%;resize:vertical;min-height:60px}
 .modal-btns{display:flex;gap:8px;margin-top:18px;justify-content:flex-end}
 .sec-label{grid-column:1/-1;font-size:11px;font-weight:700;color:var(--purple);text-transform:uppercase;letter-spacing:.6px;padding:10px 0 2px;border-bottom:1px solid var(--border);margin-bottom:2px}
 #auth-screen{max-width:360px;margin:80px auto}
+.admin-tab { background:none; border:none; border-bottom:3px solid transparent; color:var(--text3); cursor:pointer; font-size:13px; font-weight:600; padding:8px 16px; margin-bottom:-2px; transition:all .2s; }
+.admin-tab:hover { color:var(--text); }
+.admin-tab.active { color:var(--gold); border-bottom-color:var(--gold); }
+.atab { display:block; }
+.cl-section { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.8px; color:var(--text3); margin:14px 0 6px; padding-bottom:4px; border-bottom:1px solid var(--border); }
+.cl-item { font-size:12px; color:var(--text2); padding:3px 0 3px 4px; line-height:1.6; }
+.cl-item.wish { color:var(--text3); }
 </style>
 </head>
 <body>
@@ -92,11 +99,50 @@ textarea{width:100%;resize:vertical;min-height:60px}
     <div class="stat"><div class="lbl">Last regen</div><div class="val" style="font-size:14px" id="st-regen">—</div></div>
   </div>
 
+  <!-- Tab navigation -->
+  <div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:2px solid var(--border2);padding-bottom:0">
+    <button class="admin-tab active" onclick="showAdminTab('manage',this)">⚙️ Manage</button>
+    <button class="admin-tab" onclick="showAdminTab('kingdoms',this)">🏰 Kingdoms</button>
+    <button class="admin-tab" onclick="showAdminTab('changelog',this)">📋 Changelog &amp; Wishlist</button>
+  </div>
+
+  <!-- TAB: Manage -->
+  <div id="atab-manage" class="atab">
+
   <div class="card">
     <h2 style="margin-top:0">Global announcement</h2>
     <div class="announce-row">
       <textarea id="announce-msg" placeholder="Message to broadcast to all players..."></textarea>
       <button class="btn btn-gold" onclick="sendAnnouncement()" style="padding:9px 16px">Send</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Chat moderation</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+
+      <div>
+        <h3 style="font-size:13px;color:var(--text3);margin:0 0 8px">Promote chat moderator</h3>
+        <div style="display:flex;gap:8px;margin-bottom:6px">
+          <input type="text" id="mod-username" placeholder="Username..." style="flex:1">
+          <button class="btn btn-purple" onclick="promotemod()">Make mod</button>
+        </div>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="demod-username" placeholder="Username..." style="flex:1">
+          <button class="btn btn-red" onclick="demotemod()">Remove mod</button>
+        </div>
+        <div id="mod-result" style="font-size:12px;margin-top:6px"></div>
+
+        <h3 style="font-size:13px;color:var(--text3);margin:14px 0 8px">Current moderators</h3>
+        <div id="mod-list" style="font-size:13px;color:var(--text3)">Loading...</div>
+      </div>
+
+      <div>
+        <h3 style="font-size:13px;color:var(--text3);margin:0 0 8px">Chat banned users</h3>
+        <div id="chat-ban-list" style="font-size:13px;color:var(--text3);max-height:200px;overflow-y:auto">Loading...</div>
+        <button class="btn" style="margin-top:8px;width:100%" onclick="loadChatBans()">↻ Refresh</button>
+      </div>
+
     </div>
   </div>
 
@@ -109,6 +155,10 @@ textarea{width:100%;resize:vertical;min-height:60px}
     <div id="promote-result" style="margin-top:8px;font-size:13px"></div>
   </div>
 
+  </div><!-- end atab-manage -->
+
+  <!-- TAB: Kingdoms -->
+  <div id="atab-kingdoms" class="atab" style="display:none">
   <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
     <h2 style="margin:0;flex:1">Kingdoms</h2>
     <input type="text" id="search-input" placeholder="Search by name or username..." style="width:220px" oninput="filterTable(this.value)">
@@ -140,7 +190,149 @@ textarea{width:100%;resize:vertical;min-height:60px}
       <tbody id="kingdom-table"></tbody>
     </table>
   </div>
-</div>
+</div><!-- end atab-kingdoms -->
+
+<!-- TAB: Changelog & Wishlist -->
+<div id="atab-changelog" class="atab" style="display:none">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
+
+    <!-- Changelog -->
+    <div class="card">
+      <h2 style="margin-top:0;color:var(--green)">✅ Completed Features</h2>
+
+      <div class="cl-section">Core Systems</div>
+      <div class="cl-item">✅ Registration, login, JWT auth with httpOnly cookie</div>
+      <div class="cl-item">✅ Turn system — +5 every 15 min, max 200, crash-safe boot catch-up</div>
+      <div class="cl-item">✅ 6 playable races with unique bonuses and penalties</div>
+      <div class="cl-item">✅ Kingdom status panel with resource tiles, XP bar, protection badge</div>
+      <div class="cl-item">✅ Three-column desktop status layout (military, research, buildings)</div>
+
+      <div class="cl-section">Economy</div>
+      <div class="cl-item">✅ Race-adjusted gold production (Dwarf 457 base, all races scaled)</div>
+      <div class="cl-item">✅ Tax slider with lock — persists server-side</div>
+      <div class="cl-item">✅ Markets and castles add flat gold bonuses</div>
+      <div class="cl-item">✅ Gold income XP awards</div>
+
+      <div class="cl-section">Buildings</div>
+      <div class="cl-item">✅ 14 building types — continuous build from engineer allocation</div>
+      <div class="cl-item">✅ Build queue shows turn estimate per building type</div>
+      <div class="cl-item">✅ Tool system — hammers, scaffolding, blueprints speed construction</div>
+      <div class="cl-item">✅ Building caps scale with kingdom level</div>
+      <div class="cl-item">✅ Libraries — house scribes and mages</div>
+
+      <div class="cl-section">Units & Upkeep</div>
+      <div class="cl-item">✅ 9 hirable unit types including scribes and engineers</div>
+      <div class="cl-item">✅ Housing — race-specific capacity (Dwarf 650, Dire Wolf 700, High Elf 350...)</div>
+      <div class="cl-item">✅ Support unit housing — researchers in schools, engineers in smithies, scribes in libraries</div>
+      <div class="cl-item">✅ Housed support units pay no upkeep — overflow units do</div>
+      <div class="cl-item">✅ Barracks discount on military upkeep</div>
+
+      <div class="cl-section">Research</div>
+      <div class="cl-item">✅ 10 research disciplines with allocation panel</div>
+      <div class="cl-item">✅ Distribute evenly and Release all buttons</div>
+      <div class="cl-item">✅ Research bars only — no percentage numbers</div>
+      <div class="cl-item">✅ Silence debuff suppresses research for 3 turns</div>
+
+      <div class="cl-section">Exploration</div>
+      <div class="cl-item">✅ Scout (10t), Deep (25t), Dungeon (50t) expeditions</div>
+      <div class="cl-item">✅ Ranger-scaled rewards with random 5–30% gold bonus based on forage rate × turns</div>
+      <div class="cl-item">✅ Race exploration bonuses (Dire Wolf ×1.4, Dark Elf ×1.25...)</div>
+      <div class="cl-item">✅ Ranger attrition — skilled races lose fewer</div>
+      <div class="cl-item">✅ 6 ultra-rare prizes (0.5% deep, 1% dungeon)</div>
+      <div class="cl-item">✅ 👑 The Throne of Nazdreg Grishnak — unique, one per server, forever</div>
+      <div class="cl-item">✅ Cancel expedition button on active expeditions</div>
+
+      <div class="cl-section">Magic & Library</div>
+      <div class="cl-item">✅ 16 spells across 4 tiers — scroll-based casting</div>
+      <div class="cl-item">✅ Mages craft scrolls in library, scribes craft maps and blueprints</div>
+      <div class="cl-item">✅ Map required to interact with other kingdoms</div>
+      <div class="cl-item">✅ Mage tower mana production</div>
+      <div class="cl-item">✅ Shrine morale and healing</div>
+      <div class="cl-item">✅ Active effects — fog, blight, silence, plague, shield displayed as badges</div>
+
+      <div class="cl-section">Combat & Covert</div>
+      <div class="cl-item">✅ Military attack with power comparison and battle report</div>
+      <div class="cl-item">✅ Win probability shown in attack panel and rankings</div>
+      <div class="cl-item">✅ Covert ops — spy, loot, assassinate, sabotage</div>
+      <div class="cl-item">✅ Newbie protection — no attacks on kingdoms under turn 200</div>
+      <div class="cl-item">✅ War log panel</div>
+
+      <div class="cl-section">Unit XP & Levelling</div>
+      <div class="cl-item">✅ All units gain XP from their activity each turn</div>
+      <div class="cl-item">✅ Level scaling — +0.5% effectiveness per level (max +50% at level 100)</div>
+      <div class="cl-item">✅ Hire dilution — new recruits lower average unit XP</div>
+      <div class="cl-item">✅ 6 racial unique bonuses at unit level 5+</div>
+      <div class="cl-item">✅ Training fields award passive XP with equipment bonuses</div>
+
+      <div class="cl-section">Social</div>
+      <div class="cl-item">✅ Global chat with Socket.io — real-time, username-based</div>
+      <div class="cl-item">✅ Online users sidebar with race icons and MOD badges</div>
+      <div class="cl-item">✅ IRC commands — /me, /msg (whisper), /kick, /ban, /unban, /delete</div>
+      <div class="cl-item">✅ Alliance system — create, invite, dismiss, pledge, chat board</div>
+      <div class="cl-item">✅ Rankings panel with win probability and direct action buttons</div>
+      <div class="cl-item">✅ News panel with type filters and icons</div>
+
+      <div class="cl-section">Admin</div>
+      <div class="cl-item">✅ Full kingdom edit modal — live data from server</div>
+      <div class="cl-item">✅ Promote/demote chat moderators</div>
+      <div class="cl-item">✅ Chat ban list with unban</div>
+      <div class="cl-item">✅ AI kingdoms with race-aware behaviour</div>
+      <div class="cl-item">✅ Global announcement broadcast</div>
+      <div class="cl-item">✅ Promote to admin</div>
+    </div>
+
+    <!-- Wishlist -->
+    <div>
+      <div class="card">
+        <h2 style="margin-top:0;color:var(--amber)">🔮 Wishlist — Future Additions</h2>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:14px">Ideas and planned features — edit this list to add your own.</div>
+
+        <div class="cl-section">Gameplay</div>
+        <div class="cl-item wish">⬜ Spell casting target history — remember last target per spell</div>
+        <div class="cl-item wish">⬜ Kingdom descriptions — players can write a lore bio</div>
+        <div class="cl-item wish">⬜ Bounty board — players place gold bounties on other kingdoms</div>
+        <div class="cl-item wish">⬜ Diplomacy — non-aggression pacts, trade agreements between kingdoms</div>
+        <div class="cl-item wish">⬜ Seasons — periodic world events that affect all kingdoms (drought, plague, magic surge)</div>
+        <div class="cl-item wish">⬜ Prestige / reset system — kingdoms that reach max level can prestige for a permanent bonus</div>
+        <div class="cl-item wish">⬜ Named hero units — single high-level units with unique abilities</div>
+
+        <div class="cl-section">Combat</div>
+        <div class="cl-item wish">⬜ Alliance war — alliances can declare war on each other</div>
+        <div class="cl-item wish">⬜ Siege mechanics — castle walls reduce land capture percentage</div>
+        <div class="cl-item wish">⬜ Battle replay — animated step-by-step battle report</div>
+        <div class="cl-item wish">⬜ Mercenary hiring — temporary troops available for gold at market</div>
+
+        <div class="cl-section">Social</div>
+        <div class="cl-item wish">⬜ Alliance rankings — leaderboard for combined alliance land</div>
+        <div class="cl-item wish">⬜ Kingdom profiles — public page showing race, level, history</div>
+        <div class="cl-item wish">⬜ Trade system — send gold or resources between kingdoms</div>
+        <div class="cl-item wish">⬜ Messaging — direct kingdom-to-kingdom messages</div>
+
+        <div class="cl-section">World</div>
+        <div class="cl-item wish">⬜ World map — visual representation of kingdom territories</div>
+        <div class="cl-item wish">⬜ Named regions — kingdoms occupy named land areas</div>
+        <div class="cl-item wish">⬜ More races — Gnome (inventor), Vampire (undead mage), Troll (regenerating fighter)</div>
+        <div class="cl-item wish">⬜ Race lore panel — detailed backstory for each race</div>
+
+        <div class="cl-section">Polish</div>
+        <div class="cl-item wish">⬜ iOS layout testing and fixes</div>
+        <div class="cl-item wish">⬜ Sound effects — combat, level up, expedition return</div>
+        <div class="cl-item wish">⬜ Dark/light theme toggle</div>
+        <div class="cl-item wish">⬜ Email notifications — optional alerts for attacks, expedition return</div>
+        <div class="cl-item wish">⬜ Tutorial / new player guide</div>
+        <div class="cl-item wish">⬜ Achievements system</div>
+      </div>
+
+      <!-- Notes -->
+      <div class="card" style="margin-top:16px">
+        <h2 style="margin-top:0;color:var(--text2)">📝 Admin Notes</h2>
+        <textarea id="admin-notes" style="width:100%;min-height:160px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);padding:10px;font-size:13px;resize:vertical" placeholder="Private notes visible only to admins..."></textarea>
+        <button class="btn btn-gold" style="width:100%;margin-top:10px" onclick="saveAdminNotes()">Save notes</button>
+      </div>
+    </div>
+
+  </div>
+</div><!-- end atab-changelog -->
 
 <!-- Ban modal -->
 <div class="modal-overlay" id="ban-modal">
@@ -259,6 +451,9 @@ async function loadData() {
   allKingdoms = kingdoms;
   renderTable(kingdoms);
   loadAiSynopsis();
+  loadMods();
+  loadChatBans();
+  loadAdminNotes();
 }
 
 function renderTable(rows) {
@@ -307,9 +502,12 @@ async function openEditModal(kingdomId, kingdomName) {
   document.getElementById('edit-modal').classList.add('open');
 
   var k = await api('GET', '/api/admin/kingdom-detail/' + kingdomId);
-  console.log('[admin edit] kingdom fetch:', kingdomId, k);
-  if (!k || k.error !== undefined) {
-    document.getElementById('edit-fields').innerHTML = '<div style="color:var(--red);padding:20px;grid-column:1/-1">Error: ' + (k && k.error ? k.error : JSON.stringify(k)) + '</div>';
+  if (!k || k.error) {
+    document.getElementById('edit-fields').innerHTML = '<div style="color:var(--red);padding:20px;grid-column:1/-1">Error: ' + (k && k.error ? k.error : 'No response from server') + '</div>';
+    return;
+  }
+  if (!k.id) {
+    document.getElementById('edit-fields').innerHTML = '<div style="color:var(--red);padding:20px;grid-column:1/-1">Kingdom not found (id=' + kingdomId + ')</div>';
     return;
   }
 
@@ -466,6 +664,82 @@ async function unban(playerId, username) {
   var r = await api('POST','/api/admin/unban',{playerId:playerId});
   if (r.error) return toast(r.error,'error');
   toast(username+' unbanned','success'); loadData();
+}
+
+function showAdminTab(id, btn) {
+  document.querySelectorAll('.atab').forEach(function(t){ t.style.display='none'; });
+  document.querySelectorAll('.admin-tab').forEach(function(b){ b.classList.remove('active'); });
+  document.getElementById('atab-'+id).style.display='block';
+  if (btn) btn.classList.add('active');
+}
+
+function saveAdminNotes() {
+  var notes = document.getElementById('admin-notes').value;
+  localStorage.setItem('narmir_admin_notes', notes);
+  toast('Notes saved', 'success');
+}
+
+function loadAdminNotes() {
+  var notes = localStorage.getItem('narmir_admin_notes') || '';
+  var el = document.getElementById('admin-notes');
+  if (el) el.value = notes;
+}
+
+async function promotemod() {
+  var u = document.getElementById('mod-username').value.trim();
+  var r = document.getElementById('mod-result');
+  if (!u) return;
+  var res = await api('POST', '/api/admin/chat-mod', { username: u, action: 'promote' });
+  r.style.color = res.error ? 'var(--red)' : 'var(--green)';
+  r.textContent = res.error ? '✗ ' + res.error : '✓ ' + u + ' is now a chat mod';
+  if (!res.error) loadMods();
+}
+
+async function demotemod() {
+  var u = document.getElementById('demod-username').value.trim();
+  var r = document.getElementById('mod-result');
+  if (!u) return;
+  var res = await api('POST', '/api/admin/chat-mod', { username: u, action: 'demote' });
+  r.style.color = res.error ? 'var(--red)' : 'var(--amber)';
+  r.textContent = res.error ? '✗ ' + res.error : '✓ ' + u + ' removed from mods';
+  if (!res.error) loadMods();
+}
+
+async function loadMods() {
+  var el = document.getElementById('mod-list');
+  var mods = await api('GET', '/api/admin/chat-mods');
+  if (!Array.isArray(mods) || mods.length === 0) { el.textContent = 'No chat moderators.'; return; }
+  el.innerHTML = mods.map(function(m) {
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border)">'
+      + '<span style="color:var(--purple)">🛡️ ' + m.username + '</span>'
+      + '<button class="btn btn-red" style="font-size:11px;padding:2px 8px" onclick="quickDemod(\'' + m.username + '\')">Remove</button>'
+      + '</div>';
+  }).join('');
+}
+
+async function quickDemod(u) {
+  await api('POST', '/api/admin/chat-mod', { username: u, action: 'demote' });
+  loadMods();
+}
+
+async function loadChatBans() {
+  var el = document.getElementById('chat-ban-list');
+  var bans = await api('GET', '/api/admin/chat-bans');
+  if (!Array.isArray(bans) || bans.length === 0) { el.innerHTML = '<div style="color:var(--text3)">No chat bans.</div>'; return; }
+  el.innerHTML = bans.map(function(b) {
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)">'
+      + '<div><div style="color:var(--red)">' + b.username + '</div>'
+      + '<div style="font-size:11px;color:var(--text3)">' + (b.chat_ban_reason || 'No reason') + '</div></div>'
+      + '<button class="btn btn-green" style="font-size:11px;padding:2px 8px" onclick="chatUnban(\'' + b.username + '\')">Unban</button>'
+      + '</div>';
+  }).join('');
+}
+
+async function chatUnban(username) {
+  var res = await api('POST', '/api/admin/chat-unban', { username });
+  if (res.error) return toast(res.error, 'error');
+  toast(username + ' unbanned from chat', 'success');
+  loadChatBans();
 }
 
 async function promotePlayer() {
