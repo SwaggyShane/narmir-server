@@ -2910,6 +2910,15 @@ function syncUI() {
   if (freeLandEl) freeLandEl.textContent = trunc(freeLand);
   var moraleEl = document.getElementById('m-morale');
   if (moraleEl) moraleEl.textContent = (state.morale || 0) + '%';
+  // Sync tax slider to saved state
+  var taxSliderSync = document.getElementById('tax-slider');
+  if (taxSliderSync && parseInt(taxSliderSync.value) !== (state.tax || 42)) {
+    taxSliderSync.value = state.tax || 42;
+    var taxDispSync = document.getElementById('tax-disp');
+    if (taxDispSync) taxDispSync.textContent = (state.tax || 42) + '%';
+    var mtaxSync = document.getElementById('m-tax');
+    if (mtaxSync) mtaxSync.textContent = (state.tax || 42) + '%';
+  }
   var foodEl = document.getElementById('m-food');
   if (foodEl) foodEl.textContent = trunc(state.food || 0);
   document.getElementById('hire-pop').textContent = fmt(state.pop || 0);
@@ -3312,6 +3321,10 @@ async function loadKingdom() {
   // Options panel race display
   var optRaceEl = document.getElementById('options-race-display');
   if (optRaceEl) optRaceEl.textContent = race.label + ' — ' + race.bonus;
+
+  // Set tax slider to saved value
+  var taxSlider = document.getElementById('tax-slider');
+  if (taxSlider) { taxSlider.value = kingdom.tax || 42; updateTax(kingdom.tax || 42); }
 
   loadRankings();
   loadNews();
