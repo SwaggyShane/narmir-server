@@ -388,7 +388,7 @@
       <div class="metric">
         <div class="lbl">Population</div>
         <div class="val" id="m-pop">50k</div>
-        <div class="sub">+310/turn</div>
+        <div class="sub">cap: <span id="m-pop-cap">50k</span></div>
       </div>
       <div class="metric">
         <div class="lbl">Morale</div>
@@ -715,6 +715,13 @@
           <span class="count" id="bld-armories">0</span>
           <input type="number" id="ba-armory" min="0" value="0" oninput="updateBuildDisplay()" style="width:80px" placeholder="Eng">
           <button class="btn" onclick="setBuildMax('ba-armory','armory')" style="padding:5px 10px;font-size:11px">Max</button>
+        </div>
+        <div class="trow">
+          <span class="bld-icon" style="background:#4a5a3a">🏘️</span>
+          <span class="name">Housing</span><span class="desc">Houses 500 population each · 1 land</span>
+          <span class="count" id="bld-housing">0</span>
+          <input type="number" id="ba-housing" min="0" value="0" oninput="updateBuildDisplay()" style="width:80px" placeholder="Eng">
+          <button class="btn" onclick="setBuildMax('ba-housing','housing')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
         <div class="trow">
           <span class="bld-icon" style="background:#3a6a3a">💰</span>
@@ -1500,7 +1507,7 @@ var state = {
   thieves:0, ninjas:0, researchers:500, engineers:0, scribes:0,
   bld_libraries:0, library_allocation:{}, library_progress:{}, scrolls:{},
   maps:0, blueprints_stored:0, active_effects:{},
-  bld_shrines:0, mage_tower_allocation:{}, shrine_allocation:{}
+  bld_shrines:0, mage_tower_allocation:{}, shrine_allocation:{}, bld_housing:100
 };
 
 function fmt(n) { return Math.round(n).toLocaleString(); }
@@ -2240,11 +2247,20 @@ function syncUI() {
   document.getElementById('m-gold').textContent = trunc(state.gold || 0);
   document.getElementById('m-mana').textContent = trunc(state.mana || 0);
   document.getElementById('m-pop').textContent  = trunc(state.pop  || 0);
+  var housingCap = (state.bld_housing || 0) * 500;
+  var popCapEl = document.getElementById('m-pop-cap');
+  if (popCapEl) popCapEl.textContent = trunc(housingCap);
+  if (popCapEl && (state.pop || 0) > housingCap && housingCap > 0) {
+    popCapEl.style.color = 'var(--red)';
+  } else if (popCapEl) {
+    popCapEl.style.color = '';
+  }
   document.getElementById('m-land').textContent = trunc(state.land || 0);
   // Calculate used land from buildings
   var LAND_COST = {
     bld_farms:1, bld_barracks:1, bld_outposts:1, bld_guard_towers:1, bld_armories:1, bld_vaults:1,
     bld_schools:2, bld_smithies:2, bld_markets:2, bld_colosseums:2, bld_shrines:2, bld_libraries:2,
+    bld_housing:1,
     bld_cathedrals:5, bld_training:5,
     bld_castles:10,
   };
@@ -2317,7 +2333,7 @@ function syncUI() {
     guard_towers:'bld_guard_towers', schools:'bld_schools', armories:'bld_armories',
     vaults:'bld_vaults', smithies:'bld_smithies', markets:'bld_markets',
     cathedrals:'bld_cathedrals', training:'bld_training', colosseums:'bld_colosseums',
-    castles:'bld_castles', libraries:'bld_libraries', shrines:'bld_shrines',
+    castles:'bld_castles', libraries:'bld_libraries', shrines:'bld_shrines', housing:'bld_housing',
     weapons_stockpile:'weapons_stockpile', armor_stockpile:'armor_stockpile',
     war_machines:'war_machines'
   };
@@ -2552,6 +2568,7 @@ async function loadKingdom() {
     mages: kingdom.mages, thieves: kingdom.thieves, ninjas: kingdom.ninjas,
     researchers: kingdom.researchers, engineers: kingdom.engineers, scribes: kingdom.scribes || 0,
     bld_shrines: kingdom.bld_shrines || 0,
+    bld_housing: kingdom.bld_housing || 0,
     mage_tower_allocation: kingdom.mage_tower_allocation || {},
     shrine_allocation:     kingdom.shrine_allocation     || {},
     library_allocation: kingdom.library_allocation || {},
@@ -2827,6 +2844,7 @@ var BUILD_FIELDS = [
   { id:'b-tower',     key:'tower',       pieces:2,   alloc:'ba-tower'     },
   { id:'b-school',    key:'school',      pieces:5,   alloc:'ba-school'    },
   { id:'b-armory',    key:'armory',      pieces:5,   alloc:'ba-armory'    },
+  { id:'b-housing',   key:'housing',     pieces:50,  alloc:'ba-housing'   },
   { id:'b-vault',     key:'vault',       pieces:5,   alloc:'ba-vault'     },
   { id:'b-smithy',    key:'smithy',      pieces:15,  alloc:'ba-smithy'    },
   { id:'b-market',    key:'market',      pieces:30,  alloc:'ba-market'    },
@@ -2889,7 +2907,7 @@ function loadBuildAllocation() {
     farm:'farms', barracks:'barracks', outpost:'outposts', tower:'guard_towers',
     school:'schools', armory:'armories', vault:'vaults', smithy:'smithies',
     market:'markets', cathedral:'cathedrals', training:'training',
-    colosseum:'colosseums', shrine:'shrines', castle:'castles', library:'libraries', war_machine:'war_machines',
+    colosseum:'colosseums', shrine:'shrines', castle:'castles', library:'libraries', housing:'housing', war_machine:'war_machines',
     weapons:'weapons', armor:'armor'
   };
   BUILD_FIELDS.forEach(function(f) {
@@ -2911,7 +2929,7 @@ async function releaseAllResearchers() {
 
 async function releaseAllEngineers() {
   var BA_FIELDS = ['ba-farm','ba-barracks','ba-outpost','ba-tower','ba-school','ba-armory','ba-vault',
-    'ba-smithy','ba-market','ba-cathedral','ba-training','ba-colosseum','ba-shrine','ba-castle','ba-library','ba-wm','ba-weapons','ba-armor'];
+    'ba-smithy','ba-market','ba-cathedral','ba-training','ba-colosseum','ba-shrine','ba-castle','ba-library','ba-housing','ba-wm','ba-weapons','ba-armor'];
   BA_FIELDS.forEach(function(id) { var el = document.getElementById(id); if (el) el.value = 0; });
   updateBuildDisplay();
   var result = await apiCall('POST', '/api/kingdom/build-allocation', { allocation: {} });
@@ -2926,7 +2944,7 @@ async function saveBuildAllocation() {
     farm:'farms', barracks:'barracks', outpost:'outposts', tower:'guard_towers',
     school:'schools', armory:'armories', vault:'vaults', smithy:'smithies',
     market:'markets', cathedral:'cathedrals', training:'training',
-    colosseum:'colosseums', shrine:'shrines', castle:'castles', library:'libraries', war_machine:'war_machines',
+    colosseum:'colosseums', shrine:'shrines', castle:'castles', library:'libraries', housing:'housing', war_machine:'war_machines',
     weapons:'weapons', armor:'armor'
   };
   var total = 0;
@@ -2961,7 +2979,7 @@ async function buildAll() {
     farm:'farms', barracks:'barracks', outpost:'outposts', tower:'guard_towers',
     school:'schools', armory:'armories', vault:'vaults', smithy:'smithies',
     market:'markets', cathedral:'cathedrals', training:'training',
-    colosseum:'colosseums', shrine:'shrines', castle:'castles', library:'libraries', war_machine:'war_machines',
+    colosseum:'colosseums', shrine:'shrines', castle:'castles', library:'libraries', housing:'housing', war_machine:'war_machines',
     weapons:'weapons', armor:'armor'
   };
 
@@ -3000,20 +3018,20 @@ function renderBuildQueue() {
   var BUILDING_COST_JS = {
     farms:2500, barracks:5000, outposts:7500, guard_towers:2500,
     schools:7500, armories:2500, vaults:10000, smithies:10000,
-    markets:10000, cathedrals:15000, training:20000, colosseums:5000, shrines:5000,
+    markets:10000, cathedrals:15000, training:20000, colosseums:5000, shrines:5000, housing:5000,
     castles:100000, war_machine:200, weapons:10, armor:10
   };
   var labels = {
     farms:'Farms', barracks:'Barracks', outposts:'Outposts', guard_towers:'Guard Towers',
     schools:'Schools', armories:'Armories', vaults:'Vaults', smithies:'Smithies',
     markets:'Market Places', cathedrals:'Mage Towers', training:'Training Fields',
-    colosseums:'Taverns', shrines:'Shrines', castles:'Castles', war_machine:'War Machines',
+    colosseums:'Taverns', shrines:'Shrines', housing:'Housing', castles:'Castles', war_machine:'War Machines',
     weapons:'Weapons', armor:'Armor'
   };
   var icons = {
     farms:'🌾', barracks:'🏠', outposts:'🏴', guard_towers:'🗼',
     schools:'📚', armories:'🛡️', vaults:'💰', smithies:'⚒️',
-    markets:'🏪', cathedrals:'🗼', training:'⚔️', colosseums:'🍺', shrines:'⛩️',
+    markets:'🏪', cathedrals:'🗼', training:'⚔️', colosseums:'🍺', shrines:'⛩️', housing:'🏘️',
     castles:'🏰', war_machine:'🪖', weapons:'🗡️', armor:'🔰'
   };
 
@@ -3022,7 +3040,7 @@ function renderBuildQueue() {
     farm:'farms', barracks:'barracks', outpost:'outposts', tower:'guard_towers',
     school:'schools', armory:'armories', vault:'vaults', smithy:'smithies',
     market:'markets', cathedral:'cathedrals', training:'training',
-    colosseum:'colosseums', shrine:'shrines', castle:'castles', library:'libraries', war_machine:'war_machine',
+    colosseum:'colosseums', shrine:'shrines', castle:'castles', library:'libraries', housing:'housing', war_machine:'war_machine',
     weapons:'weapons', armor:'armor'
   };
 
