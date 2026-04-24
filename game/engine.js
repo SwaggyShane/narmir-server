@@ -71,17 +71,30 @@ function foodBalance(k) {
   return production - consumption;
 }
 
+// Race-specific population per housing building
+const HOUSING_CAP_BY_RACE = {
+  dwarf:     650,  // +30% — master builders, compact stone halls
+  orc:       600,  // +20% — pack together, unbothered by cramped conditions
+  human:     500,  // baseline
+  dark_elf:  450,  // -10% — selective underground warrens
+  high_elf:  350,  // -30% — require spacious dwellings
+  dire_wolf: 700,  // +40% — den living, natural pack animals
+};
+
+function housingCapPerBuilding(race) {
+  return HOUSING_CAP_BY_RACE[race] || 500;
+}
+
 function popGrowth(k) {
   if (k.morale < 30) return -Math.floor(k.population * 0.02);
 
-  const housingCap = (k.bld_housing || 0) * 500;
+  const capPerBuilding = housingCapPerBuilding(k.race);
+  const housingCap = (k.bld_housing || 0) * capPerBuilding;
   const pop = k.population || 0;
 
-  // Overcrowding — population above housing cap loses morale each turn (handled in processTurn)
-  // Growth slows to 10% if over cap, stops at 2× cap
   let growthMult = 1.0;
-  if (housingCap > 0 && pop >= housingCap * 2) return 0; // hard stop at 2× cap
-  if (housingCap > 0 && pop > housingCap) growthMult = 0.10; // trickle growth when overcrowded
+  if (housingCap > 0 && pop >= housingCap * 2) return 0;
+  if (housingCap > 0 && pop > housingCap) growthMult = 0.10;
 
   const base = Math.floor(pop * 0.003);
   const entertainment = Math.floor(k.res_entertainment / 100) * 10;
@@ -230,10 +243,14 @@ function processTurn(k) {
 
   // ── 6. Morale ─────────────────────────────────────────────────────────────────
   {
-    const housingCap = (k.bld_housing || 0) * 500;
+    const capPerBuilding = housingCapPerBuilding(k.race);
+    const housingCap = (k.bld_housing || 0) * capPerBuilding;
     const overcrowded = housingCap > 0 && (k.population || 0) > housingCap;
+
+    // Race overcrowding penalty modifiers
+    const overcrowdMult = { dire_wolf: 0.5, high_elf: 2.0 }[k.race] || 1.0;
     const overcrowdPenalty = overcrowded
-      ? Math.floor(((k.population || 0) - housingCap) / 1000)
+      ? Math.max(0, Math.floor(((k.population || 0) - housingCap) / 1000 * overcrowdMult))
       : 0;
 
     if (k.tax > 50) {
