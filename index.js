@@ -378,6 +378,37 @@ async function start() {
   app.use('/api/kingdom', turnLimiter,  require('./routes/kingdom')(db));
   app.use('/api/admin',                 require('./routes/admin')(db, io));
 
+  app.get('/api/alliance/my', requireAuth, async (req, res) => {
+    const kingdom = await db.get('SELECT id FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
+    if (!kingdom) return res.status(404).json({ error: 'Kingdom not found' });
+    const membership = await db.get('SELECT * FROM alliance_members WHERE kingdom_id = ?', [kingdom.id]);
+    if (!membership) return res.json({ alliance: null });
+    const alliance = await db.get('SELECT * FROM alliances WHERE id = ?', [membership.alliance_id]);
+    const members = await db.all(`
+      SELECT k.id, k.name, k.race, k.land, k.fighters, k.level, am.pledge
+      FROM kingdoms k JOIN alliance_members am ON k.id = am.kingdom_id
+      WHERE am.alliance_id = ? ORDER BY k.land DESC`, [membership.alliance_id]);
+    res.json({ alliance, members, myPledge: membership.pledge, isLeader: alliance.leader_id === kingdom.id });
+  });
+
+  app.post('/api/alliance/pledge', requireAuth, async (req, res) => {
+    const kingdom = await db.get('SELECT id FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
+    const { pledge } = req.body;
+    const p = Math.max(0, Math.min(10, Number(pledge) || 3));
+    await db.run('UPDATE alliance_members SET pledge = ? WHERE kingdom_id = ?', [p, kingdom.id]);
+    res.json({ ok: true, pledge: p });
+  });
+
+  app.post('/api/alliance/dismiss', requireAuth, async (req, res) => {
+    const kingdom = await db.get('SELECT id FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
+    const alliance = await db.get('SELECT * FROM alliances WHERE leader_id = ?', [kingdom.id]);
+    if (!alliance) return res.status(403).json({ error: 'Only leader can dismiss members' });
+    const { targetKingdomId } = req.body;
+    if (targetKingdomId === kingdom.id) return res.status(400).json({ error: 'Cannot dismiss yourself' });
+    await db.run('DELETE FROM alliance_members WHERE kingdom_id = ? AND alliance_id = ?', [targetKingdomId, alliance.id]);
+    res.json({ ok: true });
+  });
+
   app.post('/api/alliance/create', requireAuth, async (req, res) => {
     const { name } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: 'Alliance name required' });
