@@ -226,19 +226,60 @@ function processTurn(k) {
   }
 
   // ── 5. Troop upkeep ───────────────────────────────────────────────────────────
-  // Aggressive races cost more to maintain; dwarves are disciplined and cost less
+  // Researchers, engineers, scribes are exempt if housed in their buildings.
+  // Overflow (unhomed) units pay normal upkeep.
+
+  // Racial capacity multipliers for support buildings
+  const SUPPORT_CAP_RACE = {
+    high_elf:  { researcher: 1.5, engineer: 1.0, scribe: 1.5 },
+    dwarf:     { researcher: 0.9, engineer: 1.5, scribe: 1.0 },
+    dire_wolf: { researcher: 0.7, engineer: 1.0, scribe: 0.7 },
+    dark_elf:  { researcher: 1.2, engineer: 0.9, scribe: 1.3 },
+    human:     { researcher: 1.0, engineer: 1.0, scribe: 1.0 },
+    orc:       { researcher: 0.8, engineer: 1.2, scribe: 0.8 },
+  };
+  const capRace = SUPPORT_CAP_RACE[k.race] || { researcher: 1.0, engineer: 1.0, scribe: 1.0 };
+
+  // Capacity per building (base × race multiplier)
+  const researcherCap = Math.floor((k.bld_schools    || 0) * 100 * capRace.researcher);
+  const engineerCap   = Math.floor((k.bld_smithies   || 0) * 50  * capRace.engineer);
+  const scribeCap     = Math.floor((k.bld_libraries  || 0) * 20  * capRace.scribe);
+
+  // Overflow = units beyond capacity → pay upkeep; housed units are free
+  const researcherOverflow = Math.max(0, (k.researchers || 0) - researcherCap);
+  const engineerOverflow   = Math.max(0, (k.engineers   || 0) - engineerCap);
+  const scribeOverflow     = Math.max(0, (k.scribes     || 0) - scribeCap);
+
+  // Combat/support troops always pay upkeep
   const upkeepMult = {
     high_elf: 1.00, dwarf: 0.85, dire_wolf: 1.20,
     dark_elf: 1.10, human: 1.00, orc: 1.15,
   }[k.race] || 1.0;
-  const totalTroops = (k.fighters||0) + (k.rangers||0) + (k.clerics||0) + (k.mages||0) +
-                      (k.thieves||0) + (k.ninjas||0);
+
+  const combatTroops = (k.fighters||0) + (k.rangers||0) + (k.clerics||0) +
+                       (k.mages||0) + (k.thieves||0) + (k.ninjas||0);
+  const supportOverflow = researcherOverflow + engineerOverflow + scribeOverflow;
+  const totalTroops = combatTroops + supportOverflow;
+
   const barrackDiscount = Math.min(0.5, Math.floor((k.bld_barracks||0) / 2) * 0.01);
   const upkeep = Math.floor(totalTroops * upkeepMult * (1 - barrackDiscount));
+
+  // Build housing status message for support units
+  const housedResearchers = Math.min(k.researchers||0, researcherCap);
+  const housedEngineers   = Math.min(k.engineers  ||0, engineerCap);
+  const housedScribes     = Math.min(k.scribes    ||0, scribeCap);
+  const totalHoused = housedResearchers + housedEngineers + housedScribes;
+
   if (upkeep > 0) {
     updates.gold = (updates.gold || k.gold) - upkeep;
     if (updates.gold < 0) updates.gold = 0;
-    events.push({ type: 'system', message: `⚔️ Troop upkeep: -${upkeep.toLocaleString()} gold (${totalTroops.toLocaleString()} troops${barrackDiscount > 0 ? ', barracks discount applied' : ''}).` });
+    let msg = `⚔️ Troop upkeep: -${upkeep.toLocaleString()} gold (${totalTroops.toLocaleString()} billable`;
+    if (totalHoused > 0) msg += `, ${totalHoused.toLocaleString()} support units housed free`;
+    if (barrackDiscount > 0) msg += `, barracks discount applied`;
+    msg += `).`;
+    events.push({ type: 'system', message: msg });
+  } else if (totalHoused > 0) {
+    events.push({ type: 'system', message: `✅ All support units housed — no upkeep cost this turn.` });
   }
 
   // ── 6. Morale ─────────────────────────────────────────────────────────────────
@@ -1741,5 +1782,5 @@ module.exports = {
   resolveAllianceDefence, resolveExpeditions,
   awardXp, xpForLevel, xpToNextLevel, levelFromXp,
   awardTroopXp, troopXpForLevel, effectiveTroopLevel,
-  TROOP_RACE_BONUS, RACE_BONUSES, UNIT_COST, BUILDING_COST, BUILDING_GOLD_COST, BUILDING_LAND_COST, BUILDING_COL, SPELL_DEFS, SCROLL_REQUIREMENTS, SCRIBE_ITEMS,
+  TROOP_RACE_BONUS, RACE_BONUSES, UNIT_COST, BUILDING_COST, BUILDING_GOLD_COST, BUILDING_LAND_COST, BUILDING_COL, SPELL_DEFS, SCROLL_REQUIREMENTS, SCRIBE_ITEMS, HOUSING_CAP_BY_RACE,
 };
