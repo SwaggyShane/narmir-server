@@ -105,6 +105,8 @@ textarea{width:100%;resize:vertical;min-height:60px}
     <input type="text" id="search-input" placeholder="Search by name or username..." style="width:220px" oninput="filterTable(this.value)">
     <button class="btn btn-green" onclick="resetAllTurns()">Reset all turns to 200</button>
     <button class="btn btn-red" onclick="resetAllKingdoms()" style="margin-left:4px">⚠️ Reset all kingdoms to start</button>
+    <button class="btn" onclick="seedAi()" style="margin-left:4px">🤖 Seed AI kingdoms</button>
+    <button class="btn btn-amber" onclick="resetAi()" style="margin-left:4px">🔄 Reset AI kingdoms</button>
   </div>
 
   <div style="overflow-x:auto">
@@ -317,6 +319,21 @@ async function resetTurns(kingdomId, name) {
   var r = await api('POST','/api/admin/reset-turns',{kingdomId:kingdomId});
   if (r.error) return toast(r.error,'error');
   toast('Turns reset for '+name,'success'); loadData();
+}
+
+async function seedAi() {
+  var r = await api('POST', '/api/admin/seed-ai');
+  if (r.error) return toast(r.error, 'error');
+  toast(r.message, 'success');
+  loadData();
+}
+
+async function resetAi() {
+  if (!confirm('Reset all AI kingdoms back to starting stats?')) return;
+  var r = await api('POST', '/api/admin/reset-ai');
+  if (r.error) return toast(r.error, 'error');
+  toast('Reset ' + r.reset + ' AI kingdoms', 'success');
+  loadData();
 }
 
 async function resetAllKingdoms() {
