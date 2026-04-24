@@ -339,6 +339,7 @@
 
     <div class="nav-section">Social</div>
     <button class="nav-item" onclick="switchTab('rankings',this)"><span class="icon">🏆</span>Rankings</button>
+    <button class="nav-item" onclick="switchTab('war_panel',this)"><span class="icon">⚔️</span>War Log</button>
     <button class="nav-item" onclick="switchTab('alliances',this)"><span class="icon">&#9876;</span>Alliances</button>
     <button class="nav-item" onclick="switchTab('news',this)"><span class="icon">&#9741;</span>News <span id="news-badge" class="nav-badge">3</span></button>
     <button class="nav-item" onclick="toast('Chat will connect via Socket.io in the next build','warn');this.classList.remove('active')"><span class="icon">&#9650;</span>Chat</button>
@@ -1420,6 +1421,20 @@
   </div>
 </div>
 
+<!-- WAR LOG -->
+<div id="war_panel" class="panel" style="display:none">
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <div class="card-title" style="margin:0">⚔️ War Log</div>
+      <button class="btn" onclick="loadWarLog()">↻ Refresh</button>
+    </div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:14px">All kingdom-to-kingdom actions. Successful covert operations show the target but not the attacker.</div>
+    <div id="war-log-list">
+      <div style="color:var(--text3);font-size:13px;text-align:center;padding:24px 0">Loading war log...</div>
+    </div>
+  </div>
+</div>
+
 <!-- RANKINGS -->
 <div id="rankings" class="panel" style="display:none">
   <div class="card">
@@ -2235,6 +2250,7 @@ function switchTab(id, btn) {
     if (rankingsCache.length > 0) renderRankingsPanel(rankingsCache);
     else loadRankings(true);
   }
+  if (id === 'war_panel') { loadWarLog(); }
   if (id === 'shrine') {
     renderShrinePanel();
   }
@@ -2515,6 +2531,7 @@ function updateTurnsDisplay() {
   <button class="bnav-item" onclick="switchTabMobile('covert',this)"><span class="bicon">🕵️</span>Covert</button>
   <div class="bnav-sep"></div>
   <button class="bnav-item" onclick="switchTabMobile('rankings',this)"><span class="bicon">🏆</span>Ranks</button>
+  <button class="bnav-item" onclick="switchTabMobile('war_panel',this)"><span class="bicon">⚔️</span>War Log</button>
   <button class="bnav-item" onclick="switchTabMobile('alliances',this)"><span class="bicon">🤝</span>Allies</button>
   <button class="bnav-item" onclick="switchTabMobile('news',this)"><span class="bicon">📰</span>News<span id="bnav-news-badge" class="bnav-badge">3</span></button>
   <div class="bnav-sep"></div>
@@ -2900,7 +2917,95 @@ function appendNewsItems(events) {
   }
 }
 
-var rankingsCache = [];
+// ── War Log ───────────────────────────────────────────────────────────────────
+
+var ACTION_ICONS = {
+  attack:      '⚔️',
+  spy:         '🕵️',
+  loot:        '💰',
+  assassinate: '🗡️',
+  sabotage:    '💣',
+  spell:       '✨',
+};
+
+var ACTION_LABELS = {
+  attack:      'Military Attack',
+  spy:         'Spy Mission',
+  loot:        'Loot',
+  assassinate: 'Assassination',
+  sabotage:    'Sabotage',
+  spell:       'Spell Cast',
+};
+
+async function loadWarLog() {
+  var el = document.getElementById('war-log-list');
+  if (el) el.innerHTML = '<div style="color:var(--text3);font-size:13px;text-align:center;padding:24px 0">Loading...</div>';
+  var rows = await apiCall('GET', '/api/kingdom/war-log');
+  if (!Array.isArray(rows)) {
+    if (el) el.innerHTML = '<div style="color:var(--text3);font-size:13px;text-align:center;padding:24px 0">No events yet.</div>';
+    return;
+  }
+  renderWarLog(rows);
+}
+
+function renderWarLog(rows) {
+  var el = document.getElementById('war-log-list');
+  if (!el) return;
+  if (rows.length === 0) {
+    el.innerHTML = '<div style="color:var(--text3);font-size:13px;text-align:center;padding:24px 0">No kingdom interactions yet. Start a war!</div>';
+    return;
+  }
+
+  var html = '';
+  rows.forEach(function(r) {
+    var icon    = ACTION_ICONS[r.action_type]  || '⚔️';
+    var label   = ACTION_LABELS[r.action_type] || r.action_type;
+    var isCovert= ['spy','loot','assassinate','sabotage'].includes(r.action_type);
+    var win     = r.outcome === 'victory' || r.outcome === 'success';
+    var caught  = r.outcome === 'caught';
+
+    // Covert: hide attacker name if successful, show if caught
+    var atkDisplay = (isCovert && win) ? '<span style="color:var(--text3)">Unknown</span>' : '<span style="color:var(--red)">' + (r.attacker_name || '?') + '</span>';
+    var defDisplay = '<span style="color:var(--text2)">' + (r.defender_name || '?') + '</span>';
+
+    var outcomeColor = win ? 'var(--green)' : caught ? 'var(--amber)' : 'var(--text3)';
+    var outcomeLabel = win ? (r.action_type === 'attack' ? 'Victory' : 'Success') : caught ? 'Caught' : 'Repelled';
+
+    // Highlight row if we're involved
+    var myId = state.kingdomId;
+    var isMe = r.attacker_id === myId || r.defender_id === myId;
+    var rowBg = isMe ? 'background:rgba(124,106,245,.06);' : '';
+
+    var ago = timeAgo(r.created_at);
+
+    html += '<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);' + rowBg + '">'
+      + '<span style="font-size:20px;flex-shrink:0">' + icon + '</span>'
+      + '<div style="flex:1;min-width:0">'
+      + '<div style="font-size:13px;line-height:1.5">'
+      + atkDisplay + ' <span style="color:var(--text3)">→</span> ' + defDisplay
+      + ' <span style="color:var(--text3);font-size:12px">· ' + label + '</span>'
+      + '</div>'
+      + (r.detail ? '<div style="font-size:12px;color:var(--text3);margin-top:2px">' + r.detail + '</div>' : '')
+      + '</div>'
+      + '<div style="text-align:right;flex-shrink:0">'
+      + '<div style="font-size:12px;font-weight:600;color:' + outcomeColor + '">' + outcomeLabel + '</div>'
+      + '<div style="font-size:11px;color:var(--text3);margin-top:2px">' + ago + '</div>'
+      + '</div>'
+      + '</div>';
+  });
+
+  el.innerHTML = html;
+}
+
+function timeAgo(unixTs) {
+  var diff = Math.floor(Date.now() / 1000) - unixTs;
+  if (diff < 60)   return 'just now';
+  if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+  if (diff < 86400)return Math.floor(diff / 3600) + 'h ago';
+  return Math.floor(diff / 86400) + 'd ago';
+}
+
+// ── Rankings ──────────────────────────────────────────────────────────────────
 
 var RACE_ICONS = {
   high_elf:'🧝', dwarf:'⛏️', dire_wolf:'🐺', dark_elf:'🗡️', human:'👑', orc:'💀'
