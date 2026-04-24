@@ -212,26 +212,31 @@ textarea{width:100%;resize:vertical;min-height:60px}
       <div class="cl-item">✅ Three-column desktop status layout (military, research, buildings)</div>
 
       <div class="cl-section">Economy</div>
-      <div class="cl-item">✅ Race-adjusted gold production (Dwarf 457 base, all races scaled)</div>
-      <div class="cl-item">✅ Tax slider with lock — persists server-side</div>
-      <div class="cl-item">✅ Markets and castles add flat gold bonuses</div>
-      <div class="cl-item">✅ Gold income XP awards</div>
+      <div class="cl-item">✅ Race-adjusted gold production — Dwarf 457, Orc 418, High Elf/Human 399, Dark Elf 342, Dire Wolf 266 GC/turn base (404 land, 42% tax)</div>
+      <div class="cl-item">✅ Tax slider with lock — persists server-side, loads correctly on login</div>
+      <div class="cl-item">✅ Markets and castles add flat gold bonuses per building</div>
 
       <div class="cl-section">Buildings</div>
       <div class="cl-item">✅ 14 building types — continuous build from engineer allocation</div>
       <div class="cl-item">✅ Build queue shows turn estimate per building type</div>
-      <div class="cl-item">✅ Tool system — hammers, scaffolding, blueprints speed construction</div>
+      <div class="cl-item">✅ Blueprints — crafted by scribes in library, stored in smithy (25/smithy cap), required for 100t+ buildings, consumed on completion, drop from dungeons (20%)</div>
+      <div class="cl-item">✅ Hammers — produced in smithy (1 turn each, 25/smithy cap), +5% build speed each, degrade over 20 turns of active use with durability display</div>
+      <div class="cl-item">✅ Scaffolding — produced in smithy (1 turn + 2,500 GC each, 10/smithy cap), required for 100t+ buildings, speed bonus for under 100t buildings (scales inversely), single use consumed on completion</div>
+      <div class="cl-item">✅ Smithy panel — shows stored hammers (with durability %), scaffolding, blueprints, all caps, production allocation sliders</div>
+      <div class="cl-item">✅ Build panel notices — 📐 Blueprint needed / 🪜 Scaffolding needed badges beside buildings missing required tools</div>
       <div class="cl-item">✅ Building caps scale with kingdom level</div>
       <div class="cl-item">✅ Libraries — house scribes and mages</div>
 
-      <div class="cl-section">Units & Upkeep</div>
+      <div class="cl-section">Units &amp; Upkeep</div>
       <div class="cl-item">✅ 9 hirable unit types including scribes and engineers</div>
-      <div class="cl-item">✅ Housing — race-specific capacity (Dwarf 650, Dire Wolf 700, High Elf 350...)</div>
-      <div class="cl-item">✅ Support unit housing — researchers in schools, engineers in smithies, scribes in libraries</div>
-      <div class="cl-item">✅ Housed support units pay no upkeep — overflow units do</div>
-      <div class="cl-item">✅ Barracks discount on military upkeep</div>
+      <div class="cl-item">✅ Housing capacity by race — Dire Wolf 700, Dwarf 650, Orc 600, Human 500, Dark Elf 450, High Elf 350 per house. Dire Wolf overcrowding penalty ×0.5, High Elf ×2.0</div>
+      <div class="cl-item">✅ Support unit housing — researchers in schools (100/school), engineers in smithies (50/smithy), scribes in libraries (20/library) — all with racial capacity multipliers</div>
+      <div class="cl-item">✅ Housed support units pay no upkeep — overflow units do. Combat troops always pay upkeep.</div>
+      <div class="cl-item">✅ Upkeep race multipliers — Dwarf ×0.85, Human/High Elf ×1.0, Dark Elf ×1.1, Orc ×1.15, Dire Wolf ×1.2</div>
+      <div class="cl-item">✅ Barracks discount on military upkeep (up to 50%)</div>
+      <div class="cl-item">✅ Hire panel shows school/smithy/library capacity with overflow highlighted red</div>
 
-      <div class="cl-section">Research</div>
+            <div class="cl-section">Research</div>
       <div class="cl-item">✅ 10 research disciplines with allocation panel</div>
       <div class="cl-item">✅ Distribute evenly and Release all buttons</div>
       <div class="cl-item">✅ Research bars only — no percentage numbers</div>
@@ -239,11 +244,14 @@ textarea{width:100%;resize:vertical;min-height:60px}
 
       <div class="cl-section">Exploration</div>
       <div class="cl-item">✅ Scout (10t), Deep (25t), Dungeon (50t) expeditions</div>
-      <div class="cl-item">✅ Ranger-scaled rewards with random 5–30% gold bonus based on forage rate × turns</div>
-      <div class="cl-item">✅ Race exploration bonuses (Dire Wolf ×1.4, Dark Elf ×1.25...)</div>
-      <div class="cl-item">✅ Ranger attrition — skilled races lose fewer</div>
+      <div class="cl-item">✅ Gold = forage rate (rangers × 12 × tacBonus × raceBonus × rangerLevel) × turns × rand(1.05–1.30)</div>
+      <div class="cl-item">✅ Race exploration bonuses (Dire Wolf ×1.4, Dark Elf ×1.25, Human ×1.1, Orc ×1.05, High Elf ×0.95, Dwarf ×0.9)</div>
+      <div class="cl-item">✅ Ranger level scales expedition rewards — higher level rangers find more</div>
+      <div class="cl-item">✅ Ranger attrition — Dire Wolf and Dark Elf lose fewer rangers</div>
+      <div class="cl-item">✅ Map drops — Scout 5%, Deep 15%, Dungeon 25%</div>
+      <div class="cl-item">✅ Blueprint drops — Dungeon 20% on success</div>
       <div class="cl-item">✅ 6 ultra-rare prizes (0.5% deep, 1% dungeon)</div>
-      <div class="cl-item">✅ 👑 The Throne of Nazdreg Grishnak — unique, one per server, forever</div>
+      <div class="cl-item">✅ 👑 The Throne of Nazdreg Grishnak — unique, one per server, forever. Broadcasts to all kingdoms and global chat on discovery.</div>
       <div class="cl-item">✅ Cancel expedition button on active expeditions</div>
 
       <div class="cl-section">Magic & Library</div>
@@ -262,11 +270,16 @@ textarea{width:100%;resize:vertical;min-height:60px}
       <div class="cl-item">✅ War log panel</div>
 
       <div class="cl-section">Unit XP & Levelling</div>
-      <div class="cl-item">✅ All units gain XP from their activity each turn</div>
-      <div class="cl-item">✅ Level scaling — +0.5% effectiveness per level (max +50% at level 100)</div>
-      <div class="cl-item">✅ Hire dilution — new recruits lower average unit XP</div>
-      <div class="cl-item">✅ 6 racial unique bonuses at unit level 5+</div>
+      <div class="cl-item">✅ All units gain XP from their activity — engineers +10/building, researchers +5/advance, mages +2/turn mana +20/scroll, scribes +15/item, rangers +3/turn exploring +8/20/40 by expedition type, fighters +30/10 combat win/loss, thieves +12/20 spy/loot, ninjas +30 assassination</div>
+      <div class="cl-item">✅ Level scaling — +0.5% effectiveness per level, max +50% at level 100 (build speed, research increment, mana production, scroll speed, expedition rewards, loot amount, assassination kills)</div>
+      <div class="cl-item">✅ Hire dilution — new recruits lower average unit XP: new_avg = old_pool × old_count / new_count</div>
       <div class="cl-item">✅ Training fields award passive XP with equipment bonuses</div>
+      <div class="cl-item">✅ 🔨 Dwarf engineers Lv5+ — can solo-crew war machines</div>
+      <div class="cl-item">✅ ✨ High Elf mages Lv5+ — scrolls crafted produce 2 instead of 1</div>
+      <div class="cl-item">✅ ⚔️ Orc fighters Lv5+ — every 10 fighters trains 1 free fighter per turn</div>
+      <div class="cl-item">✅ 🕵️ Dark Elf ninjas Lv5+ — silent assassination, target receives no news event</div>
+      <div class="cl-item">✅ 🐺 Dire Wolf rangers Lv5+ — expeditions tick down 2 turns per turn (return early)</div>
+      <div class="cl-item">✅ 💚 Human clerics Lv5+ — +1 morale aura per turn</div>
 
       <div class="cl-section">Social</div>
       <div class="cl-item">✅ Global chat with Socket.io — real-time, username-based</div>
