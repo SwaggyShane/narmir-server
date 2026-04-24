@@ -1361,23 +1361,20 @@
 
 <!-- ═══════════════════════════════════════════ ALLIANCES PANEL ══ -->
 <!-- GLOBAL CHAT -->
-<div id="globalchat" class="panel" style="display:none">
-  <div style="max-width:720px;margin:0 auto">
-    <div class="card">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-        <div class="card-title" style="margin:0">🌍 Global Chat</div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <span id="chat-online-count" style="font-size:12px;color:var(--green)">● 1 online</span>
-        </div>
-      </div>
-      <div id="global-chat-messages" style="height:440px;overflow-y:auto;display:flex;flex-direction:column;gap:2px;margin-bottom:14px;padding-right:4px">
-        <div style="text-align:center;color:var(--text3);font-size:13px;padding:40px 0">Connecting to chat...</div>
-      </div>
+<div id="globalchat" class="panel" style="display:none;padding:0;margin:0">
+  <div style="display:flex;flex-direction:column;height:calc(100vh - 180px);min-height:400px">
+    <div id="global-chat-messages" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:2px;padding:14px 16px">
+      <div style="text-align:center;color:var(--text3);font-size:13px;padding:40px 0">Connecting to chat...</div>
+    </div>
+    <div style="border-top:1px solid var(--border);padding:12px 16px;background:var(--bg2);flex-shrink:0">
       <div style="display:flex;gap:8px;align-items:center">
         <input type="text" id="global-chat-input" placeholder="Message the world..." style="flex:1;width:auto" maxlength="300" onkeydown="if(event.key==='Enter')sendGlobalChat()">
-        <button class="btn btn-purple" onclick="sendGlobalChat()" style="white-space:nowrap">Send ↵</button>
+        <button class="btn btn-purple" onclick="sendGlobalChat()" style="white-space:nowrap;padding:9px 18px">Send ↵</button>
       </div>
-      <div style="font-size:11px;color:var(--text3);margin-top:6px">Max 300 characters · Be civil · Chat is visible to all players</div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px">
+        <span style="font-size:11px;color:var(--text3)">Max 300 characters · Be civil · Visible to all players</span>
+        <span id="chat-online-count" style="font-size:11px;color:var(--green)">● online</span>
+      </div>
     </div>
   </div>
 </div>
@@ -2690,8 +2687,11 @@ function switchTab(id, btn) {
   if (id === 'globalchat') {
     var badge = document.getElementById('chat-badge');
     if (badge) badge.style.display = 'none';
+    document.querySelector('.main').style.padding = '0';
     if (!socket) initSocket();
     else loadGlobalChatHistory();
+  } else {
+    document.querySelector('.main').style.padding = '';
   }
   if (id === 'alliances') {
     loadAlliancePanel();
