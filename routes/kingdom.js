@@ -315,6 +315,9 @@ module.exports = function(db) {
     // Map requirement
     if ((k.maps || 0) < 1) return res.status(400).json({ error: 'You need a map to attack other kingdoms — craft one in your Library' });
 
+    // Newbie protection — cannot attack kingdoms under turn 200
+    if ((target.turn || 0) < 200) return res.status(400).json({ error: `${target.name} is under newbie protection until Turn 200 (currently Turn ${target.turn})` });
+
     const result = engine.resolveMilitaryAttack(k, target, fightersSent, magesSent);
     if (result.error) return res.status(400).json({ error: result.error });
 
@@ -394,6 +397,7 @@ module.exports = function(db) {
       target = await db.get('SELECT * FROM kingdoms WHERE id = ?', [targetId]);
       if (!target) return res.status(404).json({ error: 'Target kingdom not found' });
       if (target.player_id === k.player_id) return res.status(400).json({ error: 'Cannot cast offensive spells on yourself' });
+      if ((target.turn || 0) < 200) return res.status(400).json({ error: `${target.name} is under newbie protection until Turn 200 (currently Turn ${target.turn})` });
     }
 
     const result = engine.castSpell(k, target, spellId, !!obscure);
@@ -473,6 +477,9 @@ module.exports = function(db) {
 
     // Check map requirement
     if ((k.maps || 0) < 1) return res.status(400).json({ error: 'You need a map to interact with other kingdoms — craft one in your Library' });
+
+    // Newbie protection
+    if ((target.turn || 0) < 200) return res.status(400).json({ error: `${target.name} is under newbie protection until Turn 200 (currently Turn ${target.turn})` });
 
     let result;
     const VALID_COLS = new Set([
