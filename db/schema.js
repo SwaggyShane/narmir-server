@@ -189,6 +189,7 @@ async function initDb() {
   if (!pCols.includes('is_admin'))   await addColumn('players', 'is_admin',   'INTEGER NOT NULL DEFAULT 0');
   if (!pCols.includes('is_banned'))  await addColumn('players', 'is_banned',  'INTEGER NOT NULL DEFAULT 0');
   if (!pCols.includes('ban_reason')) await addColumn('players', 'ban_reason', 'TEXT');
+  if (!pCols.includes('is_ai'))      await addColumn('players', 'is_ai',      'INTEGER NOT NULL DEFAULT 0');
 
   const nCols = (await _db.all('PRAGMA table_info(news)')).map(c => c.name);
   if (!nCols.includes('turn_num')) await addColumn('news', 'turn_num', 'INTEGER NOT NULL DEFAULT 0');
