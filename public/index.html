@@ -1365,6 +1365,7 @@
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
         <div class="card-title" style="margin-bottom:0">Expedition log</div>
         <button class="btn" style="font-size:11px;padding:4px 10px" onclick="clearAllExpeditions()" title="Returns all troops from any stuck expeditions">🔄 Clear stuck</button>
+        <button class="btn" style="font-size:11px;padding:4px 10px" onclick="clearExpeditionLog()" title="Clear completed entries from the log">🗑️ Clear log</button>
       </div>
       <div id="exploration-log" style="flex:1;overflow-y:auto;max-height:700px;display:flex;flex-direction:column;gap:8px">
         <div data-empty style="font-size:13px;color:var(--text3);padding:12px 0">No expeditions sent yet.</div>
@@ -1923,6 +1924,7 @@ function searchAction(type) {
     toast(result.message, 'success');
     var icons = { land: '🗺️', gold: '⛏️', targets: '🔭' };
     logExpeditionEntry(icons[type] || '🧭', result.message, 'Sent ' + fmt(r) + ' rangers · 1 turn used');
+    loadActiveExpeditions();
   });
 }
 
@@ -2124,6 +2126,20 @@ async function cancelExpedition(id) {
   toast('Expedition cancelled — troops returned', 'success');
   await loadActiveExpeditions();
   syncUI();
+}
+
+function clearExpeditionLog() {
+  var log = document.getElementById('exploration-log');
+  if (!log) return;
+  // Remove completed entries (those without a live countdown span)
+  Array.from(log.querySelectorAll('.exp-log-entry')).forEach(function(entry) {
+    if (!entry.querySelector('[id^="exp-log-live-"]')) entry.remove();
+  });
+  // If nothing left, restore placeholder
+  if (!log.querySelector('.exp-log-entry')) {
+    log.innerHTML = '<div data-empty style="font-size:13px;color:var(--text3);padding:12px 0">No expeditions sent yet.</div>';
+  }
+  toast('Log cleared', 'success');
 }
 
 async function clearAllExpeditions() {
@@ -2868,6 +2884,7 @@ async function hire(unit) {
   if (hEl) hEl.textContent = fmt(state[unit]);
   if (result.events && result.events.length) appendNewsItems(result.events);
   toast('Hired ' + fmt(n) + ' ' + unit + ' · ' + state.turns_stored + ' turns left', 'success');
+  loadActiveExpeditions();
 }
 
 async function fire(unit) {
