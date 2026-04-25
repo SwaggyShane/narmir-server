@@ -112,7 +112,7 @@ module.exports = function(db) {
 
     // Refresh fields that resolveExpeditions may have updated via SQL
     const refreshed = await db.get(
-      'SELECT rangers, fighters, gold, mana, land, scrolls, maps, blueprints_stored, troop_levels, library_progress FROM kingdoms WHERE id = ?',
+      'SELECT rangers, fighters, gold, mana, land, scrolls, maps, blueprints_stored, troop_levels, library_progress, racial_bonuses_unlocked FROM kingdoms WHERE id = ?',
       [k.id]
     );
     if (refreshed) Object.assign(updates, refreshed);
@@ -432,33 +432,6 @@ module.exports = function(db) {
     });
     await db.run(`INSERT INTO war_log (action_type, attacker_id, attacker_name, defender_id, defender_name, outcome, detail, obscured) VALUES (?,?,?,?,?,?,?,0)`,
       ['attack', k.id, k.name, target.id, target.name, result.win ? 'victory' : 'repelled', detail]);
-
-    // Racial bonus unlock — one-time news event per unit type
-    try {
-      const racialData = JSON.parse(k.racial_bonuses_unlocked || '{}');
-      const RACIAL_UNITS = { dwarf:'engineers', high_elf:'mages', orc:'fighters', dark_elf:'ninjas', dire_wolf:'rangers', human:'clerics' };
-      const keyUnit = RACIAL_UNITS[k.race];
-      if (keyUnit && !racialData[keyUnit]) {
-        const troopLevels = JSON.parse(k.troop_levels || '{}');
-        const unitLevel = troopLevels[keyUnit]?.level || 1;
-        if (unitLevel >= 5) {
-          racialData[keyUnit] = true;
-          await db.run('UPDATE kingdoms SET racial_bonuses_unlocked = ? WHERE id = ?', [JSON.stringify(racialData), k.id]);
-          const RACIAL_MSGS = {
-            dwarf: '⚒️ Your engineers have reached mastery — Dwarven war machines now need only 1 engineer to crew.',
-            high_elf: '✨ Your mages have reached mastery — High Elf scrolls now produce 2 per craft.',
-            orc: '⚔️ Your fighters have reached mastery — Orcish war culture now trains 1 free fighter per 10 each turn.',
-            dark_elf: '🕵️ Your ninjas have reached mastery — Dark Elf assassinations now leave no trace.',
-            dire_wolf: '🐺 Your rangers have reached mastery — Dire Wolf expeditions now return 1 turn early.',
-            human: '💚 Your clerics have reached mastery — Human healing aura now restores +1 morale per turn.',
-          };
-          if (RACIAL_MSGS[k.race]) {
-            await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)',
-              [k.id, 'system', RACIAL_MSGS[k.race], k.turn]);
-          }
-        }
-      }
-    } catch(e) { /* racial unlock is non-critical */ }
 
     res.json({ ok: true, report: result.report, updates: result.attackerUpdates, event: result.atkEvent });
   });
