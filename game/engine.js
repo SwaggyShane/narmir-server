@@ -1917,6 +1917,9 @@ async function resolveExpeditions(db, k, engine) {
     // newTurns <= 0 means this expedition completes now
     console.log(`[expedition] COMPLETING kingdom=${k.id} id=${exp.id} type=${exp.type}`);
 
+    // Mark expedition complete FIRST so it can never get stuck at turns_left=1
+    await db.run('UPDATE expeditions SET turns_left = 0 WHERE id = ?', [exp.id]);
+
     try {
       // Fetch fresh kingdom state to avoid stale merged values
       const freshK = await db.get('SELECT * FROM kingdoms WHERE id = ?', [k.id]) || k;
@@ -1927,25 +1930,22 @@ async function resolveExpeditions(db, k, engine) {
         delete updates._check_throne;
         const throneState = await db.get("SELECT value FROM server_state WHERE key = 'throne_found'");
         if (!throneState || throneState.value !== '1') {
-          // Throne not yet found — award it
           THRONE_OF_NAZDREG.effect(freshK, updates);
           await db.run("INSERT OR REPLACE INTO server_state (key, value) VALUES ('throne_found', '1')");
           rewards.unshift({ text: THRONE_OF_NAZDREG.text });
-          // Broadcast server-wide announcement
           events.push({ type: 'system', message: `👑 ${freshK.name} has found the Throne of Nazdreg Grishnak. May his memory endure forever.` });
           updates._server_announce = `👑 The Throne of Nazdreg Grishnak has been found by ${freshK.name}. His name is remembered.`;
         }
       }
-      // Strip internal-only flags before applying
+
       const serverAnnounce = updates._server_announce || null;
-      const ultraRareId    = updates._ultra_rare || null;
       delete updates._server_announce;
       delete updates._ultra_rare;
 
       const label = { scout: '🔭 Scout', deep: '🌲 Deep', dungeon: '⚔️ Dungeon' }[exp.type];
 
-      // Apply kingdom updates — use SQL INCREMENT for rangers/fighters to avoid race conditions
-      const rangersReturned = updates._rangers_returned !== undefined ? updates._rangers_returned : 0;
+      // Apply kingdom updates
+      const rangersReturned  = updates._rangers_returned  !== undefined ? updates._rangers_returned  : 0;
       const fightersReturned = updates._fighters_returned !== undefined ? updates._fighters_returned : 0;
       delete updates._rangers_returned;
       delete updates._fighters_returned;
@@ -1956,46 +1956,36 @@ async function resolveExpeditions(db, k, engine) {
         'war_machines','weapons_stockpile','armor_stockpile',
         'res_economy','res_weapons','res_armor','res_military','res_attack_magic',
         'res_defense_magic','res_entertainment','res_construction','res_war_machines','res_spellbook',
-        'bld_farms','bld_barracks','bld_markets','bld_cathedrals',
+        'bld_farms','bld_barracks','bld_markets','bld_cathedrals','blueprints_stored','maps',
         'troop_levels','xp','level',
       ]);
 
-      // Award ranger XP for completing expedition (difficulty-scaled)
+      // Award XP
       const expXpAmount = { scout: 8, deep: 20, dungeon: 40 }[exp.type] || 8;
       const rXp = awardTroopXp(freshK, 'rangers', expXpAmount * exp.rangers);
       updates.troop_levels = rXp.troop_levels;
-      // Award fighter XP for dungeon
       if (exp.type === 'dungeon' && exp.fighters > 0) {
         const fXp = awardTroopXp({ ...freshK, troop_levels: updates.troop_levels }, 'fighters', 40 * exp.fighters);
         updates.troop_levels = fXp.troop_levels;
       }
+
       const safeUpdates = Object.fromEntries(
-        Object.entries(updates).filter(([k2, v]) => VALID_KINGDOM_COLS.has(k2) && v !== undefined && v !== null && !isNaN(v))
+        Object.entries(updates).filter(([k2, v]) => VALID_KINGDOM_COLS.has(k2) && v !== undefined && v !== null && !isNaN(Number(v)))
       );
       if (Object.keys(safeUpdates).length > 0) {
         const cols = Object.keys(safeUpdates).map(c => `${c} = ?`).join(', ');
         await db.run(`UPDATE kingdoms SET ${cols} WHERE id = ?`, [...Object.values(safeUpdates), k.id]);
       }
-      // Return rangers and fighters using INCREMENT to avoid overwriting concurrent turn updates
-      if (rangersReturned > 0) {
-        await db.run('UPDATE kingdoms SET rangers = rangers + ? WHERE id = ?', [rangersReturned, k.id]);
-      }
-      if (fightersReturned > 0) {
-        await db.run('UPDATE kingdoms SET fighters = fighters + ? WHERE id = ?', [fightersReturned, k.id]);
-      }
+      if (rangersReturned  > 0) await db.run('UPDATE kingdoms SET rangers  = rangers  + ? WHERE id = ?', [rangersReturned,  k.id]);
+      if (fightersReturned > 0) await db.run('UPDATE kingdoms SET fighters = fighters + ? WHERE id = ?', [fightersReturned, k.id]);
 
-      // Single news line — no reward detail in news
-      const completionMsg = `${label} expedition returned — see expedition log for rewards.`;
+      // ONE news line only — rewards go to expedition log, not news feed
+      const completionMsg = `${label} expedition returned — check the Explore tab for rewards.`;
       await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)',
         [k.id, 'system', completionMsg, k.turn || 0]);
       expeditionEvents.push({ type: 'system', message: completionMsg });
-      for (const ev of events) {
-        await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)',
-          [k.id, ev.type || 'system', ev.message, k.turn || 0]);
-        expeditionEvents.push(ev);
-      }
 
-      // Server-wide throne announcement — news to ALL kingdoms
+      // Throne broadcast only
       if (serverAnnounce) {
         const allKingdoms = await db.all('SELECT id FROM kingdoms');
         for (const ak of allKingdoms) {
@@ -2005,14 +1995,19 @@ async function resolveExpeditions(db, k, engine) {
         if (engine.io) engine.io.emit('chat:system', { message: serverAnnounce, ts: Date.now() });
       }
 
-      // Store rewards JSON on the row so frontend can show them in the log, then mark completed (turns_left=0)
+      // Save rewards to expedition row for log display
       const rewardJson = JSON.stringify(rewards.map(r => r.text));
-      await db.run('UPDATE expeditions SET turns_left = 0, rewards = ? WHERE id = ?', [rewardJson, exp.id]);
+      await db.run('UPDATE expeditions SET rewards = ? WHERE id = ?', [rewardJson, exp.id]);
+      console.log(`[expedition] completed kingdom=${k.id} type=${exp.type} rewards=${rewards.length}`);
 
     } catch (err) {
-      console.error(`[expedition] reward error for id=${exp.id} type=${exp.type}:`, err.message);
-      await db.run('DELETE FROM expeditions WHERE id = ?', [exp.id]);
-      const errMsg = `An expedition returned but the scouts lost their notes.`;
+      // Rewards failed — expedition is already marked complete (turns_left=0), troops return, no reward
+      console.error(`[expedition] reward error kingdom=${k.id} id=${exp.id} type=${exp.type}:`, err.message, err.stack);
+      // Still return troops so they're not lost
+      await db.run('UPDATE kingdoms SET rangers = rangers + ? WHERE id = ?', [exp.rangers, k.id]);
+      if (exp.fighters > 0) await db.run('UPDATE kingdoms SET fighters = fighters + ? WHERE id = ?', [exp.fighters, k.id]);
+      const errMsg = `${exp.type} expedition returned — an error occurred calculating rewards (troops returned safely).`;
+      await db.run('UPDATE expeditions SET rewards = ? WHERE id = ?', [JSON.stringify([errMsg]), exp.id]);
       await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?, ?, ?, ?)',
         [k.id, 'system', errMsg, k.turn || 0]);
       expeditionEvents.push({ type: 'system', message: errMsg });
