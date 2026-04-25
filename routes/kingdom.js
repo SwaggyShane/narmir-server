@@ -75,30 +75,48 @@ module.exports = function(db) {
     const { updates, events } = engine.processTurn(k);
     updates.turns_stored = (k.turns_stored || 0) - 1;
 
+    // Apply kingdom updates in a transaction
     await db.run('BEGIN');
     try {
       await applyUpdates(db, k.id, updates);
-      const expeditionEvents = await engine.resolveExpeditions(db, { ...k, ...updates }, engine);
-      const allEvents = [...events, ...expeditionEvents];
-      if (allEvents.length > 0) {
-        await bulkInsertNews(db, allEvents.map(ev => ({
+      const turnNum = updates.turn || k.turn || 0;
+      if (events.length > 0) {
+        await bulkInsertNews(db, events.map(ev => ({
           kingdom_id: k.id, type: ev.type || 'system',
-          message: ev.message, turn_num: updates.turn || k.turn || 0,
+          message: ev.message, turn_num: turnNum,
         })));
         if (Math.random() < 0.05) await pruneNews(db, k.id, 200);
       }
       await db.run('COMMIT');
-      // Refresh fields that resolveExpeditions may have updated via SQL
-      const refreshed = await db.get(
-        'SELECT rangers, fighters, gold, mana, land, scrolls, maps, blueprints_stored, troop_levels, library_progress FROM kingdoms WHERE id = ?',
-        [k.id]
-      );
-      if (refreshed) Object.assign(updates, refreshed);
-      return { updates, events: allEvents };
     } catch (err) {
       await db.run('ROLLBACK');
       throw err;
     }
+
+    // Resolve expeditions OUTSIDE the kingdom transaction so ticks are never rolled back
+    let expeditionEvents = [];
+    try {
+      expeditionEvents = await engine.resolveExpeditions(db, { ...k, ...updates }, engine);
+      if (expeditionEvents.length > 0) {
+        const turnNum = updates.turn || k.turn || 0;
+        await bulkInsertNews(db, expeditionEvents.map(ev => ({
+          kingdom_id: k.id, type: ev.type || 'system',
+          message: ev.message, turn_num: turnNum,
+        })));
+      }
+    } catch (err) {
+      console.error('[runTurn] expedition resolve error:', err.message);
+    }
+
+    const allEvents = [...events, ...expeditionEvents];
+
+    // Refresh fields that resolveExpeditions may have updated via SQL
+    const refreshed = await db.get(
+      'SELECT rangers, fighters, gold, mana, land, scrolls, maps, blueprints_stored, troop_levels, library_progress FROM kingdoms WHERE id = ?',
+      [k.id]
+    );
+    if (refreshed) Object.assign(updates, refreshed);
+    return { updates, events: allEvents };
   }
 
   // ── Take turn (advance game state) ───────────────────────────────────────────
