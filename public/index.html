@@ -1367,7 +1367,7 @@
         <button class="btn" style="font-size:11px;padding:4px 10px" onclick="clearAllExpeditions()" title="Returns all troops from any stuck expeditions">🔄 Clear stuck</button>
       </div>
       <div id="exploration-log" style="flex:1;overflow-y:auto;max-height:700px;display:flex;flex-direction:column;gap:8px">
-        <div style="font-size:13px;color:var(--text3);padding:12px 0">No expeditions sent yet.</div>
+        <div data-empty style="font-size:13px;color:var(--text3);padding:12px 0">No expeditions sent yet.</div>
       </div>
     </div>
 
@@ -1995,62 +1995,88 @@ async function loadActiveExpeditions() {
   var bar = document.getElementById('active-expeditions');
   if (!bar) return;
 
-  // Handle both old array format and new {active, completed} format
-  var active = Array.isArray(result) ? result : (result.active || []);
-  var completed = Array.isArray(result) ? [] : (result.completed || []);
+  var active    = Array.isArray(result) ? result : (result.active    || []);
+  var completed = Array.isArray(result) ? [] :     (result.completed || []);
 
-  // Process completed expeditions — update their log entries with rewards
-  completed.forEach(function(exp) {
-    var liveSpan = document.getElementById('exp-log-live-' + exp.type);
-    if (liveSpan) {
-      var rewards = [];
-      try { rewards = JSON.parse(exp.rewards || '[]'); } catch(e) {}
-      var entry = liveSpan.closest('.exp-log-entry');
-      if (entry) {
-        var labels = { scout: '🔭 Scout expedition', deep: '🌲 Deep expedition', dungeon: '⚔️ Dungeon raid' };
-        var icons  = { scout: '🔭', deep: '🌲', dungeon: '⚔️' };
+  var log    = document.getElementById('exploration-log');
+  var icons  = { scout:'🔭', deep:'🌲', dungeon:'⚔️' };
+  var labels = { scout:'🔭 Scout expedition', deep:'🌲 Deep expedition', dungeon:'⚔️ Dungeon raid' };
 
-        // Check if throne was found
-        var throneFound = rewards.some(function(r){ return r && r.indexOf('Nazdreg Grishnak') !== -1; });
-
-        if (throneFound) {
-          entry.innerHTML = '<div style="width:100%">'
-            + '<div style="font-size:20px;font-weight:700;color:var(--gold);margin-bottom:12px;text-align:center;letter-spacing:1px">👑 THE THRONE OF NAZDREG GRISHNAK</div>'
-            + '<img src="/throne.png" alt="The Throne of Nazdreg Grishnak" style="width:100%;max-width:600px;display:block;margin:0 auto 16px;border-radius:8px;border:2px solid #6a4818">'
-            + '<div style="background:#100c04;border:1px solid #6a4818;border-radius:6px;padding:16px 20px;margin:0 auto;max-width:600px;text-align:center">'
-            + '<div style="font-family:Georgia,serif;font-size:18px;font-weight:700;color:#c8962a;letter-spacing:2px;margin-bottom:6px">Nazdreg Grishnak</div>'
-            + '<div style="font-family:Georgia,serif;font-size:14px;color:#a07828;margin-bottom:10px;font-style:italic">August 13, 1975 — August 19, 2012</div>'
-            + '<div style="height:1px;background:linear-gradient(90deg,transparent,#6a4818,transparent);margin-bottom:10px"></div>'
-            + '<div style="font-family:Georgia,serif;font-size:13px;color:#8a6020;font-style:italic;line-height:1.8">An orc who sat upon this throne once commanded armies and shaped the world.<br>His name is remembered. His legacy endures.</div>'
-            + '</div>'
-            + '<div style="margin-top:12px;font-size:12px;color:var(--text2);line-height:1.8">'
-            + rewards.filter(function(r){ return r && r.indexOf('Nazdreg') === -1; }).map(function(r){ return '• ' + r; }).join('<br>')
-            + '</div></div>';
-        } else {
-          entry.innerHTML = '<span style="font-size:18px;flex-shrink:0">' + (icons[exp.type]||'🧭') + '</span>'
-            + '<div style="flex:1"><div style="color:var(--text);font-weight:600">' + (labels[exp.type]||exp.type) + ' — Returned</div>'
-            + '<div style="font-size:11px;color:var(--text3);margin-top:2px">' + exp.rangers.toLocaleString() + ' rangers' + (exp.fighters > 0 ? ', ' + exp.fighters.toLocaleString() + ' fighters' : '') + '</div>'
-            + (rewards.length ? '<div style="margin-top:6px;font-size:12px;color:var(--text2);line-height:1.7">' + rewards.map(function(r){ return '• ' + r; }).join('<br>') + '</div>' : '')
-            + '</div>';
-        }
-      }
+  // ── Ensure active expeditions have a live log entry ───────────────────────
+  active.forEach(function(exp) {
+    if (!document.getElementById('exp-log-live-' + exp.type) && log) {
+      var entry = document.createElement('div');
+      entry.className = 'exp-log-entry';
+      entry.style.cssText = 'display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px';
+      entry.innerHTML = '<span style="font-size:18px;flex-shrink:0">' + (icons[exp.type]||'🧭') + '</span>'
+        + '<div><div style="color:var(--text);font-weight:600">' + (labels[exp.type]||exp.type) + '</div>'
+        + '<div style="font-size:11px;color:var(--text3);margin-top:2px">'
+        + exp.rangers.toLocaleString() + ' rangers'
+        + (exp.fighters > 0 ? ', ' + exp.fighters.toLocaleString() + ' fighters' : '')
+        + ' · <span id="exp-log-live-' + exp.type + '">' + exp.turns_left + ' turn' + (exp.turns_left===1?'':'s') + ' remaining</span>'
+        + '</div></div>';
+      var empty = log.querySelector('[data-empty]');
+      if (empty) empty.remove();
+      log.insertBefore(entry, log.firstChild);
     }
   });
 
-  // Track active types for completion detection
+  // ── Render completed expeditions into the log ─────────────────────────────
+  completed.forEach(function(exp) {
+    var rewards = [];
+    try { rewards = JSON.parse(exp.rewards || '[]'); } catch(e) {}
+
+    var liveSpan = document.getElementById('exp-log-live-' + exp.type);
+    var entry = liveSpan ? liveSpan.closest('.exp-log-entry') : null;
+
+    // If no log entry exists (e.g. page was refreshed), create one
+    if (!entry && log) {
+      entry = document.createElement('div');
+      entry.className = 'exp-log-entry';
+      entry.style.cssText = 'display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px';
+      var empty = log.querySelector('[data-empty]');
+      if (empty) empty.remove();
+      log.insertBefore(entry, log.firstChild);
+    }
+
+    if (!entry) return;
+
+    var throneFound = rewards.some(function(r){ return r && r.indexOf('Nazdreg Grishnak') !== -1; });
+
+    if (throneFound) {
+      entry.style.cssText = 'padding:12px 0;border-bottom:1px solid var(--border)';
+      entry.innerHTML = '<div style="width:100%">'
+        + '<div style="font-size:20px;font-weight:700;color:var(--gold);margin-bottom:12px;text-align:center;letter-spacing:1px">👑 THE THRONE OF NAZDREG GRISHNAK</div>'
+        + '<img src="/throne.png" alt="The Throne of Nazdreg Grishnak" style="width:100%;max-width:600px;display:block;margin:0 auto 16px;border-radius:8px;border:2px solid #6a4818">'
+        + '<div style="background:#100c04;border:1px solid #6a4818;border-radius:6px;padding:16px 20px;margin:0 auto;max-width:600px;text-align:center">'
+        + '<div style="font-family:Georgia,serif;font-size:18px;font-weight:700;color:#c8962a;letter-spacing:2px;margin-bottom:6px">Nazdreg Grishnak</div>'
+        + '<div style="font-family:Georgia,serif;font-size:14px;color:#a07828;margin-bottom:10px;font-style:italic">August 13, 1975 — August 19, 2012</div>'
+        + '<div style="height:1px;background:linear-gradient(90deg,transparent,#6a4818,transparent);margin-bottom:10px"></div>'
+        + '<div style="font-family:Georgia,serif;font-size:13px;color:#8a6020;font-style:italic;line-height:1.8">An orc who sat upon this throne once commanded armies and shaped the world.<br>His name is remembered. His legacy endures.</div>'
+        + '</div>'
+        + (rewards.filter(function(r){ return r && r.indexOf('Nazdreg')===-1; }).length
+          ? '<div style="margin-top:12px;font-size:12px;color:var(--text2);line-height:1.8">'
+            + rewards.filter(function(r){ return r && r.indexOf('Nazdreg')===-1; }).map(function(r){ return '• '+r; }).join('<br>')
+            + '</div>' : '')
+        + '</div>';
+    } else {
+      entry.style.cssText = 'display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px';
+      entry.innerHTML = '<span style="font-size:18px;flex-shrink:0">' + (icons[exp.type]||'🧭') + '</span>'
+        + '<div style="flex:1"><div style="color:var(--text);font-weight:600">' + (labels[exp.type]||exp.type) + ' — Returned</div>'
+        + '<div style="font-size:11px;color:var(--text3);margin-top:2px">'
+        + exp.rangers.toLocaleString() + ' rangers' + (exp.fighters > 0 ? ', ' + exp.fighters.toLocaleString() + ' fighters' : '')
+        + '</div>'
+        + (rewards.length
+          ? '<div style="margin-top:6px;font-size:12px;color:var(--text2);line-height:1.7">'
+            + rewards.map(function(r){ return '• ' + r; }).join('<br>') + '</div>'
+          : '<div style="margin-top:4px;font-size:12px;color:var(--text3)">Expedition complete — check news for details.</div>')
+        + '</div>';
+    }
+  });
+
+  // ── Track active types ────────────────────────────────────────────────────
   var activeTypes = {};
   active.forEach(function(e) { activeTypes[e.type] = e; });
-
-  // Detect newly completed (were active, now gone, not in completed list)
-  Object.keys(_prevActiveTypes).forEach(function(t) {
-    if (!activeTypes[t] && !completed.find(function(e){ return e.type === t; })) {
-      var liveSpan = document.getElementById('exp-log-live-' + t);
-      if (liveSpan) {
-        liveSpan.textContent = 'Returned — see news & check above for rewards';
-        liveSpan.style.color = 'var(--green)';
-      }
-    }
-  });
   _prevActiveTypes = activeTypes;
 
   if (active.length === 0) {
@@ -2062,17 +2088,16 @@ async function loadActiveExpeditions() {
     return;
   }
 
-  var labelMap = { scout: '🔭 Scout', deep: '🌲 Deep', dungeon: '⚔️ Dungeon' };
-  var colors = { scout: 'var(--green)', deep: 'var(--purple)', dungeon: 'var(--red)' };
+  var colors = { scout:'var(--green)', deep:'var(--purple)', dungeon:'var(--red)' };
   bar.style.cssText = 'display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;align-items:center';
   bar.innerHTML = active.map(function(exp) {
-    return '<div style="display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border);border-left:3px solid ' + (colors[exp.type]||'var(--text3)') + ';border-radius:var(--radius);padding:8px 12px;font-size:13px">'
-      + '<span style="font-weight:600;color:' + (colors[exp.type]||'var(--text)') + '">' + (labelMap[exp.type]||exp.type) + '</span>'
+    return '<div style="display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border);border-left:3px solid '+(colors[exp.type]||'var(--text3)')+';border-radius:var(--radius);padding:8px 12px;font-size:13px">'
+      + '<span style="font-weight:600;color:'+(colors[exp.type]||'var(--text)')+'">'+( {scout:'🔭 Scout',deep:'🌲 Deep',dungeon:'⚔️ Dungeon'}[exp.type]||exp.type)+'</span>'
       + '<span style="color:var(--text3)">·</span>'
-      + '<span style="color:var(--text2)">' + exp.turns_left + ' turn' + (exp.turns_left === 1 ? '' : 's') + ' remaining</span>'
+      + '<span style="color:var(--text2)">'+exp.turns_left+' turn'+(exp.turns_left===1?'':'s')+' remaining</span>'
       + '<span style="color:var(--text3)">·</span>'
-      + '<span style="color:var(--text3)">' + exp.rangers.toLocaleString() + ' rangers' + (exp.fighters > 0 ? ', ' + exp.fighters.toLocaleString() + ' fighters' : '') + '</span>'
-      + '<button class="btn btn-red" style="font-size:11px;padding:3px 8px;margin-left:4px" onclick="cancelExpedition(' + exp.id + ')">Cancel</button>'
+      + '<span style="color:var(--text3)">'+exp.rangers.toLocaleString()+' rangers'+(exp.fighters>0?', '+exp.fighters.toLocaleString()+' fighters':'')+'</span>'
+      + '<button class="btn btn-red" style="font-size:11px;padding:3px 8px;margin-left:4px" onclick="cancelExpedition('+exp.id+')">Cancel</button>'
       + '</div>';
   }).join('');
 
@@ -2081,11 +2106,11 @@ async function loadActiveExpeditions() {
     var btn = document.getElementById('btn-exp-' + t);
     if (btn) {
       btn.disabled = !!exp;
-      btn.textContent = exp ? 'Underway — ' + exp.turns_left + ' turn' + (exp.turns_left === 1 ? '' : 's') + ' left' : (t === 'dungeon' ? 'Launch raid' : 'Launch expedition');
+      btn.textContent = exp ? 'Underway — ' + exp.turns_left + ' turn' + (exp.turns_left===1?'':'s') + ' left' : (t==='dungeon'?'Launch raid':'Launch expedition');
     }
     var liveSpan = document.getElementById('exp-log-live-' + t);
     if (liveSpan && exp) {
-      liveSpan.textContent = exp.turns_left + ' turn' + (exp.turns_left === 1 ? '' : 's') + ' remaining';
+      liveSpan.textContent = exp.turns_left + ' turn' + (exp.turns_left===1?'':'s') + ' remaining';
       liveSpan.style.color = '';
     }
   });
