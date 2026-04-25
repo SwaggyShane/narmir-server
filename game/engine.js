@@ -3,26 +3,30 @@
 // All functions take a kingdom row (or rows) and return mutations + events.
 
 const RACE_BONUSES = {
-  // High Elf: scholarly civilization — modest economy, excellent research and magic
   high_elf:  { research: 1.15, magic: 1.20, economy: 1.05, military: 0.90 },
-
-  // Dwarf: master traders and builders — strong economy and construction
   dwarf:     { construction: 1.20, war_machines: 1.25, economy: 1.202, magic: 0.75, research: 0.90 },
-
-  // Dire Wolf: savage raiders — economy is plunder-based, terrible long-term
   dire_wolf: { military: 1.30, covert: 1.10, research: 0.70, magic: 0.60, economy: 0.70 },
-
-  // Dark Elf: shadow traders — modest economy, lethal covert
   dark_elf:  { covert: 1.25, stealth: 1.30, magic: 1.10, military: 0.85, economy: 0.90 },
-
-  // Human: balanced — slight economic edge from adaptability
   human:     { economy: 1.05 },
-
-  // Orc: raiders with a nose for loot — decent economy from conquest
   orc:       { military: 1.20, economy: 1.10, research: 0.80, magic: 0.65, construction: 0.90 },
 };
 
-const UNIT_COST = 250; // GC per unit, all types
+// Named regions — one per race, each with a passive bonus stacking on top of race bonuses
+const REGION_DATA = {
+  dwarf:     { name: 'The Iron Holds',      bonus: 'construction', mult: 0.05, lore: 'Ancient mountain citadels carved from living rock, where forge-fires have burned unbroken for a thousand years.' },
+  high_elf:  { name: 'The Silverwood',      bonus: 'magic',        mult: 0.05, lore: 'A vast enchanted forest where moonlight pools in crystal streams and every leaf hums with residual arcane power.' },
+  orc:       { name: 'The Bloodplains',     bonus: 'military',     mult: 0.05, lore: 'Endless scarred steppe where the ground itself is soaked with the memory of ten thousand wars.' },
+  dark_elf:  { name: 'The Underspire',      bonus: 'stealth',      mult: 0.05, lore: 'A labyrinthine underground city of obsidian towers and shadow-markets, where every corridor hides a blade.' },
+  human:     { name: 'The Heartlands',      bonus: 'economy',      mult: 0.05, lore: 'Fertile central plains criss-crossed by ancient trade roads, where every crossroads is a kingdom in miniature.' },
+  dire_wolf: { name: 'The Ashfang Wilds',   bonus: 'military',     mult: 0.05, lore: 'Primal wilderness of ash-grey forest and howling ravines, where only the strong survive the first winter.' },
+};
+
+// Assign region to a kingdom by race
+function assignRegion(race) {
+  return REGION_DATA[race]?.name || 'The Unknown Lands';
+}
+
+const UNIT_COST = 250;
 const MAX_RESEARCHERS = 1_000_000;
 const MAX_RESEARCH = 1000; // percent cap for most disciplines
 
@@ -30,7 +34,11 @@ const MAX_RESEARCH = 1000; // percent cap for most disciplines
 
 function raceBonus(kingdom, stat) {
   const bonuses = RACE_BONUSES[kingdom.race] || {};
-  return bonuses[stat] || 1.0;
+  const base = bonuses[stat] || 1.0;
+  // Region bonus — +5% to the region's designated stat
+  const region = REGION_DATA[kingdom.race];
+  const regionMult = (region && region.bonus === stat) ? (1 + region.mult) : 1.0;
+  return base * regionMult;
 }
 
 function goldPerTurn(k) {
@@ -2190,7 +2198,8 @@ module.exports = {
   awardXp, xpForLevel, xpToNextLevel, levelFromXp,
   awardTroopXp, awardUnitXp, diluteTroopXp, unitLevelMult, racialUnitBonus,
   troopXpForLevel, effectiveTroopLevel,
-  TROOP_RACE_BONUS, RACE_BONUSES, UNIT_COST, BUILDING_COST, BUILDING_GOLD_COST, BUILDING_LAND_COST, BUILDING_COL,
+  TROOP_RACE_BONUS, RACE_BONUSES, REGION_DATA, assignRegion,
+  UNIT_COST, BUILDING_COST, BUILDING_GOLD_COST, BUILDING_LAND_COST, BUILDING_COL,
   SPELL_DEFS, SCROLL_REQUIREMENTS, SCRIBE_ITEMS, HOUSING_CAP_BY_RACE,
   TOOL_COL, TOOL_GOLD_COST, BLUEPRINT_REQUIRED, SCAFFOLDING_REQUIRED, SCAFFOLDING_BONUS_BUILDINGS,
   processSmithyProduction,
