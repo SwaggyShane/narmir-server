@@ -572,12 +572,13 @@ function processTurn(k) {
   const RACIAL_UNITS = { dwarf:'engineers', high_elf:'mages', orc:'fighters', dark_elf:'ninjas', dire_wolf:'rangers', human:'clerics' };
   const keyUnit = RACIAL_UNITS[k.race];
   if (keyUnit) {
+    // Use already-set updates value if present, else fall back to k
     let racialData = {};
-    try { racialData = JSON.parse(k.racial_bonuses_unlocked || '{}'); } catch {}
+    try { racialData = JSON.parse(updates.racial_bonuses_unlocked || k.racial_bonuses_unlocked || '{}'); } catch {}
     if (!racialData[keyUnit]) {
-      const tls = typeof updates.troop_levels === 'string'
-        ? JSON.parse(updates.troop_levels || '{}')
-        : (updates.troop_levels || JSON.parse(k.troop_levels || '{}'));
+      const tls = typeof (updates.troop_levels || k.troop_levels) === 'string'
+        ? JSON.parse(updates.troop_levels || k.troop_levels || '{}')
+        : (updates.troop_levels || k.troop_levels || {});
       const unitLevel = tls[keyUnit]?.level || 1;
       if (unitLevel >= 5) {
         racialData[keyUnit] = true;
