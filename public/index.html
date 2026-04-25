@@ -345,6 +345,7 @@
 
     <div class="nav-section">Social</div>
     <button class="nav-item" onclick="switchTab('rankings',this)"><span class="icon">🏆</span>Rankings</button>
+    <button class="nav-item" onclick="switchTab('worldmap',this)"><span class="icon">🗺️</span>World Map</button>
     <button class="nav-item" onclick="switchTab('war_panel',this)"><span class="icon">⚔️</span>War Log</button>
     <button class="nav-item" onclick="switchTab('alliances',this)"><span class="icon">&#9876;</span>Alliances</button>
     <button class="nav-item" onclick="switchTab('globalchat',this)"><span class="icon">💬</span>Chat <span id="chat-badge" style="display:none;background:var(--red);color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px">!</span></button>
@@ -363,7 +364,7 @@
       <div>
         <h1 style="font-size:26px;font-weight:700;color:var(--text);line-height:1.2" id="kingdom-name">—</h1>
         <div style="color:var(--text2);font-size:13px;margin-top:4px"><span id="kingdom-owner-line">—</span> · Turn <span id="turn-num" style="color:var(--text);font-weight:600">0</span> · <span id="protection-badge" class="badge badge-green" style="display:none">🛡️ Protected</span></div>
-        <div style="margin-top:6px"><span class="race-tag" id="race-tag-display">—</span></div>
+        <div style="margin-top:6px"><span class="race-tag" id="race-tag-display" onclick="openRaceLore()" style="cursor:pointer" title="Click for race lore">—</span></div>
         <div style="margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
           <span style="font-size:13px;color:var(--text3);cursor:pointer" onclick="showXpModal()" title="Click for XP breakdown">Level <span id="kingdom-level" style="color:var(--gold);font-weight:700;font-size:16px;text-decoration:underline dotted;text-underline-offset:3px">1</span> <span style="font-size:10px;color:var(--text3)">ⓘ</span></span>
           <div style="flex:1;min-width:120px;max-width:220px;cursor:pointer" onclick="showXpModal()" title="Click for XP breakdown">
@@ -1544,6 +1545,37 @@
 </div>
 
 <!-- RANKINGS -->
+<!-- WORLD MAP -->
+<div id="worldmap" class="panel" style="display:none">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+    <div>
+      <div class="card-title" style="margin-bottom:2px">🗺️ World of Narmir</div>
+      <div style="font-size:12px;color:var(--text3)">Six ancient regions, each shaped by the race that claims it.</div>
+    </div>
+    <button class="btn" onclick="loadWorldMap()">↻ Refresh</button>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 280px;gap:16px;align-items:start">
+    <!-- Map SVG -->
+    <div class="card" style="padding:8px">
+      <div id="world-map-container" style="width:100%;overflow:hidden">
+        <div style="text-align:center;color:var(--text3);padding:40px 0;font-size:13px">Loading map...</div>
+      </div>
+    </div>
+    <!-- Region legend + info -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="card" id="region-legend">
+        <div class="card-title" style="margin-bottom:10px">Regions</div>
+        <div id="region-legend-list"></div>
+      </div>
+      <div class="card" id="map-kingdom-card" style="display:none">
+        <div class="card-title" style="margin-bottom:8px" id="mkc-name">—</div>
+        <div id="mkc-body"></div>
+        <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap" id="mkc-actions"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="rankings" class="panel" style="display:none">
   <div class="card">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
@@ -2852,6 +2884,9 @@ function switchTab(id, btn) {
   if (id === 'alliances') {
     loadAlliancePanel();
   }
+  if (id === 'worldmap') {
+    loadWorldMap();
+  }
   if (id === 'rankings') {
     if (rankingsCache && rankingsCache.length > 0) renderRankingsPanel(rankingsCache);
     else loadRankings(true);
@@ -3778,6 +3813,7 @@ function renderRankingsPanel(rankings) {
       (r.turn||0) < 200
         ? '<span style="font-size:11px;color:var(--green)" title="Protected until Turn 200">🛡️ Protected</span>'
         : '<div style="display:flex;gap:4px;justify-content:center">'
+          + '<button class="btn" style="font-size:11px;padding:3px 8px" onclick="openKingdomProfile(\'' + r.name.replace(/'/g,"\\'") + '\')">👤</button>'
           + '<button class="btn btn-red" style="font-size:11px;padding:3px 8px" onclick="targetFromRankings(' + r.id + ',\'attack\')">⚔️</button>'
           + '<button class="btn btn-purple" style="font-size:11px;padding:3px 8px" onclick="targetFromRankings(' + r.id + ',\'spells\')">✨</button>'
           + '<button class="btn" style="font-size:11px;padding:3px 8px" onclick="targetFromRankings(' + r.id + ',\'covert\')">🕵️</button>'
@@ -4299,6 +4335,357 @@ async function forgeScaffolding() {
   syncUI();
   await loadActiveExpeditions();
   toast('🏗️ 1 scaffolding built', 'success');
+}
+
+// ── World Map ─────────────────────────────────────────────────────────────────
+
+var REGION_META = {
+  dwarf:     { name:'The Iron Holds',    color:'#8B6914', stroke:'#c8962a', icon:'⛏️',  x:150, y:200, w:200, h:180 },
+  high_elf:  { name:'The Silverwood',    color:'#1a4a2e', stroke:'#4caf82', icon:'🌿',  x:420, y:80,  w:220, h:200 },
+  orc:       { name:'The Bloodplains',   color:'#4a1010', stroke:'#e05c5c', icon:'⚔️',  x:560, y:300, w:200, h:200 },
+  dark_elf:  { name:'The Underspire',    color:'#1a1030', stroke:'#7c6af5', icon:'🕵️', x:380, y:340, w:180, h:200 },
+  human:     { name:'The Heartlands',    color:'#1a2a10', stroke:'#8fb84a', icon:'🌾',  x:200, y:380, w:200, h:180 },
+  dire_wolf: { name:'The Ashfang Wilds', color:'#0d1a20', stroke:'#4a8fb8', icon:'🐺',  x:60,  y:390, w:160, h:170 },
+};
+
+var REGION_BONUSES = {
+  dwarf:    '+5% construction speed',
+  high_elf: '+5% mana production',
+  orc:      '+5% military strength',
+  dark_elf: '+5% stealth / covert',
+  human:    '+5% economy',
+  dire_wolf:'+5% military strength',
+};
+
+var worldMapData = [];
+
+async function loadWorldMap() {
+  var data = await apiCall('GET', '/api/kingdom/world-map');
+  if (data.error) return toast(data.error, 'error');
+  worldMapData = data;
+  renderWorldMap(data);
+  renderRegionLegend();
+}
+
+function renderRegionLegend() {
+  var el = document.getElementById('region-legend-list');
+  if (!el) return;
+  el.innerHTML = Object.entries(REGION_META).map(function(e) {
+    var race = e[0]; var meta = e[1];
+    var icon = RACE_ICONS[race] || '?';
+    var count = worldMapData.filter(function(k){ return k.race === race; }).length;
+    var bonus = REGION_BONUSES[race] || '';
+    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="highlightRegion(\'' + race + '\')">'
+      + '<span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:' + meta.color + ';border:1.5px solid ' + meta.stroke + ';flex-shrink:0"></span>'
+      + '<span style="font-size:14px">' + icon + '</span>'
+      + '<div style="flex:1;min-width:0"><div style="font-size:12px;color:var(--text);font-weight:600">' + meta.name + '</div>'
+      + '<div style="font-size:10px;color:var(--text3)">' + bonus + ' · ' + count + ' kingdoms</div></div>'
+      + '</div>';
+  }).join('');
+}
+
+function highlightRegion(race) {
+  var svgEl = document.querySelector('#world-map-container svg');
+  if (!svgEl) return;
+  svgEl.querySelectorAll('.region-shape').forEach(function(s){ s.style.opacity = s.dataset.race === race ? '1' : '0.3'; });
+  svgEl.querySelectorAll('.kd-dot').forEach(function(d){ d.style.opacity = d.dataset.race === race ? '1' : '0.2'; });
+}
+
+function renderWorldMap(kingdoms) {
+  var W = 760, H = 560;
+  var bg = '#060810';
+
+  // Build SVG
+  var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block;border-radius:8px">';
+
+  // Defs — filters and gradients
+  svg += '<defs>'
+    + '<filter id="glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>'
+    + '<filter id="softglow"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>'
+    + '<radialGradient id="vignette" cx="50%" cy="50%" r="70%"><stop offset="0%" stop-color="transparent"/><stop offset="100%" stop-color="rgba(0,0,0,.7)"/></radialGradient>'
+    + '</defs>';
+
+  // Background
+  svg += '<rect width="' + W + '" height="' + H + '" fill="' + bg + '"/>';
+  // Ocean texture dots
+  for (var i = 0; i < 120; i++) {
+    var px = Math.floor(Math.random() * W);
+    var py = Math.floor(Math.random() * H);
+    svg += '<circle cx="' + px + '" cy="' + py + '" r="0.8" fill="#1a2a40" opacity="0.5"/>';
+  }
+
+  // Draw regions as rough hexagonal territory shapes
+  var regionPaths = {
+    dwarf:     'M150,160 L310,140 L370,200 L350,340 L200,360 L120,300 Z',
+    high_elf:  'M390,60  L620,50  L660,120 L640,270 L480,290 L390,220 Z',
+    orc:       'M520,280 L680,260 L720,340 L700,480 L540,500 L480,400 Z',
+    dark_elf:  'M360,310 L520,290 L540,400 L480,520 L340,510 L300,410 Z',
+    human:     'M130,340 L320,320 L360,430 L300,540 L140,550 L90,460  Z',
+    dire_wolf: 'M30,320  L140,300 L160,380 L130,500 L30,520  L10,440  Z',
+  };
+
+  // Region fills
+  Object.entries(REGION_META).forEach(function(e) {
+    var race = e[0]; var meta = e[1];
+    var path = regionPaths[race] || '';
+    if (!path) return;
+    // Glow
+    svg += '<path d="' + path + '" fill="' + meta.color + '" opacity="0.7" filter="url(#softglow)" class="region-shape" data-race="' + race + '"/>';
+    // Border
+    svg += '<path d="' + path + '" fill="' + meta.color + '" stroke="' + meta.stroke + '" stroke-width="1.5" opacity="0.9" class="region-shape" data-race="' + race + '"/>';
+    // Region label — find centroid roughly
+    var pts = path.match(/-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?/g) || [];
+    var xs = pts.map(function(p){ return parseFloat(p.split(',')[0]); });
+    var ys = pts.map(function(p){ return parseFloat(p.split(',')[1]); });
+    var cx = xs.reduce(function(a,b){return a+b;},0)/xs.length;
+    var cy = ys.reduce(function(a,b){return a+b;},0)/ys.length;
+    svg += '<text x="' + cx + '" y="' + (cy-8) + '" text-anchor="middle" font-family="Georgia,serif" font-size="9" fill="' + meta.stroke + '" filter="url(#glow)" opacity="0.9" pointer-events="none">' + meta.name + '</text>';
+    svg += '<text x="' + cx + '" y="' + (cy+6) + '" text-anchor="middle" font-family="sans-serif" font-size="7" fill="' + meta.stroke + '" opacity="0.6" pointer-events="none">' + (REGION_BONUSES[race]||'') + '</text>';
+  });
+
+  // Grid lines — subtle
+  for (var gx = 0; gx < W; gx += 80) {
+    svg += '<line x1="' + gx + '" y1="0" x2="' + gx + '" y2="' + H + '" stroke="#ffffff" stroke-width="0.3" opacity="0.04"/>';
+  }
+  for (var gy = 0; gy < H; gy += 80) {
+    svg += '<line x1="0" y1="' + gy + '" x2="' + W + '" y2="' + gy + '" stroke="#ffffff" stroke-width="0.3" opacity="0.04"/>';
+  }
+
+  // Kingdom dots — scattered within region bounding area
+  var regionSeeds = {
+    dwarf: [[175,210],[210,250],[260,200],[290,280],[230,310],[185,270],[310,230],[260,310]],
+    high_elf: [[440,100],[480,130],[530,90],[580,120],[520,170],[460,200],[600,160],[550,210]],
+    orc: [[550,310],[590,340],[620,300],[650,360],[600,410],[560,380],[670,420],[610,460]],
+    dark_elf: [[390,340],[420,370],[460,330],[490,370],[440,420],[470,450],[400,410],[510,410]],
+    human: [[180,370],[220,390],[260,350],[300,380],[240,420],[200,450],[280,440],[310,410]],
+    dire_wolf: [[60,360],[90,340],[80,400],[50,420],[100,450],[70,470],[110,380],[55,380]],
+  };
+
+  var sortedKingdoms = kingdoms.slice().sort(function(a,b){ return b.land - a.land; });
+  sortedKingdoms.forEach(function(k, i) {
+    var seeds = regionSeeds[k.race] || [];
+    var seed = seeds[i % seeds.length] || [W/2, H/2];
+    var jx = seed[0] + (((i * 17 + 3) % 30) - 15);
+    var jy = seed[1] + (((i * 13 + 7) % 30) - 15);
+    var isMe = k.id === state.kingdomId;
+    var dotColor = REGION_META[k.race]?.stroke || '#ffffff';
+    var r = isMe ? 6 : Math.max(3, Math.min(6, 3 + Math.floor(k.land / 5000)));
+    svg += '<circle cx="' + jx + '" cy="' + jy + '" r="' + (r+3) + '" fill="' + dotColor + '" opacity="0.12" class="kd-dot" data-race="' + k.race + '"/>';
+    svg += '<circle cx="' + jx + '" cy="' + jy + '" r="' + r + '" fill="' + (isMe ? '#e8b84b' : dotColor) + '" opacity="0.9" stroke="' + (isMe ? '#fff' : dotColor) + '" stroke-width="' + (isMe?1.5:0.5) + '" class="kd-dot" data-race="' + k.race + '" style="cursor:pointer" onclick="showMapKingdomCard(' + JSON.stringify(k.id) + ')" filter="' + (isMe?'url(#glow)':'') + '"/>';
+    if (isMe || k.land > 10000) {
+      svg += '<text x="' + jx + '" y="' + (jy-r-3) + '" text-anchor="middle" font-size="' + (isMe?8:7) + '" fill="' + (isMe?'#e8b84b':'#aaa') + '" pointer-events="none" font-family="sans-serif">' + escHtml(k.name.slice(0,10)) + '</text>';
+    }
+  });
+
+  // Title
+  svg += '<text x="' + (W/2) + '" y="24" text-anchor="middle" font-family="Georgia,serif" font-size="14" fill="#c8962a" filter="url(#glow)">NARMIR — Land of Magic and Conquest</text>';
+  // Compass rose
+  svg += '<g transform="translate(' + (W-40) + ',' + (H-40) + ')">'
+    + '<circle r="18" fill="rgba(0,0,0,.5)" stroke="#3a3050" stroke-width="1"/>'
+    + '<line x1="0" y1="-14" x2="0" y2="14" stroke="#5a4878" stroke-width="1"/>'
+    + '<line x1="-14" y1="0" x2="14" y2="0" stroke="#5a4878" stroke-width="1"/>'
+    + '<text y="-6" text-anchor="middle" font-size="7" fill="#c8962a" font-family="sans-serif">N</text>'
+    + '</g>';
+  // Vignette
+  svg += '<rect width="' + W + '" height="' + H + '" fill="url(#vignette)"/>';
+  svg += '</svg>';
+
+  document.getElementById('world-map-container').innerHTML = svg;
+}
+
+function showMapKingdomCard(id) {
+  var k = worldMapData.find(function(k){ return k.id === id; });
+  if (!k) return;
+  var card = document.getElementById('map-kingdom-card');
+  var nameEl = document.getElementById('mkc-name');
+  var bodyEl = document.getElementById('mkc-body');
+  var actEl  = document.getElementById('mkc-actions');
+  if (!card) return;
+  card.style.display = 'block';
+  var meta = REGION_META[k.race] || {};
+  nameEl.innerHTML = (RACE_ICONS[k.race]||'👤') + ' ' + escHtml(k.name) + (k.is_ai ? ' <span style="font-size:10px;color:var(--text3)">AI</span>' : '');
+  bodyEl.innerHTML = '<div style="font-size:12px;color:var(--text3);margin-bottom:8px">'
+    + '<span style="color:' + (meta.stroke||'#fff') + '">' + (meta.name||k.region||'—') + '</span> · Level ' + (k.level||1) + ' · Turn ' + (k.turn||0)
+    + '</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px">'
+    + '<div style="background:var(--bg3);border-radius:6px;padding:8px;text-align:center"><div style="color:var(--text3);font-size:10px">LAND</div><div style="color:var(--gold);font-weight:700">' + fmtShort(k.land) + '</div></div>'
+    + '</div>';
+  var isMe = k.id === state.kingdomId;
+  actEl.innerHTML = (!isMe ? '<button class="btn" style="font-size:11px;padding:4px 10px" onclick="openKingdomProfile(\'' + escHtml(k.name) + '\')">👤 Profile</button>'
+    + '<button class="btn btn-red" style="font-size:11px;padding:4px 10px" onclick="targetFromRankings(' + k.id + ',\'attack\')">⚔️ Attack</button>'
+    + '<button class="btn btn-purple" style="font-size:11px;padding:4px 10px" onclick="targetFromRankings(' + k.id + ',\'spells\')">✨ Spell</button>'
+    : '<span style="font-size:12px;color:var(--purple)">Your kingdom</span>');
+}
+
+// ── Race Lore Modal ───────────────────────────────────────────────────────────
+
+var RACE_LORE = {
+  dwarf: {
+    title: 'Dwarves of The Iron Holds',
+    icon: '⛏️',
+    lore: 'Deep beneath the mountain roots, Dwarven civilisation predates all others in recorded history. Their citadels are not merely fortresses — they are cities of impossible scale, carved across generations by engineers who see rock as other races see clay. The Dwarves do not conquer land; they improve it, smelt it, and sell it back to you at a profit.',
+    strengths: ['Master builders — fastest construction in the game', 'Strongest economy (+20.2% gold)', 'Excellent war machines (+25%)', 'Best engineer training (×1.5)'],
+    weaknesses: ['Weak magic (×0.75)', 'Below-average research (×0.90)', 'Worst surface exploration (×0.90)'],
+    special: 'Level 5+ engineers can solo-crew war machines',
+    playstyle: 'Economy and fortress play. Turtle behind walls, stockpile gold, outlast everyone.',
+    color: '#c8962a',
+  },
+  high_elf: {
+    title: 'High Elves of The Silverwood',
+    icon: '🌿',
+    lore: 'Ageless and arch, the High Elves have spent millennia convinced they are the chosen custodians of arcane knowledge. Whether or not this is true is debated; that they produce more magical energy per mage than any other race is not. They grow slowly and build sparsely, but a High Elf mage at level 100 is worth ten of any other race.',
+    strengths: ['Best magic (+20%) and research (+15%)', 'Double scrolls at mage level 5+', 'Best mage and cleric training (×1.5)', 'High mana base per turn'],
+    weaknesses: ['Weakest military (×0.90)', 'Small housing capacity (350/house)', 'Slowest population growth (×0.80)', 'High Elf overcrowding penalty doubled'],
+    special: 'Level 5+ mages produce 2 scrolls per craft instead of 1',
+    playstyle: 'Magic dominance. Stack mages, craft scrolls fast, debuff enemies with tier-3 spells.',
+    color: '#4caf82',
+  },
+  orc: {
+    title: 'Orcs of The Bloodplains',
+    icon: '⚔️',
+    lore: 'The Orcs have never needed a reason to go to war. The Bloodplains have been theirs since before the other races learned to write, and they intend to keep them — by force, by treaty, and by sheer weight of bodies. An Orc kingdom at full tilt is a roaring machine of meat and momentum that only a High Elf spell battery or a Dwarven fortress can hope to outlast.',
+    strengths: ['Second strongest fighters (×1.6)', 'Strong military bonus (+20%)', 'Free fighter training at level 5+ (1 per 10 fighters/turn)', 'Good economy (+10%)'],
+    weaknesses: ['Weak research (×0.80)', 'Very weak magic (×0.65)', 'Below-average construction (×0.90)'],
+    special: 'Level 5+ fighters passively generate 1 free trainee per 10 fighters per turn',
+    playstyle: 'Blitzkrieg. Rush military, attack early, snowball fighter count with passive generation.',
+    color: '#e05c5c',
+  },
+  dark_elf: {
+    title: 'Dark Elves of The Underspire',
+    icon: '🕵️',
+    lore: 'No one knows how many Dark Elves there are. That is precisely how they like it. Operating from a vast underground network of city-warrens and shadow markets, they wage war through proxy, poison, and precision. By the time you know a Dark Elf kingdom is attacking, half your thieves are already dead.',
+    strengths: ['Best covert ops (+25%) and stealth (+30%)', 'Deadly ninjas (×1.8) and thieves (×1.5)', 'Strong rangers (×1.3)', 'Good exploration (×1.25)'],
+    weaknesses: ['Weak military (×0.85)', 'Below-average economy (×0.90)', 'Small housing capacity (450/house)'],
+    special: 'Level 5+ ninjas — silent assassination leaves no trace; target gets no news event',
+    playstyle: 'Shadow warfare. Drain enemy gold and research with thieves, assassinate key units, spy constantly.',
+    color: '#7c6af5',
+  },
+  human: {
+    title: 'Humans of The Heartlands',
+    icon: '🌾',
+    lore: 'Humans are not the strongest, the fastest, the most magical, or the most cunning. What they are is relentless. They breed quickly, adapt faster than any other race, and build institutions that outlast individual heroes. A Human kingdom in the mid-game is deceptively dangerous — by the time it shows its teeth, it has already won.',
+    strengths: ['Balanced ×1.1 across all unit types', 'Fastest population growth (×1.15)', 'Level 5+ clerics give +1 morale/turn', 'Good exploration bonus (×1.10)'],
+    weaknesses: ['No dominant stat — will be outclassed in any specific area', 'Requires careful balancing to be competitive'],
+    special: 'Level 5+ clerics radiate a healing aura that restores +1 morale per turn',
+    playstyle: 'Flexible all-rounder. Strong in long games where adaptation outweighs specialisation.',
+    color: '#8fb84a',
+  },
+  dire_wolf: {
+    title: 'Dire Wolves of The Ashfang Wilds',
+    icon: '🐺',
+    lore: 'The Dire Wolves do not build kingdoms — they claim territory. Their settlements are mobile, their supply chains are their rangers, and their economy is whatever they can take from the land before moving on. They are the dominant military power in Narmir, and they know it. Everyone else knows it too.',
+    strengths: ['Strongest fighters in the game (×1.8)', 'Best rangers (×1.5) with early expedition return', 'Dominant military (+30%)', 'Best exploration (×1.40) with lowest attrition', 'Highest housing capacity (700/house)'],
+    weaknesses: ['Worst economy (×0.70)', 'Very weak magic (×0.60)', 'Poor research (×0.70)', 'Highest upkeep (×1.20)'],
+    special: 'Level 5+ rangers — expeditions tick down 2 turns per turn, returning 1 turn early',
+    playstyle: 'Raid and conquest. Hit fast, take land, use rangers for gold when not at war.',
+    color: '#4a8fb8',
+  },
+};
+
+function openRaceLore() {
+  var race = state.race;
+  var lore = RACE_LORE[race];
+  if (!lore) return;
+  var el = document.getElementById('race-lore-content');
+  var region = REGION_META[race] || {};
+  el.innerHTML = '<div style="text-align:center;margin-bottom:20px">'
+    + '<div style="font-size:48px;margin-bottom:8px">' + lore.icon + '</div>'
+    + '<h2 style="color:' + lore.color + ';margin:0 0 4px;font-size:20px">' + lore.title + '</h2>'
+    + '<div style="font-size:12px;color:var(--text3)">' + (region.name || '') + ' · ' + (REGION_BONUSES[race]||'') + '</div>'
+    + '</div>'
+    + '<p style="font-size:13px;color:var(--text2);line-height:1.8;font-style:italic;margin-bottom:18px">' + lore.lore + '</p>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">'
+    + '<div style="background:rgba(76,175,130,.08);border:1px solid rgba(76,175,130,.2);border-radius:var(--radius);padding:12px">'
+    + '<div style="font-size:11px;font-weight:700;color:var(--green);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Strengths</div>'
+    + lore.strengths.map(function(s){ return '<div style="font-size:12px;color:var(--text2);padding:2px 0">✓ ' + s + '</div>'; }).join('')
+    + '</div>'
+    + '<div style="background:rgba(224,92,92,.08);border:1px solid rgba(224,92,92,.2);border-radius:var(--radius);padding:12px">'
+    + '<div style="font-size:11px;font-weight:700;color:var(--red);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Weaknesses</div>'
+    + lore.weaknesses.map(function(s){ return '<div style="font-size:12px;color:var(--text2);padding:2px 0">✗ ' + s + '</div>'; }).join('')
+    + '</div>'
+    + '</div>'
+    + '<div style="background:rgba(232,184,75,.08);border:1px solid rgba(232,184,75,.25);border-radius:var(--radius);padding:12px;margin-bottom:12px">'
+    + '<div style="font-size:11px;font-weight:700;color:var(--gold);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">✨ Racial unique — unlocks at unit level 5</div>'
+    + '<div style="font-size:13px;color:var(--text)">' + lore.special + '</div>'
+    + '</div>'
+    + '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px">'
+    + '<div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Recommended playstyle</div>'
+    + '<div style="font-size:13px;color:var(--text2)">' + lore.playstyle + '</div>'
+    + '</div>';
+
+  var modal = document.getElementById('race-lore-modal');
+  modal.style.display = 'flex';
+}
+
+function closeRaceLore() {
+  document.getElementById('race-lore-modal').style.display = 'none';
+}
+
+// ── Kingdom Profile Modal ─────────────────────────────────────────────────────
+
+async function openKingdomProfile(name) {
+  var modal = document.getElementById('kingdom-profile-modal');
+  var content = document.getElementById('kingdom-profile-content');
+  modal.style.display = 'flex';
+  content.innerHTML = '<div style="text-align:center;color:var(--text3);padding:40px">Loading...</div>';
+
+  var data = await apiCall('GET', '/api/kingdom/profile/' + encodeURIComponent(name));
+  if (data.error) {
+    content.innerHTML = '<div style="color:var(--red);text-align:center;padding:30px">' + data.error + '</div>';
+    return;
+  }
+
+  var raceIcon = RACE_ICONS[data.race] || '👤';
+  var regionMeta = REGION_META[data.race] || {};
+  var isMe = data.id === state.kingdomId;
+
+  // Top 3 research
+  var resFields = [
+    { key:'res_military', label:'Military' }, { key:'res_economy', label:'Economy' },
+    { key:'res_construction', label:'Construction' }, { key:'res_spellbook', label:'Spellbook' },
+    { key:'res_attack_magic', label:'Attack Magic' }, { key:'res_entertainment', label:'Entertainment' },
+  ];
+  var topRes = resFields.filter(function(f){ return (data[f.key]||0) > 0; })
+    .sort(function(a,b){ return (data[b.key]||0) - (data[a.key]||0); }).slice(0,3);
+
+  content.innerHTML = '<div style="text-align:center;margin-bottom:20px">'
+    + '<div style="font-size:52px;margin-bottom:8px">' + raceIcon + '</div>'
+    + '<h2 style="color:var(--gold);margin:0 0 4px;font-size:22px">' + escHtml(data.name) + '</h2>'
+    + '<div style="font-size:12px;color:var(--text3)">'
+    + escHtml(data.username || '?') + (data.is_ai ? ' 🤖' : '') + (isMe ? ' <span style="color:var(--purple)">(you)</span>' : '')
+    + ' · <span style="color:' + (regionMeta.stroke||'#fff') + '">' + (data.region || regionMeta.name || '—') + '</span>'
+    + '</div></div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px">'
+    + mkStatBox('Rank', '#' + data.rank, 'var(--gold)')
+    + mkStatBox('Level', data.level || 1, 'var(--purple)')
+    + mkStatBox('Turn', fmt(data.turn || 0), 'var(--text2)')
+    + mkStatBox('Land', fmtShort(data.land || 0) + ' ac', 'var(--gold)')
+    + mkStatBox('Population', fmtShort(data.population || 0), 'var(--text2)')
+    + mkStatBox('Morale', (data.morale||0) + '%', (data.morale||0) >= 100 ? 'var(--green)' : 'var(--amber)')
+    + '</div>'
+    + (data.alliance ? '<div style="background:rgba(124,106,245,.1);border:1px solid rgba(124,106,245,.25);border-radius:var(--radius);padding:10px 14px;margin-bottom:14px;font-size:13px">⚔️ Alliance: <strong style="color:var(--purple)">' + escHtml(data.alliance) + '</strong></div>' : '')
+    + (topRes.length ? '<div style="margin-bottom:14px"><div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Top Research</div>'
+      + topRes.map(function(f){ return '<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span style="color:var(--text2)">' + f.label + '</span><span style="color:var(--gold)">' + (data[f.key]||0) + '%</span></div>'; }).join('')
+      + '</div>' : '')
+    + (data.news && data.news.length ? '<div><div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Recent Combat</div>'
+      + data.news.map(function(n){ return '<div style="font-size:12px;color:var(--text3);padding:3px 0;border-bottom:1px solid var(--border)">Turn ' + n.turn_num + ': ' + escHtml(n.message.slice(0,80)) + '</div>'; }).join('')
+      + '</div>' : '')
+    + (!isMe ? '<div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">'
+      + '<button class="btn btn-red" onclick="targetFromRankings(' + data.id + ',\'attack\');closeKingdomProfile()">⚔️ Attack</button>'
+      + '<button class="btn btn-purple" onclick="targetFromRankings(' + data.id + ',\'spells\');closeKingdomProfile()">✨ Spell</button>'
+      + '<button class="btn" onclick="targetFromRankings(' + data.id + ',\'covert\');closeKingdomProfile()">🕵️ Covert</button>'
+      + '</div>' : '');
+}
+
+function mkStatBox(label, val, color) {
+  return '<div style="background:var(--bg3);border-radius:6px;padding:10px;text-align:center">'
+    + '<div style="font-size:10px;color:var(--text3);margin-bottom:4px;text-transform:uppercase">' + label + '</div>'
+    + '<div style="font-size:16px;font-weight:700;color:' + color + '">' + val + '</div>'
+    + '</div>';
+}
+
+function closeKingdomProfile() {
+  document.getElementById('kingdom-profile-modal').style.display = 'none';
 }
 
 // ── XP & Level system ─────────────────────────────────────────────────────────
@@ -4891,6 +5278,22 @@ document.addEventListener('DOMContentLoaded', function() {
     <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:10px;border-bottom:1px solid var(--border);padding-bottom:6px">Level milestones & caps</div>
     <div style="font-size:12px;color:var(--text3);margin-bottom:10px">Higher levels unlock larger building caps and stronger troops.</div>
     <div style="display:grid;grid-template-columns:auto 1fr auto;gap:6px 16px;font-size:12px;align-items:center" id="xp-level-table"></div>
+  </div>
+</div>
+
+<!-- RACE LORE MODAL -->
+<div id="race-lore-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:500;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)closeRaceLore()">
+  <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:28px;max-width:560px;width:100%;max-height:90vh;overflow-y:auto;position:relative">
+    <button onclick="closeRaceLore()" style="position:absolute;top:12px;right:14px;background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;line-height:1">✕</button>
+    <div id="race-lore-content"></div>
+  </div>
+</div>
+
+<!-- KINGDOM PROFILE MODAL -->
+<div id="kingdom-profile-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:500;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)closeKingdomProfile()">
+  <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:28px;max-width:560px;width:100%;max-height:90vh;overflow-y:auto;position:relative">
+    <button onclick="closeKingdomProfile()" style="position:absolute;top:12px;right:14px;background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;line-height:1">✕</button>
+    <div id="kingdom-profile-content"><div style="text-align:center;color:var(--text3);padding:40px">Loading...</div></div>
   </div>
 </div>
 

@@ -281,21 +281,45 @@ textarea{width:100%;resize:vertical;min-height:60px}
       <div class="cl-item">✅ 🐺 Dire Wolf rangers Lv5+ — expeditions tick down 2 turns per turn (return early)</div>
       <div class="cl-item">✅ 💚 Human clerics Lv5+ — +1 morale aura per turn</div>
 
+      <div class="cl-section">World &amp; Profiles</div>
+      <div class="cl-item">✅ World map — dark fantasy SVG with 6 named racial regions, kingdom dots, compass rose, click-to-inspect any kingdom</div>
+      <div class="cl-item">✅ Named regions — The Iron Holds (Dwarf), The Silverwood (High Elf), The Bloodplains (Orc), The Underspire (Dark Elf), The Heartlands (Human), The Ashfang Wilds (Dire Wolf)</div>
+      <div class="cl-item">✅ Region passive bonuses — +5% to race signature stat stacking on top of race bonuses (construction, magic, military, stealth, economy)</div>
+      <div class="cl-item">✅ Region assigned on registration, backfilled for existing kingdoms on deploy</div>
+      <div class="cl-item">✅ Race lore modal — click race badge on status screen. Full lore paragraph, strengths/weaknesses, racial unique bonus, playstyle tip</div>
+      <div class="cl-item">✅ Kingdom profiles — public, no login required. Rank, level, land, population, morale, alliance, top 3 research, recent combat news</div>
+      <div class="cl-item">✅ Rankings — 👤 profile button added to every row</div>
+      <div class="cl-item">✅ World map region legend — colour swatches, bonus text, kingdom count, click to highlight</div>
+
+      <div class="cl-section">Bug Fixes</div>
+      <div class="cl-item">✅ Turn processing crash — applyUpdates now has a 40+ column whitelist; internal keys no longer reach the SQL</div>
+      <div class="cl-item">✅ _dwarf_wm_noted temp flag leak removed — was crashing processTurn every turn for Dwarves</div>
+      <div class="cl-item">✅ Duplicate Chat nav item removed</div>
+      <div class="cl-item">✅ "Clear stuck" debug button removed from expedition log</div>
+      <div class="cl-item">✅ /me chat messages render as centred italic emotes (not raw /me text in a bubble)</div>
+      <div class="cl-item">✅ expedition/acknowledge route added — was called by frontend but missing from backend</div>
+      <div class="cl-item">✅ Tax slider loads saved value on login and stays in sync after each turn</div>
+      <div class="cl-item">✅ Land search diminishing returns — large kingdoms find less free land per ranger</div>
+      <div class="cl-item">✅ Food search added to instant search panel</div>
+
       <div class="cl-section">Social</div>
       <div class="cl-item">✅ Global chat with Socket.io — real-time, username-based</div>
       <div class="cl-item">✅ Online users sidebar with race icons and MOD badges</div>
       <div class="cl-item">✅ IRC commands — /me, /msg (whisper), /kick, /ban, /unban, /delete</div>
       <div class="cl-item">✅ Alliance system — create, invite, dismiss, pledge, chat board</div>
-      <div class="cl-item">✅ Rankings panel with win probability and direct action buttons</div>
-      <div class="cl-item">✅ News panel with type filters and icons</div>
+      <div class="cl-item">✅ Rankings panel with win probability, direct action buttons, 👤 profile button, 🛡️ protection badges</div>
+      <div class="cl-item">✅ News panel with type filters (All / Combat / Spells / Covert / System) and icons</div>
 
       <div class="cl-section">Admin</div>
+      <div class="cl-item">✅ Three-tab layout — ⚙️ Manage · 🏰 Kingdoms · 📋 Changelog</div>
       <div class="cl-item">✅ Full kingdom edit modal — live data from server</div>
-      <div class="cl-item">✅ Promote/demote chat moderators</div>
-      <div class="cl-item">✅ Chat ban list with unban</div>
-      <div class="cl-item">✅ AI kingdoms with race-aware behaviour</div>
-      <div class="cl-item">✅ Global announcement broadcast</div>
+      <div class="cl-item">✅ Promote/demote chat moderators with live moderator list</div>
+      <div class="cl-item">✅ Chat ban list with unban button and ban reason display</div>
+      <div class="cl-item">✅ AI kingdoms with race-aware economic and military behaviour</div>
+      <div class="cl-item">✅ Global announcement broadcast to all players</div>
       <div class="cl-item">✅ Promote to admin</div>
+      <div class="cl-item">✅ Admin notes textarea — saves to localStorage</div>
+      <div class="cl-item">✅ Changelog and wishlist panel (this panel)</div>
     </div>
 
     <!-- Wishlist -->
@@ -321,15 +345,13 @@ textarea{width:100%;resize:vertical;min-height:60px}
 
         <div class="cl-section">Social</div>
         <div class="cl-item wish">⬜ Alliance rankings — leaderboard for combined alliance land</div>
-        <div class="cl-item wish">⬜ Kingdom profiles — public page showing race, level, history</div>
         <div class="cl-item wish">⬜ Trade system — send gold or resources between kingdoms</div>
         <div class="cl-item wish">⬜ Messaging — direct kingdom-to-kingdom messages</div>
 
         <div class="cl-section">World</div>
-        <div class="cl-item wish">⬜ World map — visual representation of kingdom territories</div>
-        <div class="cl-item wish">⬜ Named regions — kingdoms occupy named land areas</div>
+        <div class="cl-item wish">⬜ Named regions — map territories that kingdoms can contest and capture</div>
         <div class="cl-item wish">⬜ More races — Gnome (inventor), Vampire (undead mage), Troll (regenerating fighter)</div>
-        <div class="cl-item wish">⬜ Race lore panel — detailed backstory for each race</div>
+        <div class="cl-item wish">⬜ Race lore expansion — in-game events referencing regional history</div>
 
         <div class="cl-section">Polish</div>
         <div class="cl-item wish">⬜ iOS layout testing and fixes</div>
