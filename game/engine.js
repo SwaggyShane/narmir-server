@@ -1839,7 +1839,7 @@ function expeditionRewards(type, rangers, fighters, k, db) {
     } else {
       updates._fighters_returned = fighters;
 
-      const dungeonGold = Math.floor(fighters * 12 * tacBonus * exploreBonus * expTurns * randomBonus);
+      const dungeonGold = Math.floor(fighters * rand(8, 12) * tacBonus * exploreBonus * randomBonus);
       rewards.push({ text: `+${dungeonGold.toLocaleString()} gold plundered from the dungeon` });
       updates.gold = (k.gold || 0) + dungeonGold;
 
