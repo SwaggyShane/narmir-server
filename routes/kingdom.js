@@ -280,15 +280,23 @@ module.exports = function(db) {
       let searchMessage = '';
 
       if (type === 'land') {
-        const found = Math.floor(r * 0.04 * tacticsMult);
-        updates.land = (kAfterTurn.land || 0) + found;
-        searchResult = { found, unit: 'acres' };
-        searchMessage = `🗺️ Rangers discovered +${found.toLocaleString()} acres of unclaimed land.`;
+        // Diminishing returns — larger kingdoms find less land per ranger
+        const currentLand = kAfterTurn.land || 0;
+        const diminish    = Math.max(0.05, 1 / Math.log10(Math.max(10, currentLand)));
+        const found       = Math.max(1, Math.floor(r * 0.04 * tacticsMult * diminish));
+        updates.land      = (kAfterTurn.land || 0) + found;
+        searchResult      = { found, unit: 'acres' };
+        searchMessage     = `🗺️ Rangers discovered +${found.toLocaleString()} acres${found < Math.floor(r * 0.04 * tacticsMult) ? ' (land getting scarce — diminishing returns apply)' : ''}.`;
       } else if (type === 'gold') {
         const found = Math.floor(r * 12 * tacticsMult);
         updates.gold = (updates.gold || kAfterTurn.gold || 0) + found;
         searchResult = { found, unit: 'GC' };
         searchMessage = `💰 Rangers returned with ${found.toLocaleString()} gold from foraging.`;
+      } else if (type === 'food') {
+        const found = Math.floor(r * 0.5 * tacticsMult);
+        updates.food = (kAfterTurn.food || 0) + found;
+        searchResult = { found, unit: 'food' };
+        searchMessage = `🌾 Rangers foraged ${found.toLocaleString()} food from the wilderness.`;
       } else if (type === 'targets') {
         const found = Math.floor(r * 0.002) + 2;
         searchResult = { found, unit: 'kingdoms' };
@@ -297,7 +305,7 @@ module.exports = function(db) {
         return res.status(400).json({ error: 'Invalid search type' });
       }
 
-      await applyUpdates(db, k.id, { land: updates.land, gold: updates.gold });
+      await applyUpdates(db, k.id, { land: updates.land, gold: updates.gold, food: updates.food });
 
       const turnNum = updates.turn || k.turn || 0;
       await bulkInsertNews(db, [{ kingdom_id: k.id, type: 'system', message: searchMessage, turn_num: turnNum }]);
