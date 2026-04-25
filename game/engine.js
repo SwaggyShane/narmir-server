@@ -1780,6 +1780,8 @@ function expeditionRewards(type, rangers, fighters, k, db) {
   } else if (type === 'deep') {
     rewards.push({ text: `+${goldBase.toLocaleString()} gold from deep wilderness caches` });
     updates.gold = (k.gold || 0) + goldBase;
+
+    const land = Math.max(2, Math.floor(rand(rangers * 0.04, rangers * 0.10) * exploreBonus));
     rewards.push({ text: `+${land} acres of fertile territory` });
     updates.land = (k.land || 0) + land;
 
