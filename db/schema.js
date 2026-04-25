@@ -239,7 +239,11 @@ async function initDb() {
 
   // Expeditions — seen flag so completed rows persist until frontend acknowledges
   const expCols = (await _db.all('PRAGMA table_info(expeditions)')).map(c => c.name);
-  if (!expCols.includes('seen')) await addColumn('expeditions', 'seen', 'INTEGER NOT NULL DEFAULT 0');
+  if (!expCols.includes('seen')) {
+    await addColumn('expeditions', 'seen', 'INTEGER NOT NULL DEFAULT 0');
+    // Clean up any old stuck completed rows that predate the seen column
+    await _db.run('DELETE FROM expeditions WHERE turns_left = 0');
+  }
   if (!cols.includes('bld_housing'))             await addColumn('kingdoms', 'bld_housing',             'INTEGER NOT NULL DEFAULT 100');
   if (!cols.includes('mage_tower_allocation'))   await addColumn('kingdoms', 'mage_tower_allocation',   "TEXT NOT NULL DEFAULT '{}'");
   if (!cols.includes('shrine_allocation'))       await addColumn('kingdoms', 'shrine_allocation',       "TEXT NOT NULL DEFAULT '{}'");
