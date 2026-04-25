@@ -246,7 +246,8 @@ async function initDb() {
       await _db.run('UPDATE kingdoms SET region = ? WHERE id = ?', [RACE_REGIONS[k.race] || 'The Unknown Lands', k.id]);
     }
   }
-  if (!cols.includes('smithy_allocation'))    await addColumn('kingdoms', 'smithy_allocation',    "TEXT NOT NULL DEFAULT '{}'");
+  if (!cols.includes('smithy_allocation'))          await addColumn('kingdoms', 'smithy_allocation',          "TEXT NOT NULL DEFAULT '{}'");
+  if (!cols.includes('racial_bonuses_unlocked'))    await addColumn('kingdoms', 'racial_bonuses_unlocked',    "TEXT NOT NULL DEFAULT '{}'");;
 
   // Expeditions — seen flag so completed rows persist until frontend acknowledges
   const expCols = (await _db.all('PRAGMA table_info(expeditions)')).map(c => c.name);
