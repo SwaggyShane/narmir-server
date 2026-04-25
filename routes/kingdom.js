@@ -744,6 +744,15 @@ module.exports = function(db) {
     res.json({ ok: true });
   });
 
+  // Acknowledge a completed expedition (dismiss from active list)
+  router.post('/expedition/acknowledge', requireAuth, async (req, res) => {
+    const { id } = req.body;
+    const k = await db.get('SELECT id FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
+    if (!k) return res.status(404).json({ error: 'Kingdom not found' });
+    await db.run('DELETE FROM expeditions WHERE id = ? AND kingdom_id = ? AND turns_left <= 0', [id, k.id]);
+    res.json({ ok: true });
+  });
+
   router.post('/expedition/cancel', requireAuth, async (req, res) => {
     const { id } = req.body;
     const k = await db.get('SELECT id FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
