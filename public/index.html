@@ -421,16 +421,75 @@
         <!-- Col 1: Military & support -->
         <div class="card">
           <div class="card-title">Military &amp; support</div>
-          <div class="trow"><span class="name" style="display:flex;align-items:center;gap:6px">Fighters <span id="s-lv-fighters" style="font-size:10px;color:var(--text3);font-weight:400"></span></span><span class="count" id="s-fighters">0</span><span class="badge badge-red" style="min-width:52px;text-align:center">Combat</span></div>
-          <div class="trow"><span class="name" style="display:flex;align-items:center;gap:6px">Rangers <span id="s-lv-rangers" style="font-size:10px;color:var(--text3);font-weight:400"></span></span><span class="count" id="s-rangers">0</span><span class="badge badge-blue" style="min-width:52px;text-align:center">Ranged</span></div>
-          <div class="trow"><span class="name" style="display:flex;align-items:center;gap:6px">Clerics <span id="s-lv-clerics" style="font-size:10px;color:var(--text3);font-weight:400"></span></span><span class="count" id="s-clerics">0</span><span class="badge badge-green" style="min-width:52px;text-align:center">Heal</span></div>
-          <div class="trow"><span class="name" style="display:flex;align-items:center;gap:6px">Mages <span id="s-lv-mages" style="font-size:10px;color:var(--text3);font-weight:400"></span></span><span class="count" id="s-mages">0</span><span class="badge badge-amber" style="min-width:52px;text-align:center">Magic</span></div>
-          <div class="trow"><span class="name" style="display:flex;align-items:center;gap:6px">Thieves <span id="s-lv-thieves" style="font-size:10px;color:var(--text3);font-weight:400"></span></span><span class="count" id="s-thieves">0</span><span class="badge badge-amber" style="min-width:52px;text-align:center">Covert</span></div>
-          <div class="trow"><span class="name" style="display:flex;align-items:center;gap:6px">Ninjas <span id="s-lv-ninjas" style="font-size:10px;color:var(--text3);font-weight:400"></span></span><span class="count" id="s-ninjas">0</span><span class="badge badge-amber" style="min-width:52px;text-align:center">Covert</span></div>
-          <div class="trow"><span class="name">Scribes</span><span class="count" id="s-scribes">0</span><span class="badge badge-blue">Library</span></div>
-          <div class="trow"><span class="name">Researchers</span><span class="count" id="s-researchers">500</span><span class="badge badge-blue">Study</span></div>
-          <div class="trow"><span class="name">Engineers</span><span class="count" id="s-engineers">0</span><span class="badge badge-blue">Build</span></div>
-          <div class="trow" style="border-bottom:none"><span class="name">War machines</span><span class="count" id="s-war_machines">0</span><span class="badge">WM</span></div>
+          <!-- Header row -->
+          <div style="display:grid;grid-template-columns:100px 1fr 52px 52px;gap:4px;padding:4px 0 6px;border-bottom:1px solid var(--border2)">
+            <span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Unit</span>
+            <span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;text-align:right">Count</span>
+            <span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;text-align:center">Lv</span>
+            <span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;text-align:center">Role</span>
+          </div>
+          <!-- Combat units -->
+          <div style="display:grid;grid-template-columns:100px 1fr 52px 52px;gap:4px;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)">
+            <span style="font-size:13px;color:var(--text)">Fighters</span>
+            <span style="font-size:13px;font-weight:600;text-align:right;color:var(--text)" id="s-fighters">0</span>
+            <span style="text-align:center;font-size:11px;font-weight:600" id="s-lv-fighters">—</span>
+            <span class="badge badge-red" style="text-align:center;font-size:9px">Combat</span>
+          </div>
+          <div style="display:grid;grid-template-columns:100px 1fr 52px 52px;gap:4px;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)">
+            <span style="font-size:13px;color:var(--text)">Rangers</span>
+            <span style="font-size:13px;font-weight:600;text-align:right;color:var(--text)" id="s-rangers">0</span>
+            <span style="text-align:center;font-size:11px;font-weight:600" id="s-lv-rangers">—</span>
+            <span class="badge badge-blue" style="text-align:center;font-size:9px">Ranged</span>
+          </div>
+          <div style="display:grid;grid-template-columns:100px 1fr 52px 52px;gap:4px;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)">
+            <span style="font-size:13px;color:var(--text)">Clerics</span>
+            <span style="font-size:13px;font-weight:600;text-align:right;color:var(--text)" id="s-clerics">0</span>
+            <span style="text-align:center;font-size:11px;font-weight:600" id="s-lv-clerics">—</span>
+            <span class="badge badge-green" style="text-align:center;font-size:9px">Heal</span>
+          </div>
+          <div style="display:grid;grid-template-columns:100px 1fr 52px 52px;gap:4px;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)">
+            <span style="font-size:13px;color:var(--text)">Mages</span>
+            <span style="font-size:13px;font-weight:600;text-align:right;color:var(--text)" id="s-mages">0</span>
+            <span style="text-align:center;font-size:11px;font-weight:600" id="s-lv-mages">—</span>
+            <span class="badge badge-amber" style="text-align:center;font-size:9px">Magic</span>
+          </div>
+          <div style="display:grid;grid-template-columns:100px 1fr 52px 52px;gap:4px;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)">
+            <span style="font-size:13px;color:var(--text)">Thieves</span>
+            <span style="font-size:13px;font-weight:600;text-align:right;color:var(--text)" id="s-thieves">0</span>
+            <span style="text-align:center;font-size:11px;font-weight:600" id="s-lv-thieves">—</span>
+            <span class="badge badge-amber" style="text-align:center;font-size:9px">Covert</span>
+          </div>
+          <div style="display:grid;grid-template-columns:100px 1fr 52px 52px;gap:4px;align-items:center;padding:5px 0;border-bottom:1px solid var(--border2)">
+            <span style="font-size:13px;color:var(--text)">Ninjas</span>
+            <span style="font-size:13px;font-weight:600;text-align:right;color:var(--text)" id="s-ninjas">0</span>
+            <span style="text-align:center;font-size:11px;font-weight:600" id="s-lv-ninjas">—</span>
+            <span class="badge badge-amber" style="text-align:center;font-size:9px">Covert</span>
+          </div>
+          <!-- Support units — no level shown -->
+          <div style="display:grid;grid-template-columns:100px 1fr 52px 52px;gap:4px;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)">
+            <span style="font-size:13px;color:var(--text)">Engineers</span>
+            <span style="font-size:13px;font-weight:600;text-align:right;color:var(--text)" id="s-engineers">0</span>
+            <span style="text-align:center;font-size:11px;color:var(--text3)" id="s-lv-engineers">—</span>
+            <span class="badge badge-blue" style="text-align:center;font-size:9px">Build</span>
+          </div>
+          <div style="display:grid;grid-template-columns:100px 1fr 52px 52px;gap:4px;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)">
+            <span style="font-size:13px;color:var(--text)">Scribes</span>
+            <span style="font-size:13px;font-weight:600;text-align:right;color:var(--text)" id="s-scribes">0</span>
+            <span style="text-align:center;font-size:11px;color:var(--text3)" id="s-lv-scribes">—</span>
+            <span class="badge badge-blue" style="text-align:center;font-size:9px">Library</span>
+          </div>
+          <div style="display:grid;grid-template-columns:100px 1fr 52px 52px;gap:4px;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)">
+            <span style="font-size:13px;color:var(--text)">Researchers</span>
+            <span style="font-size:13px;font-weight:600;text-align:right;color:var(--text)" id="s-researchers">0</span>
+            <span style="text-align:center;font-size:11px;color:var(--text3)" id="s-lv-researchers">—</span>
+            <span class="badge badge-blue" style="text-align:center;font-size:9px">Study</span>
+          </div>
+          <div style="display:grid;grid-template-columns:100px 1fr 52px 52px;gap:4px;align-items:center;padding:5px 0">
+            <span style="font-size:13px;color:var(--text)">War machines</span>
+            <span style="font-size:13px;font-weight:600;text-align:right;color:var(--text)" id="s-war_machines">0</span>
+            <span></span>
+            <span class="badge" style="text-align:center;font-size:9px">WM</span>
+          </div>
         </div>
 
         <!-- Col 2: Research levels -->
@@ -1211,19 +1270,19 @@
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
       <div style="background:var(--bg3);border-radius:var(--radius);padding:10px;text-align:center">
         <div style="font-size:11px;color:var(--text3);margin-bottom:3px">ENGINEERS</div>
-        <div style="font-size:18px;font-weight:700;color:var(--text)" id="s-engineers">0</div>
+        <div style="font-size:18px;font-weight:700;color:var(--text)" id="sup-count-engineers">0</div>
         <div id="sup-lv-engineers" style="font-size:13px;font-weight:600;color:var(--text3);margin-top:2px">Lv 1</div>
         <div id="sup-xp-engineers" style="font-size:10px;color:var(--text3);margin-top:2px">0 / 200 XP</div>
       </div>
       <div style="background:var(--bg3);border-radius:var(--radius);padding:10px;text-align:center">
         <div style="font-size:11px;color:var(--text3);margin-bottom:3px">SCRIBES</div>
-        <div style="font-size:18px;font-weight:700;color:var(--text)" id="s-scribes">0</div>
+        <div style="font-size:18px;font-weight:700;color:var(--text)" id="sup-count-scribes">0</div>
         <div id="sup-lv-scribes" style="font-size:13px;font-weight:600;color:var(--text3);margin-top:2px">Lv 1</div>
         <div id="sup-xp-scribes" style="font-size:10px;color:var(--text3);margin-top:2px">0 / 200 XP</div>
       </div>
       <div style="background:var(--bg3);border-radius:var(--radius);padding:10px;text-align:center">
         <div style="font-size:11px;color:var(--text3);margin-bottom:3px">RESEARCHERS</div>
-        <div style="font-size:18px;font-weight:700;color:var(--text)" id="s-researchers">0</div>
+        <div style="font-size:18px;font-weight:700;color:var(--text)" id="sup-count-researchers">0</div>
         <div id="sup-lv-researchers" style="font-size:13px;font-weight:600;color:var(--text3);margin-top:2px">Lv 1</div>
         <div id="sup-xp-researchers" style="font-size:10px;color:var(--text3);margin-top:2px">0 / 200 XP</div>
       </div>
@@ -1245,6 +1304,10 @@
     <div style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.6">
       Assign troops to training fields each turn. Troops need weapons and armor equipped to train effectively.
       Race bonuses apply — troops associated with your race's strengths train faster and can exceed Level 100.
+    </div>
+
+    <div id="racial-gift-banner" style="display:none;background:linear-gradient(90deg,rgba(232,184,75,.15),rgba(232,120,0,.10));border:1px solid var(--gold);border-radius:var(--radius);padding:10px 14px;margin-bottom:14px;font-size:13px;color:var(--gold)">
+      ✨ <strong>Racial gift active</strong> — <span id="racial-gift-text"></span>
     </div>
 
     <div class="trow">
@@ -3166,21 +3229,29 @@ function syncUI() {
   ['fighters','rangers','clerics','mages','thieves','ninjas'].forEach(function(u) {
     var lvEl = document.getElementById('s-lv-' + u);
     if (!lvEl) return;
-    var lv = (typeof tls === 'object' && tls[u]) ? (tls[u].level || 1) : 1;
+    var lv = (tls && tls[u]) ? (tls[u].level || 1) : 1;
+    lvEl.textContent = 'Lv ' + lv;
+    lvEl.style.color = lv >= 50 ? 'var(--gold)' : lv >= 20 ? 'var(--purple)' : 'var(--text3)';
+  });
+  // Support unit levels in status panel (no colour coding — they level through work)
+  ['engineers','scribes','researchers'].forEach(function(u) {
+    var lvEl = document.getElementById('s-lv-' + u);
+    if (!lvEl) return;
+    var lv = (tls && tls[u]) ? (tls[u].level || 1) : 1;
     lvEl.textContent = 'Lv ' + lv;
     lvEl.style.color = lv >= 50 ? 'var(--gold)' : lv >= 20 ? 'var(--purple)' : 'var(--text3)';
   });
 
   // Support unit levels on training panel
   ['engineers','scribes','researchers'].forEach(function(u) {
-    var lvEl  = document.getElementById('sup-lv-' + u);
-    var xpEl  = document.getElementById('sup-xp-' + u);
-    var cntEl = document.getElementById('s-' + u);
-    var data  = (typeof tls === 'object' && tls[u]) ? tls[u] : { level:1, xp:0 };
-    var lv    = data.level || 1;
-    var xp    = data.xp || 0;
-    // XP needed for next level (approximate)
-    var xpNext = lv <= 10 ? (lv+1)*100 : lv <= 25 ? (lv+1)*300 : lv <= 50 ? (lv+1)*800 : (lv+1)*2000;
+    var lvEl   = document.getElementById('sup-lv-' + u);
+    var xpEl   = document.getElementById('sup-xp-' + u);
+    var cntEl  = document.getElementById('sup-count-' + u);
+    var data   = (tls && tls[u]) ? tls[u] : { level:1, xp:0 };
+    var lv     = data.level || 1;
+    var xp     = data.xp || 0;
+    // XP needed for next level — matches troopXpForLevel formula
+    var xpNext = lv <= 10 ? (lv+1)*100 : lv <= 25 ? (lv+1)*300 : lv <= 50 ? (lv+1)*800 : lv <= 75 ? (lv+1)*2000 : (lv+1)*5000;
     if (lvEl)  { lvEl.textContent = 'Lv ' + lv; lvEl.style.color = lv >= 50 ? 'var(--gold)' : lv >= 20 ? 'var(--purple)' : 'var(--text3)'; }
     if (xpEl)  xpEl.textContent = xp.toLocaleString() + ' / ' + xpNext.toLocaleString() + ' XP';
     if (cntEl) cntEl.textContent = fmt(state[u] || 0);
@@ -4956,27 +5027,17 @@ var RACIAL_BADGE_TEXT = {
 };
 
 function renderRacialBadge() {
-  var race = state.race;
+  var race    = state.race;
   var keyUnit = RACIAL_UNIT_MAP[race];
-  if (!keyUnit) return;
+  var banner  = document.getElementById('racial-gift-banner');
+  var textEl  = document.getElementById('racial-gift-text');
+  if (!banner || !keyUnit) return;
   var unlocked = state.racial_bonuses_unlocked || {};
-  var badgeId = 'racial-badge-' + keyUnit;
-  var existing = document.getElementById(badgeId);
   if (unlocked[keyUnit]) {
-    if (!existing) {
-      // Find the trow for this unit and append badge
-      var levelEl = document.getElementById('tr-level-' + keyUnit);
-      if (levelEl) {
-        var badge = document.createElement('span');
-        badge.id = badgeId;
-        badge.style.cssText = 'font-size:10px;background:linear-gradient(90deg,var(--gold),var(--amber));color:#000;border-radius:4px;padding:2px 6px;margin-left:6px;font-weight:700;white-space:nowrap';
-        badge.title = RACIAL_BADGE_TEXT[race] || '';
-        badge.textContent = '✨ Racial gift active';
-        levelEl.appendChild(badge);
-      }
-    }
+    banner.style.display = 'block';
+    if (textEl) textEl.textContent = RACIAL_BADGE_TEXT[race] || '';
   } else {
-    if (existing) existing.remove();
+    banner.style.display = 'none';
   }
 }
 
