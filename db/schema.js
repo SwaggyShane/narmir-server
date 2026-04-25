@@ -234,7 +234,18 @@ async function initDb() {
   if (!cmCols.includes('player_id')) await addColumn('chat_messages', 'player_id', 'INTEGER NOT NULL DEFAULT 0');
   if (!cmCols.includes('deleted'))  await addColumn('chat_messages', 'deleted',  'INTEGER NOT NULL DEFAULT 0');
 
-  if (!cols.includes('hammer_turns_used'))    await addColumn('kingdoms', 'hammer_turns_used',    'INTEGER NOT NULL DEFAULT 0');
+  if (!cols.includes('region')) {
+    await addColumn('kingdoms', 'region', "TEXT NOT NULL DEFAULT ''");
+    // Backfill existing kingdoms
+    const RACE_REGIONS = {
+      dwarf:'The Iron Holds', high_elf:'The Silverwood', orc:'The Bloodplains',
+      dark_elf:'The Underspire', human:'The Heartlands', dire_wolf:'The Ashfang Wilds',
+    };
+    const existing = await _db.all('SELECT id, race FROM kingdoms');
+    for (const k of existing) {
+      await _db.run('UPDATE kingdoms SET region = ? WHERE id = ?', [RACE_REGIONS[k.race] || 'The Unknown Lands', k.id]);
+    }
+  }
   if (!cols.includes('smithy_allocation'))    await addColumn('kingdoms', 'smithy_allocation',    "TEXT NOT NULL DEFAULT '{}'");
 
   // Expeditions — seen flag so completed rows persist until frontend acknowledges
