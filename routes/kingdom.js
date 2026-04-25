@@ -721,7 +721,9 @@ module.exports = function(db) {
   router.get('/expedition/list', requireAuth, async (req, res) => {
     const k = await db.get('SELECT id FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
     if (!k) return res.status(404).json({ error: 'Kingdom not found' });
-    // Return completed (turns_left=0, has rewards, not yet acknowledged) without deleting them
+    // Clean up old acknowledged rows
+    await db.run('DELETE FROM expeditions WHERE kingdom_id = ? AND turns_left = 0 AND seen = 1', [k.id]);
+    // Return completed (turns_left=0, has rewards, not yet acknowledged)
     const completed = await db.all(
       'SELECT * FROM expeditions WHERE kingdom_id = ? AND turns_left = 0 AND rewards IS NOT NULL AND (seen IS NULL OR seen = 0)',
       [k.id]
