@@ -703,13 +703,25 @@ module.exports = function(db) {
   router.get('/expedition/list', requireAuth, async (req, res) => {
     const k = await db.get('SELECT id FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
     if (!k) return res.status(404).json({ error: 'Kingdom not found' });
-    // Fetch completed ones (turns_left=0 with rewards) to return to frontend, then delete them
-    const completed = await db.all('SELECT * FROM expeditions WHERE kingdom_id = ? AND turns_left = 0 AND rewards IS NOT NULL', [k.id]);
-    if (completed.length > 0) {
-      await db.run('DELETE FROM expeditions WHERE kingdom_id = ? AND turns_left = 0', [k.id]);
-    }
-    const active = await db.all('SELECT * FROM expeditions WHERE kingdom_id = ? AND turns_left > 0 ORDER BY created_at DESC', [k.id]);
+    // Return completed (turns_left=0, has rewards, not yet acknowledged) without deleting them
+    const completed = await db.all(
+      'SELECT * FROM expeditions WHERE kingdom_id = ? AND turns_left = 0 AND rewards IS NOT NULL AND (seen IS NULL OR seen = 0)',
+      [k.id]
+    );
+    const active = await db.all(
+      'SELECT * FROM expeditions WHERE kingdom_id = ? AND turns_left > 0 ORDER BY created_at DESC',
+      [k.id]
+    );
     res.json({ active, completed });
+  });
+
+  // Frontend calls this to acknowledge a completed expedition so it's removed from the queue
+  router.post('/expedition/acknowledge', requireAuth, async (req, res) => {
+    const { id } = req.body;
+    const k = await db.get('SELECT id FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
+    if (!k) return res.status(404).json({ error: 'Kingdom not found' });
+    await db.run('UPDATE expeditions SET seen = 1 WHERE id = ? AND kingdom_id = ?', [id, k.id]);
+    res.json({ ok: true });
   });
 
   router.post('/expedition/cancel', requireAuth, async (req, res) => {
