@@ -744,15 +744,7 @@ module.exports = function(db) {
   });
 
   // Frontend calls this to acknowledge a completed expedition so it's removed from the queue
-  router.post('/expedition/acknowledge', requireAuth, async (req, res) => {
-    const { id } = req.body;
-    const k = await db.get('SELECT id FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
-    if (!k) return res.status(404).json({ error: 'Kingdom not found' });
-    await db.run('UPDATE expeditions SET seen = 1 WHERE id = ? AND kingdom_id = ?', [id, k.id]);
-    res.json({ ok: true });
-  });
-
-  // Acknowledge a completed expedition (dismiss from active list)
+  // Acknowledge a completed expedition (mark seen and clean up)
   router.post('/expedition/acknowledge', requireAuth, async (req, res) => {
     const { id } = req.body;
     const k = await db.get('SELECT id FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
@@ -802,6 +794,57 @@ module.exports = function(db) {
     }
     await applyUpdates(db, k.id, updates);
     res.json({ ok: true, updates });
+  });
+
+  // ── Public kingdom profile — no auth required ─────────────────────────────────
+  router.get('/profile/:name', async (req, res) => {
+    try {
+      const k = await db.get(`
+        SELECT k.id, k.name, k.race, k.region, k.level, k.xp, k.land, k.population,
+               k.fighters, k.mages, k.rangers, k.morale, k.turn,
+               k.res_military, k.res_economy, k.res_construction, k.res_spellbook,
+               k.res_attack_magic, k.res_entertainment,
+               p.username, p.is_ai
+        FROM kingdoms k JOIN players p ON k.player_id = p.id
+        WHERE LOWER(k.name) = LOWER(?)`, [req.params.name]);
+      if (!k) return res.status(404).json({ error: 'Kingdom not found' });
+      const alliance = await db.get(`
+        SELECT a.name FROM alliances a JOIN alliance_members am ON a.id = am.alliance_id
+        WHERE am.kingdom_id = ?`, [k.id]);
+      const news = await db.all(`
+        SELECT type, message, turn_num FROM news
+        WHERE kingdom_id = ? AND type = 'attack'
+        ORDER BY created_at DESC LIMIT 8`, [k.id]);
+      const rankRow = await db.get(
+        'SELECT COUNT(*)+1 as rank FROM kingdoms WHERE land > ? AND id != ?', [k.land, k.id]);
+      res.json({ ...k, alliance: alliance?.name || null, news, rank: rankRow?.rank || 1 });
+    } catch (err) {
+      console.error('[profile]', err.message);
+      res.status(500).json({ error: 'Failed to load profile' });
+    }
+  });
+
+  // ── World map data ────────────────────────────────────────────────────────────
+  router.get('/world-map', async (req, res) => {
+    try {
+      const kingdoms = await db.all(`
+        SELECT k.id, k.name, k.race, k.region, k.land, k.level, k.turn, p.is_ai
+        FROM kingdoms k JOIN players p ON k.player_id = p.id
+        ORDER BY k.land DESC`);
+      res.json(kingdoms);
+    } catch (err) {
+      // region column may not exist yet — fallback query
+      try {
+        const kingdoms = await db.all(`
+          SELECT k.id, k.name, k.race, '' as region, k.land, k.level, k.turn, p.is_ai
+          FROM kingdoms k JOIN players p ON k.player_id = p.id
+          ORDER BY k.land DESC`);
+        res.json(kingdoms);
+      } catch (err2) {
+        console.error('[world-map]', err2.message);
+        res.status(500).json({ error: 'Failed to load map data' });
+      }
+    }
   });
 
   return router;
