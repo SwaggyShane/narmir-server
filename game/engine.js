@@ -520,14 +520,17 @@ function processTurn(k) {
     events.push({ type: 'system', message: `✨ Human clerics radiate healing aura — +1 morale.` });
   }
 
-  // ── 10. Rangers auto-explore — level scales land discovery ───────────────────
+  // ── 10. Rangers auto-explore — level scales land discovery, diminishing returns on high land ──
   const rangers = k.rangers || 0;
   if (rangers > 0) {
     const scoutMult    = raceBonus(k, 'military');
     const rangerLvMult = unitLevelMult({ ...k, troop_levels: updates.troop_levels || k.troop_levels }, 'rangers');
-    const autoLand = Math.floor(rangers * 0.001 * scoutMult * rangerLvMult);
+    // Diminishing returns — more land = less free land per turn
+    const currentLand  = updates.land || k.land || 0;
+    const diminish     = Math.max(0.05, 1 / Math.log10(Math.max(10, currentLand)));
+    const autoLand     = Math.floor(rangers * 0.001 * scoutMult * rangerLvMult * diminish);
     if (autoLand > 0) {
-      updates.land = (updates.land || k.land || 0) + autoLand;
+      updates.land = currentLand + autoLand;
       events.push({ type: 'system', message: `🗺️ Rangers explored and claimed ${autoLand} acre(s) of new land. Total: ${updates.land.toLocaleString()} acres.` });
       // Passive ranger XP for exploring
       const rangerXp = awardTroopXp({ ...k, troop_levels: updates.troop_levels || k.troop_levels }, 'rangers', 3);
