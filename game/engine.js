@@ -1906,16 +1906,16 @@ async function resolveExpeditions(db, k, engine) {
     // Fetch fresh k for racial bonus check
     const freshKCheck = await db.get('SELECT race, troop_levels FROM kingdoms WHERE id = ?', [k.id]) || k;
     const direWolfBonus = racialUnitBonus(freshKCheck, 'rangers');
-    const tickDown = direWolfBonus.earlyReturn ? 2 : 1; // Dire Wolf rangers return 1 turn early
+    const tickDown = direWolfBonus.earlyReturn ? 2 : 1;
     const newTurns = exp.turns_left - tickDown;
-    console.log(`[expedition] id=${exp.id} turns_left=${exp.turns_left} newTurns=${newTurns} completing=${newTurns <= 0}`);
+    console.log(`[expedition] kingdom=${k.id} id=${exp.id} type=${exp.type} turns_left=${exp.turns_left} → ${newTurns}`);
+
     if (newTurns > 0) {
       await db.run('UPDATE expeditions SET turns_left = ? WHERE id = ?', [newTurns, exp.id]);
       continue;
     }
-
-    // Expedition complete — always delete it first so it never gets stuck
-    console.log(`[expedition] COMPLETING id=${exp.id} type=${exp.type}`);
+    // newTurns <= 0 means this expedition completes now
+    console.log(`[expedition] COMPLETING kingdom=${k.id} id=${exp.id} type=${exp.type}`);
 
     try {
       // Fetch fresh kingdom state to avoid stale merged values
