@@ -26,14 +26,15 @@ module.exports = function(db) {
       const playerResult = await db.run(
         'INSERT INTO players (username, password) VALUES (?, ?)', [username, hash]
       );
+      const region = engine.assignRegion(chosenRace);
       await db.run(
         `INSERT INTO kingdoms (
-          player_id, name, race, gold, land, population,
+          player_id, name, race, region, gold, land, population,
           researchers, engineers, rangers, turns_stored,
           res_spellbook,
           bld_farms, bld_schools, bld_barracks, bld_armories, bld_housing
-        ) VALUES (?, ?, ?, 10000, 504, 50000, 100, 100, 50, 200, 0, 200, 1, 1, 1, 100)`,
-        [playerResult.lastID, kingdomName, chosenRace]
+        ) VALUES (?, ?, ?, ?, 10000, 504, 50000, 100, 100, 50, 200, 0, 200, 1, 1, 1, 100)`,
+        [playerResult.lastID, kingdomName, chosenRace, region]
       );
       const token = jwt.sign(
         { playerId: playerResult.lastID, username, isAdmin: false },
