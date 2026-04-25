@@ -1825,11 +1825,11 @@ function expeditionRewards(type, rangers, fighters, k, db) {
 
   } else if (type === 'dungeon') {
     const power = (rangers + fighters * 2) * tacBonus * exploreBonus;
-    const successChance = Math.min(0.85, 0.25 + (power / 80000));
+    const successChance = Math.min(0.90, 0.25 + (power / 24000));
     const success = roll(successChance);
 
     if (!success) {
-      const fLost = Math.min(fighters, rand(Math.floor(fighters * 0.15), Math.floor(fighters * 0.40)));
+      const fLost = Math.min(fighters, rand(Math.floor(fighters * 0.05), Math.floor(fighters * 0.15)));
       const fReturned = fighters - fLost;
       if (fReturned > 0) updates._fighters_returned = fReturned;
       rewards.push({ text: `The dungeon proved too dangerous — ${fLost} fighters lost in retreat` });
@@ -1900,6 +1900,7 @@ function expeditionRewards(type, rangers, fighters, k, db) {
 
 async function resolveExpeditions(db, k, engine) {
   const exps = await db.all('SELECT * FROM expeditions WHERE kingdom_id = ? AND turns_left > 0', [k.id]);
+  console.log(`[resolveExpeditions] kingdom=${k.id} found ${exps.length} active expedition(s):`, exps.map(e => `${e.type}(${e.turns_left}t)`).join(', ') || 'none');
   const expeditionEvents = [];
   for (const exp of exps) {
     // Fetch fresh k for racial bonus check
