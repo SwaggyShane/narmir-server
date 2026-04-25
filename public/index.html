@@ -1294,12 +1294,16 @@
           <span style="font-size:12px;color:var(--text3);margin-right:8px">Available: <span id="exp-rangers-avail">0</span></span>
           <input type="number" id="search-rangers" min="0" value="0" style="width:90px">
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
           <button class="btn" style="padding:10px;font-size:12px;text-align:center" onclick="searchAction('land')">
             <div style="font-size:18px;margin-bottom:4px">🗺️</div>Search for land
+            <div style="font-size:10px;color:var(--text3);margin-top:2px">Diminishing returns</div>
           </button>
           <button class="btn" style="padding:10px;font-size:12px;text-align:center" onclick="searchAction('gold')">
             <div style="font-size:18px;margin-bottom:4px">⛏️</div>Forage for gold
+          </button>
+          <button class="btn" style="padding:10px;font-size:12px;text-align:center" onclick="searchAction('food')">
+            <div style="font-size:18px;margin-bottom:4px">🌾</div>Search for food
           </button>
           <button class="btn" style="padding:10px;font-size:12px;text-align:center" onclick="searchAction('targets')">
             <div style="font-size:18px;margin-bottom:4px">🔭</div>Scout targets
@@ -1916,12 +1920,13 @@ function searchAction(type) {
     if (result.error) return toast(result.error, 'error');
     if (result.turns_stored !== undefined) { state.turns_stored = result.turns_stored; updateTurnsDisplay(); }
     applyServerUpdates(result.updates || {});
-    if (result.type === 'land' && result.result) state.land = (state.land || 0) + result.result.found;
-    if (result.type === 'gold' && result.result) state.gold = (state.gold || 0) + result.result.found;
+    if (result.type === 'land'   && result.result) state.land  = (state.land  || 0) + result.result.found;
+    if (result.type === 'gold'   && result.result) state.gold  = (state.gold  || 0) + result.result.found;
+    if (result.type === 'food'   && result.result) state.food  = (state.food  || 0) + result.result.found;
     syncUI();
     if (result.events && result.events.length) appendNewsItems(result.events);
     toast(result.message, 'success');
-    var icons = { land: '🗺️', gold: '⛏️', targets: '🔭' };
+    var icons = { land: '🗺️', gold: '⛏️', food: '🌾', targets: '🔭' };
     logExpeditionEntry(icons[type] || '🧭', result.message, 'Sent ' + fmt(r) + ' rangers · 1 turn used');
     loadActiveExpeditions();
   });
