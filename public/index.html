@@ -4297,20 +4297,6 @@ async function forgeScaffolding() {
   toast('🏗️ 1 scaffolding built', 'success');
 }
 
-async function forgeTools() {
-  var toolType = document.getElementById('forge-tool-type').value;
-  var qty = parseInt(document.getElementById('forge-tool-qty').value) || 0;
-  if (qty <= 0) return toast('Enter a quantity', 'error');
-  var TOOL_GOLD = { hammers: 500, scaffolding: 2000, blueprints: 5000 };
-  var cost = (TOOL_GOLD[toolType] || 500) * qty;
-  if (cost > state.gold) return toast('Need ' + fmt(cost) + ' gold but only have ' + fmt(state.gold) + ' gold', 'error');
-  var result = await apiCall('POST', '/api/kingdom/forge-tools', { toolType: toolType, quantity: qty });
-  if (result.error) return toast(result.error, 'error');
-  applyServerUpdates(result.updates);
-  syncUI();
-  toast('Forged ' + qty + ' ' + toolType + ' for ' + fmt(cost) + ' gold', 'success');
-}
-
 // ── XP & Level system ─────────────────────────────────────────────────────────
 
 function xpForLevel(level) {
