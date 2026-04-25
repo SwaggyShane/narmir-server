@@ -180,7 +180,8 @@ function awardTroopXp(k, unit, xpAmount) {
     troopLevels[unit] = { level: current.level + 1, xp: newXp - xpNeeded, count: current.count };
     levelUps.push(`${unit} reached Level ${current.level + 1}`);
   } else {
-    troopLevels[unit] = { ...current, xp: newXp };
+    // Store XP within current level only (mod the threshold to prevent overflow)
+    troopLevels[unit] = { ...current, xp: Math.min(newXp, xpNeeded - 1) };
   }
   return { troop_levels: JSON.stringify(troopLevels), levelUps };
 }
@@ -1106,10 +1107,7 @@ function processBuildQueue(k, events) {
     updates.troop_levels = engXpRes.troop_levels;
     if (engXpRes.levelUps.length) events.push({ type: 'system', message: `⚒️ Your engineers grew more skilled — Level ${JSON.parse(engXpRes.troop_levels).engineers?.level || ''}!` });
     // Dwarf racial bonus: level 5+ engineers can solo-crew war machines
-    const dwarfBonus = racialUnitBonus(k, 'engineers');
-    if (dwarfBonus.warMachineSoloCrew && (k.war_machines || 0) > 0) {
-      events.push({ type: 'system', message: `🔥 Dwarven master engineers (Lv 5+) can now crew war machines solo — 1 engineer per machine.` });
-    }
+    // (one-time news handled by racial unlock in processTurn — no repeated message here)
   } else if (activeBuildings.size > 0) {
     events.push({ type: 'system', message: `🔨 Engineers making progress on ${activeBuildings.size} building type${activeBuildings.size > 1 ? 's' : ''}.` });
   }
