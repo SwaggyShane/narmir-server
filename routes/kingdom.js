@@ -801,8 +801,36 @@ module.exports = function(db) {
 
 async function applyUpdates(db, kingdomId, updates) {
   if (!updates || Object.keys(updates).length === 0) return;
-  const cols = Object.keys(updates).map(k => `${k} = ?`).join(', ');
-  const vals = [...Object.values(updates), kingdomId];
+  // Whitelist — only valid kingdom columns reach the DB
+  const VALID_COLS = new Set([
+    'gold','mana','land','population','morale','food','turn','turns_stored',
+    'fighters','rangers','clerics','mages','thieves','ninjas',
+    'researchers','engineers','scribes',
+    'war_machines','weapons_stockpile','armor_stockpile',
+    'res_economy','res_weapons','res_armor','res_military','res_spellbook',
+    'res_attack_magic','res_defense_magic','res_entertainment',
+    'res_construction','res_war_machines',
+    'bld_farms','bld_barracks','bld_markets','bld_cathedrals','bld_training',
+    'bld_colosseums','bld_castles','bld_vaults','bld_smithies','bld_armories',
+    'bld_guard_towers','bld_outposts','bld_schools','bld_libraries',
+    'bld_mage_towers','bld_shrines','bld_housing','bld_taverns',
+    'tools_hammers','tools_scaffolding','tools_blueprints','blueprints_stored',
+    'hammer_turns_used','smithy_allocation',
+    'maps','scrolls','active_effects',
+    'xp','level','troop_levels',
+    'tax','tax_rate',
+    'build_queue','build_progress','build_allocation',
+    'research_allocation','training_allocation',
+    'library_allocation','library_progress',
+    'mage_tower_allocation','shrine_allocation',
+    'updated_at',
+  ]);
+  const safe = Object.fromEntries(
+    Object.entries(updates).filter(([col]) => VALID_COLS.has(col))
+  );
+  if (Object.keys(safe).length === 0) return;
+  const cols = Object.keys(safe).map(k => `${k} = ?`).join(', ');
+  const vals = [...Object.values(safe), kingdomId];
   await db.run(`UPDATE kingdoms SET ${cols} WHERE id = ?`, vals);
 }
 
