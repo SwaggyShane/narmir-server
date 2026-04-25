@@ -1899,10 +1899,8 @@ function expeditionRewards(type, rangers, fighters, k, db) {
 }
 
 async function resolveExpeditions(db, k, engine) {
-  const allExps = await db.all('SELECT id, kingdom_id, type, turns_left FROM expeditions LIMIT 20');
-  console.log(`[resolveExpeditions] ALL expeditions in DB:`, JSON.stringify(allExps));
   const exps = await db.all('SELECT * FROM expeditions WHERE kingdom_id = ? AND turns_left > 0', [k.id]);
-  console.log(`[resolveExpeditions] kingdom=${k.id} found ${exps.length} active expedition(s):`, exps.map(e => `${e.type}(${e.turns_left}t)`).join(', ') || 'none');
+  console.log(`[expedition] kingdom=${k.id} active: ${exps.map(e => `${e.type}(${e.turns_left}t)`).join(', ') || 'none'}`);
   const expeditionEvents = [];
   for (const exp of exps) {
     // Fetch fresh k for racial bonus check
