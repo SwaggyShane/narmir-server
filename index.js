@@ -235,21 +235,31 @@ async function aiHire(db, engine, ai) {
 }
 
 async function aiAction(db, engine, ai) {
-  // Only act occasionally — roughly 1 in 4 ticks to avoid spam
+  // Only act occasionally — roughly 1 in 4 ticks
   if (Math.random() > 0.25) return;
 
-  // Get potential targets — other kingdoms with land to take
+  // Per-target cooldown — don't attack the same kingdom more than once every 8 turns
+  const recentAttacks = await db.all(`
+    SELECT defender_id FROM war_log
+    WHERE attacker_id = ? AND created_at > datetime('now', '-8 minutes')`, [ai.id]);
+  const recentTargetIds = new Set(recentAttacks.map(r => r.defender_id));
+
+  // Get potential targets — exclude recently attacked, exclude protected kingdoms
   const targets = await db.all(`
     SELECT k.* FROM kingdoms k
     JOIN players p ON k.player_id = p.id
-    WHERE k.id != ? AND k.land > 100
-    ORDER BY RANDOM() LIMIT 5
+    WHERE k.id != ? AND k.land > 100 AND k.turn >= 200
+    ORDER BY RANDOM() LIMIT 10
   `, [ai.id]);
 
-  if (targets.length === 0) return;
-  const target = targets[0];
+  // Filter out recently attacked targets
+  const validTargets = targets.filter(t => !recentTargetIds.has(t.id));
+  if (validTargets.length === 0) return;
 
-  // Give AI a map if it doesn't have one
+  // Pick weakest valid target (easier win)
+  const target = validTargets.sort((a, b) => (a.fighters || 0) - (b.fighters || 0))[0];
+
+  // Give AI a map if needed
   if ((ai.maps || 0) < 1) {
     await db.run('UPDATE kingdoms SET maps = 1 WHERE id = ?', [ai.id]);
     ai.maps = 1;
@@ -260,13 +270,19 @@ async function aiAction(db, engine, ai) {
   const ninjas   = ai.ninjas   || 0;
   const thieves  = ai.thieves  || 0;
 
-  // Decide action based on race personality + available units
   const roll = Math.random();
 
-  // Military attack — needs fighters
+  // Military attack — only if AI has meaningful power advantage (>40% win estimate)
   if (fighters >= 50 && roll < 0.5) {
     const sendFighters = Math.floor(fighters * (0.4 + Math.random() * 0.3));
     const sendMages    = Math.floor(mages    * (0.3 + Math.random() * 0.2));
+
+    // Power ratio check — don't attack into certain defeat
+    const aiPower     = sendFighters + sendMages * 2.5;
+    const defPower    = (target.fighters || 0) + (target.mages || 0) * 2.5;
+    const winChance   = defPower > 0 ? aiPower / (aiPower + defPower) : 0.9;
+    if (winChance < 0.35) return; // not worth it
+
     const result = engine.resolveMilitaryAttack(ai, target, sendFighters, sendMages);
     if (!result.error) {
       const VALID_ATK = new Set(['gold','mana','land','fighters','mages','weapons_stockpile','xp','level','troop_levels']);
@@ -280,18 +296,23 @@ async function aiAction(db, engine, ai) {
         const dc = Object.keys(dSafe).map(c => `${c} = ?`).join(', ');
         await db.run(`UPDATE kingdoms SET ${dc} WHERE id = ?`, [...Object.values(dSafe), target.id]);
       }
-      // News for defender only (no spam for AI attacker)
+      // News for defender
       if (result.defEvent) {
         await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)',
           [target.id, 'attack', result.defEvent, target.turn]);
       }
+      // War log — write for BOTH attacker and defender
+      const outcome = result.win ? 'victory' : 'repelled';
+      const detail  = JSON.stringify({ landTaken: result.report?.landTransferred || 0, attackerLost: result.report?.attackerLost || 0, defenderLost: result.report?.defenderLost || 0 });
+      await db.run(`INSERT INTO war_log (action_type, attacker_id, attacker_name, defender_id, defender_name, outcome, detail, obscured) VALUES (?,?,?,?,?,?,?,?)`,
+        ['attack', ai.id, ai.name, target.id, target.name, outcome, detail, 0]);
     }
 
   // Covert loot — needs thieves
   } else if (thieves >= 20 && roll < 0.7) {
     const lootTypes = ['gold','research','war_machines'];
-    const lootType = lootTypes[Math.floor(Math.random() * lootTypes.length)];
-    const result = engine.covertLoot(ai, target, lootType, Math.floor(thieves * 0.5));
+    const lootType  = lootTypes[Math.floor(Math.random() * lootTypes.length)];
+    const result    = engine.covertLoot(ai, target, lootType, Math.floor(thieves * 0.5));
     if (!result.error && result.success && result.targetUpdates) {
       const VALID_LOOT = new Set(['gold','res_economy','res_weapons','war_machines']);
       const tSafe = Object.fromEntries(Object.entries(result.targetUpdates).filter(([c,v]) => VALID_LOOT.has(c) && v !== undefined && !isNaN(v)));
@@ -303,15 +324,17 @@ async function aiAction(db, engine, ai) {
         await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)',
           [target.id, 'covert', result.targetEvent, target.turn]);
       }
+      await db.run(`INSERT INTO war_log (action_type, attacker_id, attacker_name, defender_id, defender_name, outcome, detail, obscured) VALUES (?,?,?,?,?,?,?,?)`,
+        ['loot', ai.id, ai.name, target.id, target.name, 'success', JSON.stringify({ stolen: result.stolen, type: lootType }), 0]);
     }
 
   // Assassination — needs ninjas
   } else if (ninjas >= 20 && roll < 0.9) {
     const unitTypes = ['fighters','researchers','engineers'];
-    const unitType = unitTypes[Math.floor(Math.random() * unitTypes.length)];
-    const result = engine.covertAssassinate(ai, target, Math.floor(ninjas * 0.4), unitType);
+    const unitType  = unitTypes[Math.floor(Math.random() * unitTypes.length)];
+    const result    = engine.covertAssassinate(ai, target, Math.floor(ninjas * 0.4), unitType);
     if (!result.error && result.success && result.targetUpdates) {
-      const col = unitType;
+      const col    = unitType;
       const newVal = result.targetUpdates[col];
       if (newVal !== undefined) {
         await db.run(`UPDATE kingdoms SET ${col} = ? WHERE id = ?`, [Math.max(0, newVal), target.id]);
@@ -320,6 +343,8 @@ async function aiAction(db, engine, ai) {
         await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)',
           [target.id, 'covert', result.targetEvent, target.turn]);
       }
+      await db.run(`INSERT INTO war_log (action_type, attacker_id, attacker_name, defender_id, defender_name, outcome, detail, obscured) VALUES (?,?,?,?,?,?,?,?)`,
+        ['assassinate', ai.id, ai.name, target.id, target.name, 'success', JSON.stringify({ killed: result.killed, unit: unitType }), 0]);
     }
   }
 }
@@ -540,6 +565,9 @@ async function start() {
   });
 
   setupSockets(io, db);
+  // Attach io to engine so resolveExpeditions can broadcast throne discovery
+  const engine = require('./game/engine');
+  engine.io = io;
   console.log('[socket.io] Real-time handlers registered');
 
   server.listen(PORT, () => {
