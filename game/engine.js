@@ -1108,108 +1108,259 @@ function forgeTools(k, toolType, quantity) {
 
 // ── Military combat ───────────────────────────────────────────────────────────
 
-function resolveMilitaryAttack(attacker, defender, fightersSent, magesSent) {
-  if (fightersSent > attacker.fighters) return { error: 'Not enough fighters' };
-  if (magesSent > attacker.mages)       return { error: 'Not enough mages' };
+// War machine crew requirements by race
+const WM_CREW_REQUIRED = {
+  dwarf: 2, human: 3, high_elf: 4, dark_elf: 4, orc: 5, dire_wolf: 6,
+};
 
-  // Attack power — race military and magic bonuses + troop level bonus
-  // Weapons stockpile: each weapon equips one fighter, up to fighters sent
-  const weaponsEquipped = Math.min(fightersSent, attacker.weapons_stockpile || 0);
-  const weaponBonus     = 1 + (weaponsEquipped / Math.max(fightersSent, 1)) * 0.25;
-  const atkTroopLvl  = Math.max(1, effectiveTroopLevel(attacker, 'fighters')) / 50; // level 50 = 1.0x, 100 = 2.0x
-  const atkMageLvl   = Math.max(1, effectiveTroopLevel(attacker, 'mages')) / 50;
-  const atkWeapon  = (attacker.res_weapons / 100) * weaponBonus;
-  const atkTactics = attacker.res_military / 100;
-  const atkRace    = raceBonus(attacker, 'military');
-  const atkMagic   = raceBonus(attacker, 'magic');
-  const atkFighterPower = fightersSent * atkWeapon * atkTactics * atkRace * atkTroopLvl;
-  const atkMagePower    = magesSent * 2.5 * (attacker.res_attack_magic / 100) * atkMagic * atkMageLvl;
-  // War machines: each adds 500 attack power, scaled by war machines research and race
-  const wmCount    = Math.min(attacker.war_machines || 0, attacker.engineers || 0);
-  const wmBonus    = wmCount * 500 * (attacker.res_war_machines / 100) * raceBonus(attacker, 'war_machines');
-  const atkPower = atkFighterPower + atkMagePower + wmBonus;
+function wmCrewRequired(race, engineerLevel) {
+  let base = WM_CREW_REQUIRED[race] || 3;
+  // Dwarf racial unique — solo crew at engineer level 5+
+  if (race === 'dwarf' && engineerLevel >= 5) base = 1;
+  return base;
+}
 
-  // Defence power — armor stockpile + troop level bonus
-  const armorEquipped = Math.min(defender.fighters, defender.armor_stockpile || 0);
-  const armorBonus    = 1 + (armorEquipped / Math.max(defender.fighters, 1)) * 0.25;
-  const defTroopLvl  = Math.max(1, effectiveTroopLevel(defender, 'fighters')) / 50;
-  const defMageLvl   = Math.max(1, effectiveTroopLevel(defender, 'mages')) / 50;
-  const defArmor   = (defender.res_armor / 100) * armorBonus;
-  const defTactics = defender.res_military / 100;
-  const defRace    = raceBonus(defender, 'military');
-  const defMagic   = raceBonus(defender, 'magic');
-  const defFighterPower = defender.fighters * defArmor * defTactics * defRace * defTroopLvl;
-  const defMagePower    = (defender.mages||0) * 1.5 * (defender.res_defense_magic / 100) * defMagic * defMageLvl;
+function moraleMult(morale) {
+  if (morale < 50)  return 0.80 + (morale / 50) * 0.10;  // 0.80–0.90
+  if (morale < 100) return 0.90 + (morale / 100) * 0.10; // 0.90–1.00
+  return Math.min(1.10, 1.00 + ((morale - 100) / 100) * 0.10); // 1.00–1.10
+}
+
+function resolveMilitaryAttack(attacker, defender, sentUnits, db_unused) {
+  // sentUnits: { fighters, rangers, mages, warMachines, ninjas, thieves }
+  const sent = {
+    fighters:    Math.min(sentUnits.fighters    || 0, attacker.fighters    || 0),
+    rangers:     Math.min(sentUnits.rangers     || 0, attacker.rangers     || 0),
+    mages:       Math.min(sentUnits.mages       || 0, attacker.mages       || 0),
+    warMachines: Math.min(sentUnits.warMachines || 0, attacker.war_machines|| 0),
+    ninjas:      Math.min(sentUnits.ninjas      || 0, attacker.ninjas      || 0),
+    thieves:     Math.min(sentUnits.thieves     || 0, attacker.thieves     || 0),
+  };
+  if (sent.fighters <= 0 && sent.rangers <= 0 && sent.mages <= 0)
+    return { error: 'Send at least some troops' };
+
+  // ── Anti-bully penalty ────────────────────────────────────────────────────
+  const landRatio    = (attacker.land || 1) / Math.max(1, defender.land || 1);
+  const fighterRatio = (attacker.fighters || 1) / Math.max(1, defender.fighters || 1);
+  const bullyRatio   = Math.max(landRatio, fighterRatio * 0.5);
+  let bullyPenalty   = 1.0;
+  let bullyMsg       = null;
+  let shameEvent     = null;
+  if (bullyRatio >= 8) {
+    bullyPenalty = 0.40;
+    bullyMsg     = '⚠️ Your kingdom is disgraced attacking such a weak foe.';
+    shameEvent   = `👑 ${attacker.name} has attacked the much weaker ${defender.name}. The world watches in disgust.`;
+  } else if (bullyRatio >= 4) {
+    bullyPenalty = 0.60;
+    bullyMsg     = '⚠️ Morale suffers — this is slaughter, not war.';
+  } else if (bullyRatio >= 2) {
+    bullyPenalty = 0.80;
+    bullyMsg     = '⚠️ Your troops lack motivation fighting a weaker foe.';
+  }
+
+  // ── Morale multipliers ────────────────────────────────────────────────────
+  const atkMoraleMult = moraleMult(attacker.morale || 100);
+  const defMoraleMult = moraleMult(defender.morale || 100);
+
+  // ── Research, race and level helpers ──────────────────────────────────────
+  const atkFighterLvl = effectiveTroopLevel(attacker, 'fighters') / 50;
+  const atkRangerLvl  = effectiveTroopLevel(attacker, 'rangers')  / 50;
+  const atkMageLvl    = effectiveTroopLevel(attacker, 'mages')    / 50;
+  const atkNinjaLvl   = effectiveTroopLevel(attacker, 'ninjas')   / 50;
+  const atkThiefLvl   = effectiveTroopLevel(attacker, 'thieves')  / 50;
+  const defFighterLvl = effectiveTroopLevel(defender, 'fighters') / 50;
+  const defRangerLvl  = effectiveTroopLevel(defender, 'rangers')  / 50;
+  const defMageLvl    = effectiveTroopLevel(defender, 'mages')    / 50;
+  const defNinjaLvl   = effectiveTroopLevel(defender, 'ninjas')   / 50;
+
+  // ── Step 1: Thief sabotage — disable some defender war machines ───────────
+  let defWmActive = defender.war_machines || 0;
+  let thiefSabotage = 0;
+  if (sent.thieves > 0) {
+    const sabotageChance = Math.min(0.40, sent.thieves * 0.001 * atkThiefLvl * raceBonus(attacker, 'stealth'));
+    const disabledWm = Math.floor(defWmActive * sabotageChance);
+    defWmActive = Math.max(0, defWmActive - disabledWm);
+    thiefSabotage = disabledWm;
+  }
+
+  // ── Step 2: Ninja pre-battle strike ───────────────────────────────────────
+  let ninjaKills = 0;
+  let ninjaIntercepted = 0;
+  if (sent.ninjas > 0) {
+    const strikeRate  = 0.01 + Math.min(0.03, sent.ninjas * 0.0001 * atkNinjaLvl * raceBonus(attacker, 'stealth'));
+    const rawKills    = Math.floor((defender.fighters || 0) * strikeRate);
+    // Defender ninjas intercept at 50% effectiveness
+    const interceptRate = Math.min(0.50, ((defender.ninjas||0) * 0.001 * defNinjaLvl));
+    ninjaIntercepted  = Math.floor(rawKills * interceptRate);
+    ninjaKills        = Math.max(0, rawKills - ninjaIntercepted);
+  }
+  const defFightersAfterNinja = Math.max(0, (defender.fighters || 0) - ninjaKills);
+
+  // ── Step 3: Ranger opening volley ─────────────────────────────────────────
+  const rangerVolleyRate = (0.02 + Math.min(0.05, sent.rangers * 0.00005)) * atkRangerLvl * raceBonus(attacker, 'military');
+  const rangerKills      = Math.floor(defFightersAfterNinja * rangerVolleyRate);
+  const defFightersAfterVolley = Math.max(0, defFightersAfterNinja - rangerKills);
+
+  // ── Step 4: Attack power ──────────────────────────────────────────────────
+  const weaponsEquipped   = Math.min(sent.fighters, attacker.weapons_stockpile || 0);
+  const weaponBonus       = 1 + (weaponsEquipped / Math.max(sent.fighters, 1)) * 0.25;
+  const atkWeapon         = ((attacker.res_weapons || 100) / 100) * weaponBonus;
+  const atkTactics        = (attacker.res_military || 100) / 100;
+  const atkRaceMil        = raceBonus(attacker, 'military');
+  const atkRaceMag        = raceBonus(attacker, 'magic');
+  const atkRangerRace     = raceBonus(attacker, 'military'); // rangers share military bonus
+
+  // Fighter power — front line
+  const atkFighterPower = sent.fighters * atkWeapon * atkTactics * atkRaceMil * atkFighterLvl;
+  // Ranger power — always ranged, lower per-unit than fighters
+  const atkRangerPower  = sent.rangers * 0.7 * atkTactics * atkRangerRace * atkRangerLvl;
+  // Mage power — back line, high per-unit
+  const atkMagePower    = sent.mages * 2.5 * ((attacker.res_attack_magic || 100) / 100) * atkRaceMag * atkMageLvl;
+  // War machines — scaled by crew sufficiency
+  const engLvl          = effectiveTroopLevel(attacker, 'engineers');
+  const crewNeeded      = wmCrewRequired(attacker.race, engLvl);
+  const engAvail        = Math.max(0, (attacker.engineers || 0));
+  const wmCrewable      = Math.min(sent.warMachines, Math.floor(engAvail / crewNeeded));
+  const wmPower         = wmCrewable * 500 * ((attacker.res_war_machines || 100) / 100) * raceBonus(attacker, 'war_machines');
+
+  const atkPowerRaw = (atkFighterPower + atkRangerPower + atkMagePower + wmPower) * atkMoraleMult * bullyPenalty;
+  const atkPower    = atkPowerRaw;
+
+  // ── Step 5: Defence power ─────────────────────────────────────────────────
+  const armorEquipped   = Math.min(defFightersAfterVolley, defender.armor_stockpile || 0);
+  const armorBonus      = 1 + (armorEquipped / Math.max(defFightersAfterVolley, 1)) * 0.25;
+  const defArmor        = ((defender.res_armor || 100) / 100) * armorBonus;
+  const defTactics      = (defender.res_military || 100) / 100;
+  const defRaceMil      = raceBonus(defender, 'military');
+  const defRaceMag      = raceBonus(defender, 'magic');
+
+  // Fighter wall
+  const defFighterPower = defFightersAfterVolley * defArmor * defTactics * defRaceMil * defFighterLvl;
+  // Ranger fire from outposts/towers — rangers defend from walls, scaled by structures
+  const outpostBonus    = (defender.bld_outposts || 0) * 0.1 + (defender.bld_guard_towers || 0) * 0.05;
+  const defRangerPower  = (defender.rangers || 0) * 0.8 * defTactics * raceBonus(defender,'military') * defRangerLvl * Math.max(1, outpostBonus);
+  // Mage barrier
+  const defMagePower    = (defender.mages||0) * 1.5 * ((defender.res_defense_magic||100)/100) * defRaceMag * defMageLvl;
+  // War machine garrison — crewed by engineers at home
+  const defEngLvl       = effectiveTroopLevel(defender, 'engineers');
+  const defCrewNeeded   = wmCrewRequired(defender.race, defEngLvl);
+  const defWmCrewable   = Math.min(defWmActive, Math.floor((defender.engineers||0) / defCrewNeeded));
+  const defWmPower      = defWmCrewable * 500 * ((defender.res_war_machines||100)/100) * raceBonus(defender,'war_machines');
+  // Engineer garrison repair bonus
+  const defEngBonus     = Math.floor((defender.engineers||0) / 10) * 50;
+  // Structure defence
   const defStructures   = (Math.floor((defender.bld_guard_towers||0) / 2) * 200)
                         + (Math.floor((defender.bld_castles||0) / 500) * 5000);
-  const defPower = defFighterPower + defMagePower + defStructures;
 
-  // Clerics reduce attacker casualties — high elves have stronger clerics
-  const clericEfficiency = raceBonus(attacker, 'research'); // elves' scholarly nature helps clerics
-  const clericSave = 1 - Math.min(0.35, (attacker.clerics||0) / (fightersSent + 1) * 0.05 * clericEfficiency);
+  const defPower = (defFighterPower + defRangerPower + defMagePower + defWmPower + defEngBonus + defStructures) * defMoraleMult;
 
-  // Random variance ±20%
+  // ── Step 6: Battle resolution ─────────────────────────────────────────────
   const variance = 0.8 + Math.random() * 0.4;
-  const win = (atkPower * variance) > defPower;
+  const win      = (atkPower * variance) > defPower;
+  const powerRatio = atkPower / Math.max(1, defPower);
 
-  // Casualties — dark elves take fewer losses on failure (escape bonus from stealth)
+  // ── Step 7: Casualties ────────────────────────────────────────────────────
+  // Clerics reduce own-side losses
+  const atkClericHeal = Math.min(0.35, (attacker.clerics||0) / Math.max(sent.fighters+sent.rangers, 1) * 0.08 * raceBonus(attacker,'magic'));
+  const defClericHeal = Math.min(0.35, (defender.clerics||0) / Math.max(defender.fighters||1, 1)       * 0.08 * raceBonus(defender,'magic'));
+
+  // Dark Elf stealth reduces attacker losses
   const atkStealthBonus = raceBonus(attacker, 'stealth') > 1 ? 0.85 : 1.0;
-  const atkLossPct  = win
-    ? (0.04 + Math.random() * 0.08) * atkStealthBonus
-    : (0.20 + Math.random() * 0.25) * atkStealthBonus;
-  const defLossPct  = win ? (0.15 + Math.random() * 0.20) : (0.05 + Math.random() * 0.08);
 
-  const atkFightersLost = Math.floor(fightersSent * atkLossPct * clericSave);
-  const atkMagesLost    = Math.floor(magesSent    * atkLossPct * 0.5);
-  const defFightersLost = Math.floor(defender.fighters * defLossPct);
+  const atkFighterLossPct = win ? (0.04 + Math.random()*0.08) : (0.20 + Math.random()*0.25);
+  const atkRangerLossPct  = win ? (0.02 + Math.random()*0.04) : (0.10 + Math.random()*0.12); // ranged = safer
+  const atkMageLossPct    = win ? (0.01 + Math.random()*0.03) : (0.05 + Math.random()*0.08); // back line = safest
+  const defFighterLossPct = win ? (0.15 + Math.random()*0.20) : (0.05 + Math.random()*0.08);
+
+  const atkFightersLost = Math.floor(sent.fighters * atkFighterLossPct * atkStealthBonus * (1 - atkClericHeal));
+  const atkRangersLost  = Math.floor(sent.rangers  * atkRangerLossPct  * atkStealthBonus * (1 - atkClericHeal));
+  const atkMagesLost    = Math.floor(sent.mages     * atkMageLossPct   * atkStealthBonus);
+  const atkNinjasLost   = sent.ninjas > 0 ? Math.floor(sent.ninjas * (win ? 0.05 : 0.15)) : 0;
+  const defFightersLost = Math.floor(defFightersAfterVolley * defFighterLossPct * (1 - defClericHeal));
+
+  // War machine destruction — low rates
+  const atkWmLost = win ? 0 : Math.floor(sent.warMachines * (0.02 + Math.random()*0.06));
+  const defWmLost = win ? Math.floor(defWmActive * (0.03 + Math.random()*0.07)) : 0;
+
+  // Land transfer
   const landTransferred = win ? Math.floor(defender.land * 0.10) : 0;
 
+  // ── Step 8: Morale changes ────────────────────────────────────────────────
+  const victoryMargin = Math.min(2.0, Math.max(0.1, powerRatio));
+  let atkMoraleChange, defMoraleChange;
+  if (win) {
+    atkMoraleChange = Math.floor(5  + Math.min(10, victoryMargin * 5));
+    defMoraleChange = -Math.max(5, Math.floor(Math.min(20, victoryMargin * 10)));
+    // Bully shame — attacker loses morale too at high ratios
+    if (bullyRatio >= 8)  atkMoraleChange -= 15;
+    if (bullyRatio >= 4)  atkMoraleChange -= 5;
+  } else {
+    atkMoraleChange = -Math.floor(5 + Math.min(15, (1/Math.max(0.1,powerRatio)) * 8));
+    defMoraleChange = Math.floor(5 + Math.min(10, (1/Math.max(0.1,powerRatio)) * 5));
+  }
+  const MORALE_FLOOR = 20;
+  const newAtkMorale = Math.max(MORALE_FLOOR, Math.min(200, (attacker.morale||100) + atkMoraleChange));
+  const newDefMorale = Math.max(MORALE_FLOOR, Math.min(200, (defender.morale||100) + defMoraleChange));
+
+  // ── Build updates ─────────────────────────────────────────────────────────
   const attackerUpdates = {
-    fighters: attacker.fighters - atkFightersLost,
-    mages:    attacker.mages    - atkMagesLost,
-    land:     attacker.land + landTransferred,
-    // Weapons lost proportional to fighters lost
-    weapons_stockpile: Math.max(0, (attacker.weapons_stockpile||0) - Math.floor(weaponsEquipped * atkLossPct)),
-    updated_at: Math.floor(Date.now() / 1000),
+    fighters:          Math.max(0, attacker.fighters - atkFightersLost),
+    rangers:           Math.max(0, attacker.rangers  - atkRangersLost),
+    mages:             Math.max(0, attacker.mages    - atkMagesLost),
+    ninjas:            Math.max(0, attacker.ninjas   - atkNinjasLost),
+    war_machines:      Math.max(0, (attacker.war_machines||0) - atkWmLost),
+    land:              attacker.land + landTransferred,
+    morale:            newAtkMorale,
+    weapons_stockpile: Math.max(0, (attacker.weapons_stockpile||0) - Math.floor(weaponsEquipped * atkFighterLossPct)),
   };
   const defenderUpdates = {
-    fighters: defender.fighters - defFightersLost,
-    land:     defender.land     - landTransferred,
-    updated_at: Math.floor(Date.now() / 1000),
+    fighters:     Math.max(0, defender.fighters - defFightersLost - ninjaKills - rangerKills),
+    war_machines: Math.max(0, (defender.war_machines||0) - defWmLost),
+    land:         Math.max(0, defender.land - landTransferred),
+    morale:       newDefMorale,
   };
 
-  // Award troop XP from combat
-  const atkTroopXp = awardTroopXp(attacker, 'fighters', win ? 30 : 10);
-  const defTroopXp = awardTroopXp(defender, 'fighters', win ? 10 : 20); // defenders learn more from repelling
-  attackerUpdates.troop_levels = atkTroopXp.troop_levels;
+  // XP
+  const atkTroopXpF = awardTroopXp(attacker, 'fighters', win ? 30 : 10);
+  const atkTroopXpR = awardTroopXp({ ...attacker, troop_levels: atkTroopXpF.troop_levels }, 'rangers', win ? 20 : 8);
+  const defTroopXp  = awardTroopXp(defender, 'fighters', win ? 10 : 20);
+  attackerUpdates.troop_levels = atkTroopXpR.troop_levels;
   defenderUpdates.troop_levels = defTroopXp.troop_levels;
-  if (atkTroopXp.levelUps.length) attackerUpdates.troop_levels = atkTroopXp.troop_levels;
-  if (defTroopXp.levelUps.length) defenderUpdates.troop_levels = defTroopXp.troop_levels;
 
   const atkXp = awardXp(attacker, win ? 'combat_win' : 'combat_loss', 1);
   const defXp = awardXp(defender, win ? 'combat_loss' : 'combat_win', 1);
-
   attackerUpdates.xp    = atkXp.xp;
   attackerUpdates.level = atkXp.level;
   defenderUpdates.xp    = defXp.xp;
   defenderUpdates.level = defXp.level;
 
+  // ── Battle report ─────────────────────────────────────────────────────────
   const report = {
-    win, fightersSent, magesSent,
-    atkFightersLost, atkMagesLost, defFightersLost, landTransferred,
+    win, landTransferred, powerRatio: Math.round(powerRatio * 100) / 100,
     atkPower: Math.round(atkPower), defPower: Math.round(defPower),
-    atkXpEarned: atkXp.earned, atkLevelUp: atkXp.levelled,
+    sent, atkFightersLost, atkRangersLost, atkMagesLost, atkNinjasLost, atkWmLost,
+    defFightersLost: defFightersLost + ninjaKills + rangerKills, defWmLost,
+    ninjaKills, rangerKills, thiefSabotage,
+    atkMoraleChange, defMoraleChange,
+    bullyMsg, shameEvent,
   };
 
+  // ── Event messages ────────────────────────────────────────────────────────
+  const atkLines = [];
+  if (ninjaKills > 0)    atkLines.push(`Ninjas eliminated ${ninjaKills} defenders before the battle.`);
+  if (rangerKills > 0)   atkLines.push(`Rangers volley killed ${rangerKills} defenders.`);
+  if (thiefSabotage > 0) atkLines.push(`Thieves disabled ${thiefSabotage} enemy war machines.`);
+  if (bullyMsg)          atkLines.push(bullyMsg);
+
   const atkEvent = win
-    ? `You attacked ${defender.name} and won! Captured ${landTransferred} acres. Lost ${atkFightersLost} fighters, ${atkMagesLost} mages.`
-    : `Attack on ${defender.name} was repelled. Lost ${atkFightersLost} fighters, ${atkMagesLost} mages.`;
+    ? `⚔️ You attacked ${defender.name} and won! Captured ${landTransferred} acres. Lost ${atkFightersLost} fighters, ${atkRangersLost} rangers, ${atkMagesLost} mages. ${atkLines.join(' ')}`
+    : `⚔️ Attack on ${defender.name} was repelled. Lost ${atkFightersLost} fighters, ${atkRangersLost} rangers. ${atkLines.join(' ')}`;
 
   const defEvent = win
-    ? `${attacker.name} attacked your kingdom and broke through! Lost ${landTransferred} acres and ${defFightersLost} fighters.`
-    : `${attacker.name} attacked but was repelled. You lost ${defFightersLost} fighters defending.`;
+    ? `⚔️ ${attacker.name} attacked and broke through! Lost ${landTransferred} acres. ${defFightersLost + ninjaKills + rangerKills} defenders fell.`
+    : `⚔️ ${attacker.name} attacked but was repelled. You lost ${defFightersLost} fighters defending.${ninjaKills > 0 ? ` ${ninjaKills} fighters were killed in a pre-battle ninja strike.` : ''}`;
 
-  return { win, report, attackerUpdates, defenderUpdates, atkEvent, defEvent };
+  return { win, report, attackerUpdates, defenderUpdates, atkEvent, defEvent, shameEvent };
 }
 
 // ── Magic ─────────────────────────────────────────────────────────────────────
@@ -2198,6 +2349,7 @@ module.exports = {
   awardXp, xpForLevel, xpToNextLevel, levelFromXp,
   awardTroopXp, awardUnitXp, diluteTroopXp, unitLevelMult, racialUnitBonus,
   troopXpForLevel, effectiveTroopLevel,
+  WM_CREW_REQUIRED, wmCrewRequired, moraleMult,
   TROOP_RACE_BONUS, RACE_BONUSES, REGION_DATA, assignRegion,
   UNIT_COST, BUILDING_COST, BUILDING_GOLD_COST, BUILDING_LAND_COST, BUILDING_COL,
   SPELL_DEFS, SCROLL_REQUIREMENTS, SCRIBE_ITEMS, HOUSING_CAP_BY_RACE,
