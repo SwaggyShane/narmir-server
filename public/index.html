@@ -421,12 +421,12 @@
         <!-- Col 1: Military & support -->
         <div class="card">
           <div class="card-title">Military &amp; support</div>
-          <div class="trow"><span class="name">Fighters</span><span class="count" id="s-fighters">0</span><span class="badge badge-red">Combat</span><span id="s-lv-fighters" style="font-size:10px;color:var(--text3);margin-left:4px"></span></div>
-          <div class="trow"><span class="name">Rangers</span><span class="count" id="s-rangers">0</span><span class="badge badge-blue">Scout</span><span id="s-lv-rangers" style="font-size:10px;color:var(--text3);margin-left:4px"></span></div>
-          <div class="trow"><span class="name">Clerics</span><span class="count" id="s-clerics">0</span><span class="badge badge-green">Heal</span><span id="s-lv-clerics" style="font-size:10px;color:var(--text3);margin-left:4px"></span></div>
-          <div class="trow"><span class="name">Mages</span><span class="count" id="s-mages">0</span><span class="badge badge-amber">Magic</span><span id="s-lv-mages" style="font-size:10px;color:var(--text3);margin-left:4px"></span></div>
-          <div class="trow"><span class="name">Thieves</span><span class="count" id="s-thieves">0</span><span class="badge badge-amber">Covert</span><span id="s-lv-thieves" style="font-size:10px;color:var(--text3);margin-left:4px"></span></div>
-          <div class="trow"><span class="name">Ninjas</span><span class="count" id="s-ninjas">0</span><span class="badge badge-amber">Covert</span><span id="s-lv-ninjas" style="font-size:10px;color:var(--text3);margin-left:4px"></span></div>
+          <div class="trow"><span class="name" style="display:flex;align-items:center;gap:6px">Fighters <span id="s-lv-fighters" style="font-size:10px;color:var(--text3);font-weight:400"></span></span><span class="count" id="s-fighters">0</span><span class="badge badge-red" style="min-width:52px;text-align:center">Combat</span></div>
+          <div class="trow"><span class="name" style="display:flex;align-items:center;gap:6px">Rangers <span id="s-lv-rangers" style="font-size:10px;color:var(--text3);font-weight:400"></span></span><span class="count" id="s-rangers">0</span><span class="badge badge-blue" style="min-width:52px;text-align:center">Ranged</span></div>
+          <div class="trow"><span class="name" style="display:flex;align-items:center;gap:6px">Clerics <span id="s-lv-clerics" style="font-size:10px;color:var(--text3);font-weight:400"></span></span><span class="count" id="s-clerics">0</span><span class="badge badge-green" style="min-width:52px;text-align:center">Heal</span></div>
+          <div class="trow"><span class="name" style="display:flex;align-items:center;gap:6px">Mages <span id="s-lv-mages" style="font-size:10px;color:var(--text3);font-weight:400"></span></span><span class="count" id="s-mages">0</span><span class="badge badge-amber" style="min-width:52px;text-align:center">Magic</span></div>
+          <div class="trow"><span class="name" style="display:flex;align-items:center;gap:6px">Thieves <span id="s-lv-thieves" style="font-size:10px;color:var(--text3);font-weight:400"></span></span><span class="count" id="s-thieves">0</span><span class="badge badge-amber" style="min-width:52px;text-align:center">Covert</span></div>
+          <div class="trow"><span class="name" style="display:flex;align-items:center;gap:6px">Ninjas <span id="s-lv-ninjas" style="font-size:10px;color:var(--text3);font-weight:400"></span></span><span class="count" id="s-ninjas">0</span><span class="badge badge-amber" style="min-width:52px;text-align:center">Covert</span></div>
           <div class="trow"><span class="name">Scribes</span><span class="count" id="s-scribes">0</span><span class="badge badge-blue">Library</span></div>
           <div class="trow"><span class="name">Researchers</span><span class="count" id="s-researchers">500</span><span class="badge badge-blue">Study</span></div>
           <div class="trow"><span class="name">Engineers</span><span class="count" id="s-engineers">0</span><span class="badge badge-blue">Build</span></div>
@@ -1204,6 +1204,32 @@
 
 <!-- ═══════════════════════════════════════════ TRAINING PANEL ══ -->
 <div id="training" class="panel" style="display:none">
+
+  <div class="card" style="margin-bottom:0">
+    <div class="card-title">Support unit levels</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:10px">These units level through their work each turn — not training fields.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+      <div style="background:var(--bg3);border-radius:var(--radius);padding:10px;text-align:center">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:3px">ENGINEERS</div>
+        <div style="font-size:18px;font-weight:700;color:var(--text)" id="s-engineers">0</div>
+        <div id="sup-lv-engineers" style="font-size:13px;font-weight:600;color:var(--text3);margin-top:2px">Lv 1</div>
+        <div id="sup-xp-engineers" style="font-size:10px;color:var(--text3);margin-top:2px">0 / 200 XP</div>
+      </div>
+      <div style="background:var(--bg3);border-radius:var(--radius);padding:10px;text-align:center">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:3px">SCRIBES</div>
+        <div style="font-size:18px;font-weight:700;color:var(--text)" id="s-scribes">0</div>
+        <div id="sup-lv-scribes" style="font-size:13px;font-weight:600;color:var(--text3);margin-top:2px">Lv 1</div>
+        <div id="sup-xp-scribes" style="font-size:10px;color:var(--text3);margin-top:2px">0 / 200 XP</div>
+      </div>
+      <div style="background:var(--bg3);border-radius:var(--radius);padding:10px;text-align:center">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:3px">RESEARCHERS</div>
+        <div style="font-size:18px;font-weight:700;color:var(--text)" id="s-researchers">0</div>
+        <div id="sup-lv-researchers" style="font-size:13px;font-weight:600;color:var(--text3);margin-top:2px">Lv 1</div>
+        <div id="sup-xp-researchers" style="font-size:10px;color:var(--text3);margin-top:2px">0 / 200 XP</div>
+      </div>
+    </div>
+  </div>
+
   <div class="card">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
       <div>
@@ -1274,29 +1300,6 @@
   <div class="card" style="margin-top:0">
     <div class="card-title">Race training bonus</div>
     <div id="tr-race-bonus" style="font-size:13px;color:var(--text2);line-height:1.8">—</div>
-  </div>
-
-  <div class="card" style="margin-top:0">
-    <div class="card-title">Support unit levels</div>
-    <div style="font-size:12px;color:var(--text3);margin-bottom:10px">Support units gain XP through their work each turn — not through training fields.</div>
-    <div class="trow" style="margin-bottom:6px">
-      <span class="name">Engineers</span>
-      <span class="count" id="s-engineers">0</span>
-      <span id="sup-lv-engineers" style="font-size:12px;color:var(--text3);min-width:50px">Lv 1</span>
-      <span id="sup-xp-engineers" style="font-size:11px;color:var(--text3)">0 XP</span>
-    </div>
-    <div class="trow" style="margin-bottom:6px">
-      <span class="name">Scribes</span>
-      <span class="count" id="s-scribes">0</span>
-      <span id="sup-lv-scribes" style="font-size:12px;color:var(--text3);min-width:50px">Lv 1</span>
-      <span id="sup-xp-scribes" style="font-size:11px;color:var(--text3)">0 XP</span>
-    </div>
-    <div class="trow">
-      <span class="name">Researchers</span>
-      <span class="count" id="s-researchers">0</span>
-      <span id="sup-lv-researchers" style="font-size:12px;color:var(--text3);min-width:50px">Lv 1</span>
-      <span id="sup-xp-researchers" style="font-size:11px;color:var(--text3)">0 XP</span>
-    </div>
   </div>
 </div>
 
