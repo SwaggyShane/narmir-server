@@ -262,24 +262,37 @@ textarea{width:100%;resize:vertical;min-height:60px}
       <div class="cl-item">✅ Shrine morale and healing</div>
       <div class="cl-item">✅ Active effects — fog, blight, silence, plague, shield displayed as badges</div>
 
-      <div class="cl-section">Combat & Covert</div>
-      <div class="cl-item">✅ Military attack with power comparison and battle report</div>
-      <div class="cl-item">✅ Win probability shown in attack panel and rankings</div>
-      <div class="cl-item">✅ Covert ops — spy, loot, assassinate, sabotage</div>
-      <div class="cl-item">✅ Newbie protection — no attacks on kingdoms under turn 200</div>
-      <div class="cl-item">✅ War log panel</div>
+      <div class="cl-section">Combat &amp; Covert</div>
+      <div class="cl-item">✅ Full 8-step combat sequence: thief sabotage → ninja pre-strike → ranger volley → power comparison → cleric healing → casualties → morale change → XP</div>
+      <div class="cl-item">✅ Every unit engages — fighters (front line), rangers (always ranged), mages (back line), clerics (heal casualties), engineers (crew war machines), ninjas (optional pre-strike), thieves (optional WM sabotage)</div>
+      <div class="cl-item">✅ Rangers always attack and defend ranged — opening volley kills 2–5% of front line before power comparison; defend from walls via outposts and guard towers</div>
+      <div class="cl-item">✅ War machines crewed by engineers — crew required scales by race: Dwarf 2 (→1 at Eng Lv5), Human 3, High Elf 4, Dark Elf 4, Orc 5, Dire Wolf 6</div>
+      <div class="cl-item">✅ War machines can be destroyed in combat — attacker loses 2–8% on defeat, defender 3–10% on loss</div>
+      <div class="cl-item">✅ Anti-bully penalty — ×2 size: −20% power · ×4: −40% + morale penalty · ×8+: −60% + public shame broadcast to ALL kingdoms and global chat</div>
+      <div class="cl-item">✅ Morale affects combat — below 50%: ×0.80 power; above 100%: up to ×1.10. Win: +5–15 morale. Loss: −5–20 morale. Floor of 20 prevents death spiral</div>
+      <div class="cl-item">✅ Attack panel — army composition sliders for all troop types, live power preview (attack, estimated defence, win %, land on win, bully warnings)</div>
+      <div class="cl-item">✅ Defence power shown as estimated — exact power only discernible from a 100% effective spy report</div>
+      <div class="cl-item">✅ Ninja pre-battle strike — defender's ninjas intercept at 50% effectiveness</div>
+      <div class="cl-item">✅ Cleric healing — reduces own-side losses up to 35% (High Elf clerics strongest)</div>
+      <div class="cl-item">✅ Covert ops — spy, loot, assassinate (all with thief/ninja level scaling)</div>
+      <div class="cl-item">✅ Newbie protection — no attacks on kingdoms under Turn 200</div>
+      <div class="cl-item">✅ War log — all combat written including AI actions (was missing AI war_log inserts — fixed)</div>
+      <div class="cl-item">✅ War log quiet day message — "It's been a quiet day. BREAK SOME $#@&!"</div>
+      <div class="cl-item">✅ AI anti-spam — per-target 8-minute cooldown, 35% win threshold before attacking, targets weakest available kingdom</div>
 
-      <div class="cl-section">Unit XP & Levelling</div>
-      <div class="cl-item">✅ All units gain XP from their activity — engineers +10/building, researchers +5/advance, mages +2/turn mana +20/scroll, scribes +15/item, rangers +3/turn exploring +8/20/40 by expedition type, fighters +30/10 combat win/loss, thieves +12/20 spy/loot, ninjas +30 assassination</div>
-      <div class="cl-item">✅ Level scaling — +0.5% effectiveness per level, max +50% at level 100 (build speed, research increment, mana production, scroll speed, expedition rewards, loot amount, assassination kills)</div>
-      <div class="cl-item">✅ Hire dilution — new recruits lower average unit XP: new_avg = old_pool × old_count / new_count</div>
+      <div class="cl-section">Unit XP &amp; Levelling</div>
+      <div class="cl-item">✅ All units gain XP from activity — engineers +10/building, researchers +5/advance, mages +2/turn mana +20/scroll, scribes +15/item, rangers +3/turn exploring +8/20/40 expedition type, fighters +30/10 combat, rangers +20/8 combat, thieves +12/20 spy/loot, ninjas +30 assassination</div>
+      <div class="cl-item">✅ Level cap: 100. Race bonus extends effective level beyond 100 in combat (Dire Wolf fighters act as Lv 180 at cap)</div>
+      <div class="cl-item">✅ Level scaling — +0.5% effectiveness per level, max +50% (build speed, research, mana, scrolls, expedition rewards, loot, kills, attack/defence power)</div>
+      <div class="cl-item">✅ Hire dilution — new recruits lower average XP: new_avg = old_pool × old_count / new_count</div>
       <div class="cl-item">✅ Training fields award passive XP with equipment bonuses</div>
-      <div class="cl-item">✅ 🔨 Dwarf engineers Lv5+ — can solo-crew war machines</div>
-      <div class="cl-item">✅ ✨ High Elf mages Lv5+ — scrolls crafted produce 2 instead of 1</div>
-      <div class="cl-item">✅ ⚔️ Orc fighters Lv5+ — every 10 fighters trains 1 free fighter per turn</div>
+      <div class="cl-item">✅ Racial gift unlock — one-time news event when signature unit hits Lv5, then permanent ✨ badge on training panel row. Never fires again.</div>
+      <div class="cl-item">✅ 🔨 Dwarf engineers Lv5+ — war machines need only 1 engineer to crew (base: 2)</div>
+      <div class="cl-item">✅ ✨ High Elf mages Lv5+ — scrolls produce 2 per craft instead of 1</div>
+      <div class="cl-item">✅ ⚔️ Orc fighters Lv5+ — passively trains 1 free fighter per 10 each turn</div>
       <div class="cl-item">✅ 🕵️ Dark Elf ninjas Lv5+ — silent assassination, target receives no news event</div>
-      <div class="cl-item">✅ 🐺 Dire Wolf rangers Lv5+ — expeditions tick down 2 turns per turn (return early)</div>
-      <div class="cl-item">✅ 💚 Human clerics Lv5+ — +1 morale aura per turn</div>
+      <div class="cl-item">✅ 🐺 Dire Wolf rangers Lv5+ — expeditions tick down 2 turns per turn, return early</div>
+      <div class="cl-item">✅ 💚 Human clerics Lv5+ — +1 morale aura per turn across kingdom</div>
 
       <div class="cl-section">World &amp; Profiles</div>
       <div class="cl-item">✅ World map — dark fantasy SVG with 6 named racial regions, kingdom dots, compass rose, click-to-inspect any kingdom</div>
@@ -293,11 +306,16 @@ textarea{width:100%;resize:vertical;min-height:60px}
 
       <div class="cl-section">Bug Fixes</div>
       <div class="cl-item">✅ Turn processing crash — applyUpdates now has a 40+ column whitelist; internal keys no longer reach the SQL</div>
-      <div class="cl-item">✅ _dwarf_wm_noted temp flag leak removed — was crashing processTurn every turn for Dwarves</div>
+      <div class="cl-item">✅ _dwarf_wm_noted temp flag leak — was crashing processTurn every turn for Dwarves</div>
+      <div class="cl-item">✅ AI war_log inserts missing — AI attacks now write to war_log (attack, loot, assassination)</div>
+      <div class="cl-item">✅ AI spam fixed — per-target cooldown + power ratio check + targets weakest available</div>
+      <div class="cl-item">✅ Rankings not rendering — panel was gated on visibility; now always renders on data load</div>
+      <div class="cl-item">✅ Rank display in header showing "—" — now updates from rankings data on load</div>
+      <div class="cl-item">✅ Duplicate expedition/acknowledge route — merged into single clean DELETE route</div>
+      <div class="cl-item">✅ World map 500 error — defensive fallback query if region column not yet migrated</div>
       <div class="cl-item">✅ Duplicate Chat nav item removed</div>
       <div class="cl-item">✅ "Clear stuck" debug button removed from expedition log</div>
       <div class="cl-item">✅ /me chat messages render as centred italic emotes (not raw /me text in a bubble)</div>
-      <div class="cl-item">✅ expedition/acknowledge route added — was called by frontend but missing from backend</div>
       <div class="cl-item">✅ Tax slider loads saved value on login and stays in sync after each turn</div>
       <div class="cl-item">✅ Land search diminishing returns — large kingdoms find less free land per ranger</div>
       <div class="cl-item">✅ Food search added to instant search panel</div>
