@@ -896,7 +896,7 @@ async function applyUpdates(db, kingdomId, updates) {
     'bld_guard_towers','bld_outposts','bld_schools','bld_libraries',
     'bld_mage_towers','bld_shrines','bld_housing','bld_taverns',
     'tools_hammers','tools_scaffolding','tools_blueprints','blueprints_stored',
-    'hammer_turns_used','smithy_allocation',
+    'hammer_turns_used','smithy_allocation','racial_bonuses_unlocked',
     'maps','scrolls','active_effects',
     'xp','level','troop_levels',
     'tax','tax_rate',
