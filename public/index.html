@@ -2078,6 +2078,22 @@ async function loadActiveExpeditions() {
     apiCall('POST', '/api/kingdom/expedition/acknowledge', { id: exp.id });
   });
 
+  // If any expeditions completed, refresh kingdom state to get returned troops
+  if (completed.length > 0) {
+    apiCall('GET', '/api/kingdom/me').then(function(kingdom) {
+      if (kingdom && !kingdom.error) {
+        if (kingdom.rangers  !== undefined) state.rangers  = kingdom.rangers;
+        if (kingdom.fighters !== undefined) state.fighters = kingdom.fighters;
+        if (kingdom.gold     !== undefined) state.gold     = kingdom.gold;
+        if (kingdom.mana     !== undefined) state.mana     = kingdom.mana;
+        if (kingdom.land     !== undefined) state.land     = kingdom.land;
+        if (kingdom.maps     !== undefined) state.maps     = kingdom.maps;
+        updateExpeditionAvailability();
+        syncUI();
+      }
+    });
+  }
+
   // ── Track active types ────────────────────────────────────────────────────
   var activeTypes = {};
   active.forEach(function(e) { activeTypes[e.type] = e; });
