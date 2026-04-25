@@ -1069,10 +1069,7 @@ function processBuildQueue(k, events) {
     // Dwarf racial bonus: level 5+ engineers can solo-crew war machines
     const dwarfBonus = racialUnitBonus(k, 'engineers');
     if (dwarfBonus.warMachineSoloCrew && (k.war_machines || 0) > 0) {
-      if (!updates._dwarf_wm_noted) {
-        updates._dwarf_wm_noted = true;
-        events.push({ type: 'system', message: `🔥 Dwarven master engineers (Lv 5+) can now crew war machines solo — 1 engineer per machine.` });
-      }
+      events.push({ type: 'system', message: `🔥 Dwarven master engineers (Lv 5+) can now crew war machines solo — 1 engineer per machine.` });
     }
   } else if (activeBuildings.size > 0) {
     events.push({ type: 'system', message: `🔨 Engineers making progress on ${activeBuildings.size} building type${activeBuildings.size > 1 ? 's' : ''}.` });
@@ -1742,7 +1739,7 @@ function expeditionRewards(type, rangers, fighters, k, db) {
   const expTurns = EXPEDITION_TURNS[type] || 10;
 
   // Gold base = forage rate (rangers × 12 × tacBonus) × turns × race bonus × random 5–30% bonus
-  const foragePerTurn = rangers * 12 * tacBonus * exploreBonus * rangerLvBonus;
+  const foragePerTurn = rangers * 2 * tacBonus * exploreBonus * rangerLvBonus;
   const randomBonus   = 1 + (rand(5, 30) / 100);
   const goldBase      = Math.floor(foragePerTurn * expTurns * randomBonus);
 
