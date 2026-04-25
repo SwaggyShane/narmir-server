@@ -565,9 +565,9 @@ async function start() {
   });
 
   setupSockets(io, db);
-  // Attach io to engine so resolveExpeditions can broadcast throne discovery
   const engine = require('./game/engine');
   engine.io = io;
+  global._narmir_io = io;
   console.log('[socket.io] Real-time handlers registered');
 
   server.listen(PORT, () => {
