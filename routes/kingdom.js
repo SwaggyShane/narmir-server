@@ -357,28 +357,29 @@ module.exports = function(db) {
 
   // ── Military attack ───────────────────────────────────────────────────────────
   router.post('/attack', requireAuth, async (req, res) => {
-    const { targetId, fighters, mages } = req.body;
-    const fightersSent = Math.max(0, parseInt(fighters) || 0);
-    const magesSent    = Math.max(0, parseInt(mages)    || 0);
+    const { targetId, fighters, rangers, mages, warMachines, ninjas, thieves } = req.body;
+    const sentUnits = {
+      fighters:    Math.max(0, parseInt(fighters)    || 0),
+      rangers:     Math.max(0, parseInt(rangers)     || 0),
+      mages:       Math.max(0, parseInt(mages)       || 0),
+      warMachines: Math.max(0, parseInt(warMachines) || 0),
+      ninjas:      Math.max(0, parseInt(ninjas)      || 0),
+      thieves:     Math.max(0, parseInt(thieves)     || 0),
+    };
 
     const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
     if (!k) return res.status(404).json({ error: 'Kingdom not found' });
     if (k.turns_stored < 1) return res.status(429).json({ error: 'No turns available' });
-    if (fightersSent <= 0) return res.status(400).json({ error: 'Send at least 1 fighter' });
-    if (fightersSent > k.fighters) return res.status(400).json({ error: 'Not enough fighters' });
-    if (magesSent > k.mages) return res.status(400).json({ error: 'Not enough mages' });
+    if (sentUnits.fighters <= 0 && sentUnits.rangers <= 0 && sentUnits.mages <= 0)
+      return res.status(400).json({ error: 'Send at least some troops' });
 
     const target = await db.get('SELECT * FROM kingdoms WHERE id = ?', [targetId]);
     if (!target) return res.status(404).json({ error: 'Target kingdom not found' });
     if (target.id === k.id) return res.status(400).json({ error: 'Cannot attack yourself' });
+    if ((k.maps || 0) < 1) return res.status(400).json({ error: 'You need a map to attack — craft one in your Library' });
+    if ((target.turn || 0) < 200) return res.status(400).json({ error: `${target.name} is under newbie protection until Turn 200` });
 
-    // Map requirement
-    if ((k.maps || 0) < 1) return res.status(400).json({ error: 'You need a map to attack other kingdoms — craft one in your Library' });
-
-    // Newbie protection — cannot attack kingdoms under turn 200
-    if ((target.turn || 0) < 200) return res.status(400).json({ error: `${target.name} is under newbie protection until Turn 200 (currently Turn ${target.turn})` });
-
-    const result = engine.resolveMilitaryAttack(k, target, fightersSent, magesSent);
+    const result = engine.resolveMilitaryAttack(k, target, sentUnits);
     if (result.error) return res.status(400).json({ error: result.error });
 
     const VALID = new Set([
@@ -391,7 +392,7 @@ module.exports = function(db) {
 
     async function applyBattle(kingdom, updates) {
       const safe = Object.fromEntries(Object.entries(updates).filter(([c,v]) =>
-        VALID.has(c) && v !== undefined && v !== null && !isNaN(v)
+        VALID.has(c) && v !== undefined && v !== null && !isNaN(Number(v))
       ));
       if (Object.keys(safe).length > 0) {
         const cols = Object.keys(safe).map(c => `${c} = ?`).join(', ');
@@ -403,34 +404,63 @@ module.exports = function(db) {
     await applyBattle(target, result.defenderUpdates);
     await db.run('UPDATE kingdoms SET turns_stored = turns_stored - 1 WHERE id = ?', [k.id]);
 
-    // News for both kingdoms
     await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)',
       [k.id, 'attack', result.atkEvent, k.turn]);
     await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)',
       [target.id, 'attack', result.defEvent, target.turn]);
 
-    // Global war log
-    await db.run(`INSERT INTO war_log (action_type, attacker_id, attacker_name, defender_id, defender_name, outcome, detail, obscured)
-      VALUES (?,?,?,?,?,?,?,0)`, [
-      'attack',
-      k.id, k.name,
-      target.id, target.name,
-      result.win ? 'victory' : 'repelled',
-      `${result.report.fightersSent.toLocaleString()} fighters · ${result.report.landTransferred > 0 ? '+' + result.report.landTransferred + ' land' : 'no land taken'}`,
-    ]);
-
-    // XP event for level-up
-    if (result.report.atkLevelUp) {
-      await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)',
-        [k.id, 'system', `🎉 Level up! You are now level ${result.attackerUpdates.level}!`, k.turn]);
+    // Public shame event — broadcast to ALL kingdoms when bully ratio >= 8
+    if (result.shameEvent) {
+      const allKingdoms = await db.all('SELECT id FROM kingdoms');
+      for (const ak of allKingdoms) {
+        await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)',
+          [ak.id, 'system', result.shameEvent, k.turn]);
+      }
+      // Also broadcast to global chat
+      // (io is attached to engine but we need it here — emit via a global reference)
+      if (global._narmir_io) global._narmir_io.emit('chat:system', { message: result.shameEvent, ts: Date.now() });
     }
 
-    res.json({
-      ok: true,
-      report: result.report,
-      updates: result.attackerUpdates,
-      event: result.atkEvent,
+    // War log
+    const detail = JSON.stringify({
+      sent: result.report.sent,
+      landTaken: result.report.landTransferred,
+      atkLost: result.report.atkFightersLost,
+      defLost: result.report.defFightersLost,
+      ninjaKills: result.report.ninjaKills || 0,
+      rangerKills: result.report.rangerKills || 0,
     });
+    await db.run(`INSERT INTO war_log (action_type, attacker_id, attacker_name, defender_id, defender_name, outcome, detail, obscured) VALUES (?,?,?,?,?,?,?,0)`,
+      ['attack', k.id, k.name, target.id, target.name, result.win ? 'victory' : 'repelled', detail]);
+
+    // Racial bonus unlock — one-time news event per unit type
+    try {
+      const racialData = JSON.parse(k.racial_bonuses_unlocked || '{}');
+      const RACIAL_UNITS = { dwarf:'engineers', high_elf:'mages', orc:'fighters', dark_elf:'ninjas', dire_wolf:'rangers', human:'clerics' };
+      const keyUnit = RACIAL_UNITS[k.race];
+      if (keyUnit && !racialData[keyUnit]) {
+        const troopLevels = JSON.parse(k.troop_levels || '{}');
+        const unitLevel = troopLevels[keyUnit]?.level || 1;
+        if (unitLevel >= 5) {
+          racialData[keyUnit] = true;
+          await db.run('UPDATE kingdoms SET racial_bonuses_unlocked = ? WHERE id = ?', [JSON.stringify(racialData), k.id]);
+          const RACIAL_MSGS = {
+            dwarf: '⚒️ Your engineers have reached mastery — Dwarven war machines now need only 1 engineer to crew.',
+            high_elf: '✨ Your mages have reached mastery — High Elf scrolls now produce 2 per craft.',
+            orc: '⚔️ Your fighters have reached mastery — Orcish war culture now trains 1 free fighter per 10 each turn.',
+            dark_elf: '🕵️ Your ninjas have reached mastery — Dark Elf assassinations now leave no trace.',
+            dire_wolf: '🐺 Your rangers have reached mastery — Dire Wolf expeditions now return 1 turn early.',
+            human: '💚 Your clerics have reached mastery — Human healing aura now restores +1 morale per turn.',
+          };
+          if (RACIAL_MSGS[k.race]) {
+            await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)',
+              [k.id, 'system', RACIAL_MSGS[k.race], k.turn]);
+          }
+        }
+      }
+    } catch(e) { /* racial unlock is non-critical */ }
+
+    res.json({ ok: true, report: result.report, updates: result.attackerUpdates, event: result.atkEvent });
   });
 
   // ── Cast spell ───────────────────────────────────────────────────────────────
