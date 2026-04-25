@@ -568,6 +568,33 @@ function processTurn(k) {
   updates.xp    = totalXp;
   updates.level = currentLevel;
 
+  // ── Racial bonus unlock check — fires once when signature unit hits level 5 ──
+  const RACIAL_UNITS = { dwarf:'engineers', high_elf:'mages', orc:'fighters', dark_elf:'ninjas', dire_wolf:'rangers', human:'clerics' };
+  const keyUnit = RACIAL_UNITS[k.race];
+  if (keyUnit) {
+    let racialData = {};
+    try { racialData = JSON.parse(k.racial_bonuses_unlocked || '{}'); } catch {}
+    if (!racialData[keyUnit]) {
+      const tls = typeof updates.troop_levels === 'string'
+        ? JSON.parse(updates.troop_levels || '{}')
+        : (updates.troop_levels || JSON.parse(k.troop_levels || '{}'));
+      const unitLevel = tls[keyUnit]?.level || 1;
+      if (unitLevel >= 5) {
+        racialData[keyUnit] = true;
+        updates.racial_bonuses_unlocked = JSON.stringify(racialData);
+        const RACIAL_MSGS = {
+          dwarf:     '⚒️ Your engineers have reached mastery — Dwarven war machines now need only 1 engineer to crew.',
+          high_elf:  '✨ Your mages have reached mastery — High Elf scrolls now produce 2 per craft.',
+          orc:       '⚔️ Your fighters have reached mastery — Orcish war culture now trains 1 free fighter per 10 each turn.',
+          dark_elf:  '🕵️ Your ninjas have reached mastery — Dark Elf assassinations now leave no trace.',
+          dire_wolf: '🐺 Your rangers have reached mastery — Dire Wolf expeditions now return 1 turn early.',
+          human:     '💚 Your clerics have reached mastery — Human healing aura now restores +1 morale per turn.',
+        };
+        if (RACIAL_MSGS[k.race]) events.push({ type: 'system', message: RACIAL_MSGS[k.race] });
+      }
+    }
+  }
+
   updates.last_turn_at = Math.floor(Date.now() / 1000);
   return { updates, events };
 }
