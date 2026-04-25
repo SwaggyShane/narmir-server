@@ -349,7 +349,6 @@
     <button class="nav-item" onclick="switchTab('alliances',this)"><span class="icon">&#9876;</span>Alliances</button>
     <button class="nav-item" onclick="switchTab('globalchat',this)"><span class="icon">💬</span>Chat <span id="chat-badge" style="display:none;background:var(--red);color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px">!</span></button>
     <button class="nav-item" onclick="switchTab('news',this)"><span class="icon">&#9741;</span>News <span id="news-badge" class="nav-badge">3</span></button>
-    <button class="nav-item" onclick="toast('Chat will connect via Socket.io in the next build','warn');this.classList.remove('active')"><span class="icon">&#9650;</span>Chat</button>
 
     <div style="flex:1"></div>
     <button class="nav-item" onclick="doLogout()" style="color:var(--red);margin-top:8px"><span class="icon">&#10005;</span>Logout</button>
@@ -1364,7 +1363,7 @@
     <div class="card" style="display:flex;flex-direction:column">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
         <div class="card-title" style="margin-bottom:0">Expedition log</div>
-        <button class="btn" style="font-size:11px;padding:4px 10px" onclick="clearAllExpeditions()" title="Returns all troops from any stuck expeditions">🔄 Clear stuck</button>
+        <button class="btn" style="font-size:11px;padding:4px 10px" onclick="clearExpeditionLog()">🗑️ Clear log</button>
         <button class="btn" style="font-size:11px;padding:4px 10px" onclick="clearExpeditionLog()" title="Clear completed entries from the log">🗑️ Clear log</button>
       </div>
       <div id="exploration-log" style="flex:1;overflow-y:auto;max-height:700px;display:flex;flex-direction:column;gap:8px">
