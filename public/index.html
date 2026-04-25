@@ -3766,12 +3766,10 @@ async function loadRankings(forceRefresh) {
     .map(function(r) { return { id: r.id, name: r.name, race: r.race, rank: r.rank, land: r.land, population: r.population || 0, fighters: r.fighters || 0, mages: r.mages || 0, level: r.level || 1, is_ai: r.is_ai || 0 }; });
   renderTargets(targets, 'target-list', 'selectTarget');
   renderTargets(targets, 'covert-target-list', 'selectCovertTarget');
+  renderSpellTargets(targets);
 
-  // If rankings panel is visible or force refresh, render it
-  var panel = document.getElementById('rankings');
-  if (panel && (panel.style.display !== 'none' || forceRefresh)) {
-    renderRankingsPanel(rankings);
-  }
+  // Always render into the panel — it'll be ready when user navigates to it
+  renderRankingsPanel(rankings);
 }
 
 function filterRankings(q) {
@@ -3785,6 +3783,12 @@ function filterRankings(q) {
 function renderRankingsPanel(rankings) {
   var el = document.getElementById('rankings-list');
   if (!el) return;
+
+  // Update header rank display
+  var myRank = rankings.find(function(r){ return r.id === state.kingdomId; });
+  var topRankEl = document.getElementById('top-rank');
+  if (topRankEl && myRank) topRankEl.textContent = '#' + myRank.rank;
+
   if (!rankings || rankings.length === 0) {
     el.innerHTML = '<tr><td colspan="8" style="color:var(--text3);text-align:center;padding:24px 0">No kingdoms found.</td></tr>';
     return;
