@@ -50,23 +50,23 @@ function goldPerTurn(k) {
 }
 
 function manaPerTurn(k) {
-  // Base mana by race — everyone gets some, magic races get more
   const raceManaBase = {
     high_elf: 8, dark_elf: 6, human: 3, dwarf: 2, orc: 2, dire_wolf: 1,
   }[k.race] || 3;
-
-  // Mage tower base: each tower = 5 base mana
-  const towerMana = (k.bld_cathedrals || 0) * 5;
-
-  // Mages allocated to tower: 1 mana per 5 mages
+  const towerMana   = (k.bld_cathedrals || 0) * 5;
   let towerAlloc = {};
   try { towerAlloc = JSON.parse(k.mage_tower_allocation || '{}'); } catch { towerAlloc = {}; }
-  const magesInTower = Math.min(Number(towerAlloc.mages) || 0, k.mages || 0);
-  const capacity = (k.bld_cathedrals || 0) * 20;
+  const magesInTower  = Math.min(Number(towerAlloc.mages) || 0, k.mages || 0);
+  const capacity      = (k.bld_cathedrals || 0) * 20;
   const effectiveMages = Math.min(magesInTower, capacity);
-  const mageMana = Math.floor(effectiveMages / 5);
+  const mageMana       = Math.floor(effectiveMages / 5);
 
-  return Math.floor((raceManaBase + towerMana + mageMana) * raceBonus(k, 'magic'));
+  // Tower upgrades
+  let towerUpgrades = {};
+  try { towerUpgrades = JSON.parse(k.tower_upgrades || '{}'); } catch {}
+  const arcaneMult = towerUpgrades.arcane_focus ? 1.25 : 1.0;
+
+  return Math.floor((raceManaBase + towerMana + mageMana) * raceBonus(k, 'magic') * arcaneMult);
 }
 
 function foodBalance(k) {
@@ -251,6 +251,26 @@ const COMMODITY_RACE_DISCOUNT = {
   human:    {},
 };
 
+const TOWER_UPGRADES = {
+  arcane_focus:      { name:'Arcane Focus',       cost:5000,  desc:'+25% mana production per turn',           requires:null             },
+  ley_line_tap:      { name:'Ley Line Tap',        cost:20000, desc:'Towers passively generate scroll energy', requires:'arcane_focus'   },
+  sanctum_of_power:  { name:'Sanctum of Power',    cost:75000, desc:'All spells twice as effective',          requires:'ley_line_tap'   },
+};
+const SCHOOL_UPGRADES = {
+  advanced_curriculum: { name:'Advanced Curriculum', cost:3000,  desc:'+20% research output per turn',        requires:null                   },
+  repository:          { name:'Repository',           cost:12000, desc:'Unlocks a second research discipline', requires:'advanced_curriculum'  },
+  grand_academy:       { name:'Grand Academy',        cost:40000, desc:'Researchers gain XP 50% faster',      requires:'repository'           },
+};
+const SHRINE_UPGRADES = {
+  sacred_grove:      { name:'Sacred Grove',       cost:4000,  desc:'+15% morale gain from shrines per turn',             requires:null            },
+  war_blessing:      { name:'War Blessing',        cost:15000, desc:'Clerics heal +10% more casualties in combat',        requires:'sacred_grove'  },
+  divine_sanctuary:  { name:'Divine Sanctuary',    cost:50000, desc:'Auto-stabilise morale at 50% once per 20 turns, posted to news', requires:'war_blessing' },
+};
+const LIBRARY_UPGRADES = {
+  illuminated_manuscripts: { name:'Illuminated Manuscripts', cost:5000,  desc:'Scribes craft maps & blueprints 25% faster',   requires:null                      },
+  arcane_cataloguing:      { name:'Arcane Cataloguing',       cost:15000, desc:'Mages craft scrolls 25% faster',              requires:'illuminated_manuscripts'  },
+  grand_library:           { name:'Grand Library',            cost:50000, desc:'Library capacity ×2 (40 scribes/mages per library)', requires:'arcane_cataloguing' },
+};
 const FARM_UPGRADES = {
   irrigated:  { name:'Irrigated Farm', cost:500,   yieldBonus:0.30, requires:null         },
   granary:    { name:'Granary',        cost:2000,  bufferTurns:10,  requires:null         },
@@ -442,7 +462,10 @@ function hireMercenaries(k, unitType, tier, count) {
 }
 
 function purchaseUpgrade(k, category, upgradeKey) {
-  const defs    = { farm:FARM_UPGRADES, market:MARKET_UPGRADES, tavern:TAVERN_UPGRADES }[category];
+  const defs = {
+    farm: FARM_UPGRADES, market: MARKET_UPGRADES, tavern: TAVERN_UPGRADES,
+    tower: TOWER_UPGRADES, school: SCHOOL_UPGRADES, shrine: SHRINE_UPGRADES, library: LIBRARY_UPGRADES,
+  }[category];
   if (!defs) return { error:'Invalid category' };
   const def = defs[upgradeKey];
   if (!def) return { error:'Invalid upgrade' };
@@ -453,7 +476,7 @@ function purchaseUpgrade(k, category, upgradeKey) {
   if (def.requires && !upgrades[def.requires])     return { error:`Requires ${def.requires.replace(/_/g,' ')} first` };
   if (def.raceOnly && k.race !== def.raceOnly)     return { error:`Only available to ${def.raceOnly.replace(/_/g,' ')}` };
   if ((k.gold||0) < def.cost)                     return { error:`Need ${def.cost.toLocaleString()} gold` };
-  const bldCheck = { farm:'bld_farms', market:'bld_markets', tavern:'bld_taverns' };
+  const bldCheck = { farm:'bld_farms', market:'bld_markets', tavern:'bld_taverns', tower:'bld_cathedrals', school:'bld_schools', shrine:'bld_shrines', library:'bld_libraries' };
   if (bldCheck[category] && !((k[bldCheck[category]]||0) > 0)) return { error:`Need at least 1 ${category}` };
   upgrades[upgradeKey] = true;
   return { updates:{ gold:(k.gold||0)-def.cost, [colName]:JSON.stringify(upgrades) } };
@@ -592,7 +615,7 @@ function processTurn(k) {
   try { allocation = typeof k.research_allocation === 'string' ? JSON.parse(k.research_allocation || '{}') : (k.research_allocation || {}); } catch { allocation = {}; }
 
   if (researchers > 0) {
-    const DISCIPLINES = [
+    const ALL_DISCIPLINES = [
       { col: 'res_economy',       key: 'economy',        label: 'Economy',          multi: raceResearch },
       { col: 'res_weapons',       key: 'weapons',        label: 'Weapons',          multi: raceResearch },
       { col: 'res_armor',         key: 'armor',          label: 'Armor',            multi: raceResearch },
@@ -602,16 +625,32 @@ function processTurn(k) {
       { col: 'res_entertainment', key: 'entertainment',  label: 'Entertainment',    multi: raceResearch },
       { col: 'res_construction',  key: 'construction',   label: 'Construction',     multi: raceResearch },
       { col: 'res_war_machines',  key: 'war_machines',   label: 'War machines',     multi: raceResearch },
+      { col: 'res_spellbook',     key: 'spellbook',      label: 'Spellbook',        multi: raceMagic    },
     ];
 
-    // Fallback: if no allocation set, split evenly
-    const totalAllocated = Object.values(allocation).reduce((s, v) => s + (Number(v) || 0), 0);
-    const perDisciplineDefault = Math.floor(researchers / (DISCIPLINES.length + 1));
+    // School upgrades
+    let schoolUpgrades = {};
+    try { schoolUpgrades = JSON.parse(k.school_upgrades||'{}'); } catch {}
+    const curriculumMult = schoolUpgrades.advanced_curriculum ? 1.20 : 1.0;
+    const maxSlots       = schoolUpgrades.repository ? 2 : 1;
+
+    // Research focus — single or dual discipline
+    let focus = [];
+    try { focus = JSON.parse(k.research_focus||'[]'); } catch {}
+    if (!focus.length) {
+      // Auto-select highest current discipline
+      const top = ALL_DISCIPLINES.reduce((best, d) => ((k[d.col]||0) >= (k[best.col]||0) ? d : best), ALL_DISCIPLINES[0]);
+      focus = [top.key];
+      updates.research_focus = JSON.stringify(focus);
+    }
+    focus = focus.slice(0, maxSlots);
+    const perSlot = Math.floor(researchers / focus.length);
 
     const advances = [];
-    DISCIPLINES.forEach(function(d) {
-      const assigned = totalAllocated > 0 ? (Number(allocation[d.key]) || 0) : perDisciplineDefault;
-      const effective = Math.floor(assigned * schoolBonus * d.multi);
+    focus.forEach(function(fKey) {
+      const d = ALL_DISCIPLINES.find(x => x.key === fKey);
+      if (!d) return;
+      const effective = Math.floor(perSlot * schoolBonus * d.multi * curriculumMult);
       let inc = 0;
       if (effective >= 2000) inc = 5;
       else if (effective >= 1200) inc = 3;
@@ -628,33 +667,18 @@ function processTurn(k) {
       }
     });
 
-    // Spellbook
-    const spellAssigned = totalAllocated > 0 ? (Number(allocation['spellbook']) || 0) : perDisciplineDefault;
-    const spellEffective = Math.floor(spellAssigned * schoolBonus * raceMagic);
-    let spellInc = 0;
-    if (spellEffective >= 2000) spellInc = 5;
-    else if (spellEffective >= 1200) spellInc = 3;
-    else if (spellEffective >= 600)  spellInc = 2;
-    else if (spellEffective >= 200)  spellInc = 1;
-    if (spellInc > 0) {
-      const current = updates.res_spellbook !== undefined ? updates.res_spellbook : (k.res_spellbook||0);
-      const cap = getCap('res_spellbook', k.level || 1);
-      updates.res_spellbook = Math.min(cap, current + spellInc);
-      advances.push(`Spellbook → ${updates.res_spellbook}`);
-    }
-
     if (advances.length > 0) {
       events.push({ type: 'system', message: `📚 Research advanced: ${advances.join(', ')}.` });
       const resXp = awardXp({ ...k, xp: updates.xp || (k.xp||0), level: updates.level || (k.level||1) }, 'research', advances.length);
       updates.xp    = resXp.xp;
       updates.level = resXp.level;
       if (resXp.levelled) events.push(...resXp.events);
-      // Award researcher unit XP
-      const rXp = awardTroopXp({ ...k, troop_levels: updates.troop_levels || k.troop_levels }, 'researchers', advances.length * 5);
+      const rXpMult = schoolUpgrades.grand_academy ? 1.5 : 1.0;
+      const rXp = awardTroopXp({ ...k, troop_levels: updates.troop_levels || k.troop_levels }, 'researchers', Math.floor(advances.length * 5 * rXpMult));
       updates.troop_levels = rXp.troop_levels;
       if (rXp.levelUps.length) events.push({ type: 'system', message: `📚 Researchers grew more skilled!` });
     } else if (researchers > 0) {
-      events.push({ type: 'system', message: `📚 ${researchers.toLocaleString()} researchers studying — allocate more per discipline for advancement.` });
+      events.push({ type: 'system', message: `📚 ${researchers.toLocaleString()} researchers studying ${focus.join(' & ')}.` });
     }
   } else {
     events.push({ type: 'system', message: `📚 No researchers — hire researchers and allocate them to advance your kingdom's knowledge.` });
@@ -2433,19 +2457,30 @@ function processShrine(k, events) {
 
   let shrineAlloc = {};
   try { shrineAlloc = JSON.parse(k.shrine_allocation || '{}'); } catch { shrineAlloc = {}; }
+  let shrineUpgrades = {};
+  try { shrineUpgrades = JSON.parse(k.shrine_upgrades || '{}'); } catch {}
 
   const clericsInShrine = Math.min(Number(shrineAlloc.clerics) || 0, k.clerics || 0);
-  const capacity = shrines * 15; // 15 clerics per shrine
+  const capacity        = shrines * 15;
   const effectiveClerics = Math.min(clericsInShrine, capacity);
-  if (effectiveClerics <= 0) return updates;
 
-  // Each 10 clerics in shrine = +1 morale per turn
-  const moraleGain = Math.max(1, Math.floor(effectiveClerics / 10));
-  const currentMorale = updates.morale !== undefined ? updates.morale : (k.morale || 0);
-  if (currentMorale < 200) {
+  const groveMult  = shrineUpgrades.sacred_grove ? 1.15 : 1.0;
+  const moraleGain = Math.max(1, Math.floor((effectiveClerics / 10) * groveMult));
+  const currentMorale = k.morale || 0;
+  if (effectiveClerics > 0 && currentMorale < 200) {
     updates.morale = Math.min(200, currentMorale + moraleGain);
-    if (moraleGain > 0) {
-      events.push({ type: 'system', message: `⛩️ Shrine: ${effectiveClerics.toLocaleString()} clerics praying — morale +${moraleGain}.` });
+    events.push({ type: 'system', message: `⛩️ Shrine: ${effectiveClerics.toLocaleString()} clerics praying — morale +${moraleGain}.` });
+  }
+
+  // Divine Sanctuary — auto-stabilise morale at 50% once per 20 turns
+  if (shrineUpgrades.divine_sanctuary) {
+    const morale = updates.morale !== undefined ? updates.morale : currentMorale;
+    const lastUsed = k.divine_sanctuary_used || 0;
+    const currentTurn = k.turn || 0;
+    if (morale < 50 && (currentTurn - lastUsed) >= 20) {
+      updates.morale = 50;
+      updates.divine_sanctuary_used = currentTurn;
+      events.push({ type: 'system', message: `✨ Divine Sanctuary activated — morale stabilised at 50% by the blessing of the shrines.` });
     }
   }
 
@@ -2468,7 +2503,14 @@ function processLibrary(k, events) {
   const magesInLib   = Math.min(k.mages   || 0, Number(alloc.mages)   || 0);
   const scribesInLib = Math.min(k.scribes || 0, Number(alloc.scribes) || 0);
 
-  const capacity       = libs * 20;
+  // Library upgrades
+  let libUpgrades = {};
+  try { libUpgrades = JSON.parse(k.library_upgrades || '{}'); } catch {}
+  const capacityPerLib = libUpgrades.grand_library ? 40 : 20;
+  const scribeSpeedMult = libUpgrades.illuminated_manuscripts ? 1.25 : 1.0;
+  const scrollSpeedMult = libUpgrades.arcane_cataloguing      ? 1.25 : 1.0;
+
+  const capacity        = libs * capacityPerLib;
   const effectiveMages   = Math.min(magesInLib,   capacity);
   const effectiveScribes = Math.min(scribesInLib, capacity);
 
@@ -2493,7 +2535,7 @@ function processLibrary(k, events) {
     const req = SCRIBE_ITEMS[scribeQueue];
     const effective = Math.min(effectiveScribes, req.scribes);
     const progressKey = 'scribe_' + scribeQueue;
-    const workDone = (effective >= req.scribes ? 1 : effective / req.scribes) * scribeLvlMult;
+    const workDone = (effective >= req.scribes ? 1 : effective / req.scribes) * scribeLvlMult * scribeSpeedMult;
     const newProg = (progress[progressKey] || 0) + workDone;
     if (newProg >= req.turns) {
       progress[progressKey] = 0;
@@ -2517,7 +2559,7 @@ function processLibrary(k, events) {
   if (effectiveMages > 0 && scrollCraft && SCROLL_REQUIREMENTS[scrollCraft]) {
     const req = SCROLL_REQUIREMENTS[scrollCraft];
     const effectiveMagesForScroll = Math.min(effectiveMages, req.mages);
-    const workDone = (effectiveMagesForScroll >= req.mages ? 1 : effectiveMagesForScroll / req.mages) * mageLvlMult;
+    const workDone = (effectiveMagesForScroll >= req.mages ? 1 : effectiveMagesForScroll / req.mages) * mageLvlMult * scrollSpeedMult;
     const progKey = 'scroll_' + scrollCraft;
     const newProg = (progress[progKey] || 0) + workDone;
     if (newProg >= req.turns) {
@@ -2579,6 +2621,7 @@ module.exports = {
   goldPerTurn, manaPerTurn, foodBalance, farmProduction, foodConsumption,
   marketIncomeFull, tavernEntertainmentBonus, commodityPrice,
   processFoodEconomy, processMercenaries, hireMercenaries, purchaseUpgrade,
+  TOWER_UPGRADES, SCHOOL_UPGRADES, SHRINE_UPGRADES, LIBRARY_UPGRADES,
   FARM_UPGRADES, MARKET_UPGRADES, TAVERN_UPGRADES, MERC_TIERS, COMMODITY_VALUES,
   FARM_YIELD_MULT, FOOD_CONSUMPTION_MULT, MARKET_INCOME_MULT, TRADE_RATE_MULT,
   processTurn, hireUnits, studyDiscipline,
