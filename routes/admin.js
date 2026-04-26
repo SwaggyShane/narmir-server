@@ -281,5 +281,39 @@ module.exports = function(db, io) {
     res.json({ ok: true });
   });
 
+  // ── Admin Events ──────────────────────────────────────────────────────────────
+  router.get('/events/log', async (_req, res) => {
+    const rows = await db.all(`SELECT * FROM event_log ORDER BY fired_at DESC LIMIT 200`);
+    res.json(rows);
+  });
+
+  router.get('/events/list', async (_req, res) => {
+    const rows = await db.all(`SELECT * FROM events ORDER BY season, name`);
+    res.json(rows);
+  });
+
+  router.post('/events/create', async (req, res) => {
+    const { key, name, description, season, effect_type, effect_value, effect_duration, race_only, is_active, is_positive } = req.body;
+    if (!key || !name) return res.status(400).json({ error: 'Key and name required' });
+    await db.run(`INSERT INTO events (key,name,description,season,effect_type,effect_value,effect_duration,race_only,is_active,is_positive) VALUES (?,?,?,?,?,?,?,?,?,?)`,
+      [key, name, description||'', season||'all', effect_type||'morale', effect_value||0, effect_duration||1, race_only||null, is_active?1:0, is_positive?1:0]);
+    res.json({ ok: true });
+  });
+
+  router.post('/events/update', async (req, res) => {
+    const { id, key, name, description, season, effect_type, effect_value, effect_duration, race_only, is_active, is_positive } = req.body;
+    if (!id) return res.status(400).json({ error: 'ID required' });
+    await db.run(`UPDATE events SET key=?,name=?,description=?,season=?,effect_type=?,effect_value=?,effect_duration=?,race_only=?,is_active=?,is_positive=? WHERE id=?`,
+      [key, name, description||'', season||'all', effect_type||'morale', effect_value||0, effect_duration||1, race_only||null, is_active?1:0, is_positive?1:0, id]);
+    res.json({ ok: true });
+  });
+
+  router.post('/events/delete', async (req, res) => {
+    const { id } = req.body;
+    if (!id) return res.status(400).json({ error: 'ID required' });
+    await db.run('DELETE FROM events WHERE id = ?', [id]);
+    res.json({ ok: true });
+  });
+
   return router;
 };

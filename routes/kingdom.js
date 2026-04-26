@@ -265,17 +265,41 @@ module.exports = function(db) {
     }
   });
 
+  // ── Smithy — buy hammers for gold ─────────────────────────────────────────────
+  router.post('/smithy/buy-hammers', requireAuth, async (req, res) => {
+    const amount = Math.max(1, parseInt(req.body.amount)||1);
+    const k = await db.get('SELECT * FROM kingdoms WHERE player_id=?', [req.player.playerId]);
+    if (!k) return res.status(404).json({ error:'Kingdom not found' });
+    if (!(k.bld_smithies > 0)) return res.status(400).json({ error:'Need at least 1 smithy' });
+    const cost = amount * 25;
+    if ((k.gold||0) < cost) return res.status(400).json({ error:`Need ${cost.toLocaleString()} gold` });
+    const cap = (k.bld_smithies||0) * 25;
+    const newHammers = Math.min(cap, (k.hammers_stored||0) + amount);
+    const bought = newHammers - (k.hammers_stored||0);
+    if (bought <= 0) return res.status(400).json({ error:'Hammer storage full' });
+    const actualCost = bought * 25;
+    await db.run('UPDATE kingdoms SET gold=gold-?, hammers_stored=? WHERE id=?', [actualCost, newHammers, k.id]);
+    res.json({ ok:true, bought, cost:actualCost, hammers_stored:newHammers, gold:(k.gold||0)-actualCost });
+  });
+
+  // ── Smithy — buy scaffolding for gold ────────────────────────────────────────
+  router.post('/smithy/buy-scaffolding', requireAuth, async (req, res) => {
+    const amount = Math.max(1, parseInt(req.body.amount)||1);
+    const k = await db.get('SELECT * FROM kingdoms WHERE player_id=?', [req.player.playerId]);
+    if (!k) return res.status(404).json({ error:'Kingdom not found' });
+    if (!(k.bld_smithies > 0)) return res.status(400).json({ error:'Need at least 1 smithy' });
+    const cost = amount * 2500;
+    if ((k.gold||0) < cost) return res.status(400).json({ error:`Need ${cost.toLocaleString()} gold` });
+    const cap = (k.bld_smithies||0) * 10;
+    const newScaff = Math.min(cap, (k.scaffolding_stored||0) + amount);
+    const bought = newScaff - (k.scaffolding_stored||0);
+    if (bought <= 0) return res.status(400).json({ error:'Scaffolding storage full' });
+    const actualCost = bought * 2500;
+    await db.run('UPDATE kingdoms SET gold=gold-?, scaffolding_stored=? WHERE id=?', [actualCost, newScaff, k.id]);
+    res.json({ ok:true, bought, cost:actualCost, scaffolding_stored:newScaff, gold:(k.gold||0)-actualCost });
+  });
+
   router.post('/smithy-allocation', requireAuth, async (req, res) => {
-    const { hammers, scaffolding } = req.body;
-    const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
-    if (!k) return res.status(404).json({ error: 'Kingdom not found' });
-    const smithies = k.bld_smithies || 0;
-    if (smithies === 0) return res.status(400).json({ error: 'You need at least 1 smithy' });
-    const h = Math.max(0, Math.min(smithies, Number(hammers) || 0));
-    const s = Math.max(0, Math.min(smithies, Number(scaffolding) || 0));
-    await db.run('UPDATE kingdoms SET smithy_allocation = ? WHERE id = ?',
-      [JSON.stringify({ hammers: h, scaffolding: s }), k.id]);
-    res.json({ ok: true, smithy_allocation: { hammers: h, scaffolding: s } });
   });
   router.post('/search', requireAuth, async (req, res) => {
     const { type, rangers } = req.body;
@@ -391,8 +415,22 @@ module.exports = function(db) {
     const target = await db.get('SELECT * FROM kingdoms WHERE id = ?', [targetId]);
     if (!target) return res.status(404).json({ error: 'Target kingdom not found' });
     if (target.id === k.id) return res.status(400).json({ error: 'Cannot attack yourself' });
-    if ((k.maps || 0) < 1) return res.status(400).json({ error: 'You need a map to attack — craft one in your Library' });
     if ((target.turn || 0) < 200) return res.status(400).json({ error: `${target.name} is under newbie protection until Turn 200` });
+
+    // Location system — must have mapped this kingdom
+    let attackerDisc = {};
+    try { attackerDisc = JSON.parse(k.discovered_kingdoms||'{}'); } catch {}
+    if (!attackerDisc[targetId]?.mapped) {
+      return res.status(400).json({ error: `You don't have a location map for ${target.name}. Discover their location and commission scribes to map it.` });
+    }
+
+    // Defender auto-stores attacker's location on being attacked
+    let defDisc = {};
+    try { defDisc = JSON.parse(target.discovered_kingdoms||'{}'); } catch {}
+    if (!defDisc[k.id]?.mapped) {
+      defDisc[k.id] = { found: true, mapped: true };
+      await db.run('UPDATE kingdoms SET discovered_kingdoms=? WHERE id=?', [JSON.stringify(defDisc), target.id]);
+    }
 
     const result = engine.resolveMilitaryAttack(k, target, sentUnits);
     if (result.error) return res.status(400).json({ error: result.error });
@@ -868,6 +906,82 @@ module.exports = function(db) {
       wm_on_walls:       Math.min(k.war_machines||0, k.bld_walls||0),
     });
   });
+  // ── Season info ───────────────────────────────────────────────────────────────
+  router.get('/season', requireAuth, async (_req, res) => {
+    const sRow = await db.get("SELECT value FROM server_state WHERE key='current_season'");
+    const tRow = await db.get("SELECT value FROM server_state WHERE key='season_started_at'");
+    const season = sRow?.value || 'spring';
+    const startedAt = parseInt(tRow?.value) || Math.floor(Date.now()/1000);
+    const SEASON_DUR = { spring:3, summer:5, fall:2, winter:3 };
+    const SEASON_ICONS = { spring:'🌸', summer:'☀️', fall:'🍂', winter:'❄️' };
+    const daysLeft = Math.max(0, SEASON_DUR[season] - (Date.now()/1000-startedAt)/86400);
+    res.json({ season, daysLeft: daysLeft.toFixed(1), icon: SEASON_ICONS[season]||'🌸' });
+  });
+
+  // ── Location — get my discovered kingdoms ─────────────────────────────────────
+  router.get('/locations', requireAuth, async (req, res) => {
+    const k = await db.get('SELECT discovered_kingdoms, location_maps_wip FROM kingdoms WHERE player_id=?', [req.player.playerId]);
+    if (!k) return res.status(404).json({ error:'Kingdom not found' });
+    let disc={}, wip=[];
+    try { disc = JSON.parse(k.discovered_kingdoms||'{}'); } catch {}
+    try { wip  = JSON.parse(k.location_maps_wip||'[]');   } catch {}
+    res.json({ discovered: disc, wip });
+  });
+
+  // ── Location — start mapping a discovered kingdom ─────────────────────────────
+  router.post('/locations/start-map', requireAuth, async (req, res) => {
+    const { targetId } = req.body;
+    const k = await db.get('SELECT * FROM kingdoms WHERE player_id=?', [req.player.playerId]);
+    if (!k) return res.status(404).json({ error:'Kingdom not found' });
+    let disc={};
+    try { disc = JSON.parse(k.discovered_kingdoms||'{}'); } catch {}
+    if (!disc[targetId]?.found) return res.status(400).json({ error:'Location not yet discovered' });
+    if (disc[targetId]?.mapped) return res.status(400).json({ error:'Already mapped' });
+    const target = await db.get('SELECT id, name FROM kingdoms WHERE id=?', [targetId]);
+    if (!target) return res.status(404).json({ error:'Kingdom not found' });
+    let wip=[];
+    try { wip = JSON.parse(k.location_maps_wip||'[]'); } catch {}
+    const scribesInUse = wip.length * 10;
+    if ((k.scribes||0) - scribesInUse < 10) return res.status(400).json({ error:'Need 10 free scribes (not already mapping another kingdom)' });
+    if ((k.maps||0) < 1) return res.status(400).json({ error:'Need at least 1 blank map in your library' });
+    wip.push({ target_id: target.id, target_name: target.name, turns_remaining: 5 });
+    await db.run('UPDATE kingdoms SET location_maps_wip=?, maps=maps-1 WHERE id=?', [JSON.stringify(wip), k.id]);
+    res.json({ ok:true, message:`Scribes have begun mapping ${target.name}. Completes in 5 turns.` });
+  });
+
+  // ── Location — steal map (covert action) ──────────────────────────────────────
+  router.post('/locations/steal-map', requireAuth, async (req, res) => {
+    const { targetId } = req.body;
+    const k = await db.get('SELECT * FROM kingdoms WHERE player_id=?', [req.player.playerId]);
+    if (!k) return res.status(404).json({ error:'Kingdom not found' });
+    const target = await db.get('SELECT * FROM kingdoms WHERE id=?', [targetId]);
+    if (!target) return res.status(404).json({ error:'Target not found' });
+    const successChance = 0.20 + Math.min(0.30, (k.thieves||0)/1000*0.10);
+    const success = Math.random() < successChance;
+    if (success) {
+      let targetDisc={};
+      try { targetDisc = JSON.parse(target.discovered_kingdoms||'{}'); } catch {}
+      const mappedIds = Object.keys(targetDisc).filter(id=>targetDisc[id]?.mapped);
+      if (!mappedIds.length) return res.json({ ok:true, success:false, message:'Target has no location maps to steal.' });
+      const stolenId = mappedIds[Math.floor(Math.random()*mappedIds.length)];
+      const stolenKingdom = await db.get('SELECT name FROM kingdoms WHERE id=?', [stolenId]);
+      delete targetDisc[stolenId];
+      await db.run('UPDATE kingdoms SET discovered_kingdoms=? WHERE id=?', [JSON.stringify(targetDisc), target.id]);
+      let myDisc={};
+      try { myDisc = JSON.parse(k.discovered_kingdoms||'{}'); } catch {}
+      myDisc[stolenId] = { found:true, mapped:true };
+      await db.run('UPDATE kingdoms SET discovered_kingdoms=? WHERE id=?', [JSON.stringify(myDisc), k.id]);
+      await db.run('INSERT INTO news (kingdom_id,type,message,turn_num) VALUES (?,?,?,?)',
+        [target.id,'covert',`🗺️ A thief stole your location map for ${stolenKingdom?.name||'a kingdom'}.`,target.turn]);
+      await db.run('INSERT INTO war_log (action_type,attacker_id,attacker_name,defender_id,defender_name,outcome,detail,obscured) VALUES (?,?,?,?,?,?,?,?)',
+        ['steal_map',k.id,k.name,target.id,target.name,'success',JSON.stringify({stolen:stolenKingdom?.name}),1]);
+      res.json({ ok:true, success:true, message:`Thieves stole a location map for ${stolenKingdom?.name||'a kingdom'} from ${target.name}.` });
+    } else {
+      res.json({ ok:true, success:false, message:'Thieves failed to steal a location map.' });
+    }
+  });
+
+  // ── Research focus ────────────────────────────────────────────────────────────
   router.post('/research-focus', requireAuth, async (req, res) => {
     const { focus } = req.body; // array of 1-2 discipline keys
     const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
@@ -1136,6 +1250,7 @@ async function applyUpdates(db, kingdomId, updates) {
     'bld_mage_towers','bld_shrines','bld_housing','bld_taverns',
     'tools_hammers','tools_scaffolding','tools_blueprints','blueprints_stored',
     'hammer_turns_used','smithy_allocation','racial_bonuses_unlocked',
+    'last_event_at','active_event','discovered_kingdoms','location_maps_wip',
     'bld_walls','wall_upgrades','tower_def_upgrades','outpost_upgrades','defence_upgrades',
     'tower_upgrades','school_upgrades','shrine_upgrades','library_upgrades',
     'research_focus','divine_sanctuary_used',
