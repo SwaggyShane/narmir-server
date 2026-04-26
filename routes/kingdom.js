@@ -448,6 +448,36 @@ module.exports = function(db) {
     await db.run(`INSERT INTO war_log (action_type, attacker_id, attacker_name, defender_id, defender_name, outcome, detail, obscured) VALUES (?,?,?,?,?,?,?,0)`,
       ['attack', k.id, k.name, target.id, target.name, result.win ? 'victory' : 'repelled', detail]);
 
+    // Signal tower — warn defender (and alliance) of attack
+    let defTowerUpgrades = {};
+    try { defTowerUpgrades = JSON.parse(target.tower_def_upgrades||'{}'); } catch {}
+    if (defTowerUpgrades.watchtower || defTowerUpgrades.signal_tower) {
+      await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)',
+        [target.id, 'system', `⚠️ Watchtower scouts have detected ${k.name} massing troops at the border.`, target.turn]);
+      if (defTowerUpgrades.signal_tower) {
+        // Warn all alliance members
+        const allianceMembers = await db.all(`
+          SELECT am.kingdom_id FROM alliance_members am
+          JOIN alliance_members am2 ON am.alliance_id = am2.alliance_id
+          WHERE am2.kingdom_id = ? AND am.kingdom_id != ?`, [target.id, target.id]);
+        for (const mem of allianceMembers) {
+          await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)',
+            [mem.kingdom_id, 'system', `📡 Signal Tower: Your ally ${target.name} is under attack by ${k.name}!`, k.turn]);
+        }
+      }
+    }
+
+    // Siege damage report
+    if (result.win) {
+      if (result.report.wallsDestroyed > 0) {
+        await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)',
+          [target.id, 'attack', `🧱 ${result.report.wallsDestroyed} walls were destroyed in the siege.`, target.turn]);
+      } else if (result.report.buildingDamaged) {
+        await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)',
+          [target.id, 'attack', `🔥 Attackers burned ${result.report.buildingDamaged} with no walls to stop them.`, target.turn]);
+      }
+    }
+
     res.json({ ok: true, report: result.report, updates: result.attackerUpdates, event: result.atkEvent });
   });
 
@@ -814,7 +844,30 @@ module.exports = function(db) {
     res.json({ ok: true, updates });
   });
 
-  // ── Set research focus ────────────────────────────────────────────────────────
+  // ── Defence overview ──────────────────────────────────────────────────────────
+  router.get('/defence/overview', requireAuth, async (req, res) => {
+    const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
+    if (!k) return res.status(404).json({ error: 'Kingdom not found' });
+    res.json({
+      bld_walls:         k.bld_walls          || 0,
+      bld_guard_towers:  k.bld_guard_towers   || 0,
+      bld_outposts:      k.bld_outposts       || 0,
+      bld_castles:       k.bld_castles        || 0,
+      war_machines:      k.war_machines       || 0,
+      wall_upgrades:     JSON.parse(k.wall_upgrades     ||'{}'),
+      tower_def_upgrades:JSON.parse(k.tower_def_upgrades||'{}'),
+      outpost_upgrades:  JSON.parse(k.outpost_upgrades  ||'{}'),
+      defence_upgrades:  JSON.parse(k.defence_upgrades  ||'{}'),
+      defence_rating:    engine.defenceRating(k),
+      wall_power:        engine.wallDefencePower(k),
+      tower_power:       engine.towerDetectionPower(k),
+      outpost_power:     engine.outpostRangerPower(k),
+      citadel_req:       engine.CITADEL_REQ,
+      thieves_on_watch:  Math.min(k.thieves||0, (k.bld_guard_towers||0)*10),
+      rangers_on_patrol: Math.min(k.rangers||0, (k.bld_outposts||0)*20),
+      wm_on_walls:       Math.min(k.war_machines||0, k.bld_walls||0),
+    });
+  });
   router.post('/research-focus', requireAuth, async (req, res) => {
     const { focus } = req.body; // array of 1-2 discipline keys
     const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
@@ -1083,6 +1136,7 @@ async function applyUpdates(db, kingdomId, updates) {
     'bld_mage_towers','bld_shrines','bld_housing','bld_taverns',
     'tools_hammers','tools_scaffolding','tools_blueprints','blueprints_stored',
     'hammer_turns_used','smithy_allocation','racial_bonuses_unlocked',
+    'bld_walls','wall_upgrades','tower_def_upgrades','outpost_upgrades','defence_upgrades',
     'tower_upgrades','school_upgrades','shrine_upgrades','library_upgrades',
     'research_focus','divine_sanctuary_used',
     'farm_upgrades','market_upgrades','tavern_upgrades',
