@@ -247,7 +247,8 @@ async function initDb() {
     }
   }
   if (!cols.includes('smithy_allocation'))          await addColumn('kingdoms', 'smithy_allocation',          "TEXT NOT NULL DEFAULT '{}'");
-  if (!cols.includes('racial_bonuses_unlocked'))    await addColumn('kingdoms', 'racial_bonuses_unlocked',    "TEXT NOT NULL DEFAULT '{}'");;
+  if (!cols.includes('hammer_turns_used'))          await addColumn('kingdoms', 'hammer_turns_used',          'INTEGER NOT NULL DEFAULT 0');
+  if (!cols.includes('racial_bonuses_unlocked'))    await addColumn('kingdoms', 'racial_bonuses_unlocked',    "TEXT NOT NULL DEFAULT '{}'");
 
   // Expeditions — seen flag so completed rows persist until frontend acknowledges
   const expCols = (await _db.all('PRAGMA table_info(expeditions)')).map(c => c.name);
@@ -268,7 +269,48 @@ async function initDb() {
   if (!cols.includes('blueprints_stored'))   await addColumn('kingdoms', 'blueprints_stored',   'INTEGER NOT NULL DEFAULT 0');
   if (!cols.includes('active_effects'))      await addColumn('kingdoms', 'active_effects',      "TEXT NOT NULL DEFAULT '{}'");
 
-  // Ensure war_log table exists on older DBs
+  // ── Economy system migrations ─────────────────────────────────────────────────
+  if (!cols.includes('farm_upgrades'))       await addColumn('kingdoms', 'farm_upgrades',       "TEXT NOT NULL DEFAULT '{}'");
+  if (!cols.includes('market_upgrades'))     await addColumn('kingdoms', 'market_upgrades',     "TEXT NOT NULL DEFAULT '{}'");
+  if (!cols.includes('tavern_upgrades'))     await addColumn('kingdoms', 'tavern_upgrades',     "TEXT NOT NULL DEFAULT '{}'");
+  if (!cols.includes('food_shortage_turns')) await addColumn('kingdoms', 'food_shortage_turns', 'INTEGER NOT NULL DEFAULT 0');
+  if (!cols.includes('food_surplus_turns'))  await addColumn('kingdoms', 'food_surplus_turns',  'INTEGER NOT NULL DEFAULT 0');
+  if (!cols.includes('mercenaries'))         await addColumn('kingdoms', 'mercenaries',         "TEXT NOT NULL DEFAULT '[]'");
+
+  // Trade offers table
+  await _db.exec(`
+    CREATE TABLE IF NOT EXISTS trade_offers (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      sender_id     INTEGER NOT NULL REFERENCES kingdoms(id),
+      sender_name   TEXT    NOT NULL,
+      receiver_id   INTEGER NOT NULL REFERENCES kingdoms(id),
+      receiver_name TEXT    NOT NULL,
+      offer         TEXT    NOT NULL,
+      request       TEXT    NOT NULL,
+      status        TEXT    NOT NULL DEFAULT 'pending',
+      created_at    INTEGER NOT NULL DEFAULT (unixepoch()),
+      expires_at    INTEGER NOT NULL DEFAULT (unixepoch() + 3600)
+    );
+    CREATE INDEX IF NOT EXISTS idx_trade_offers_receiver ON trade_offers(receiver_id, status);
+    CREATE INDEX IF NOT EXISTS idx_trade_offers_sender   ON trade_offers(sender_id, status);
+  `);
+
+  // Mercenaries table
+  await _db.exec(`
+    CREATE TABLE IF NOT EXISTS mercenaries (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      kingdom_id      INTEGER NOT NULL REFERENCES kingdoms(id),
+      unit_type       TEXT    NOT NULL,
+      level           INTEGER NOT NULL,
+      count           INTEGER NOT NULL,
+      tier            TEXT    NOT NULL,
+      hired_at_turn   INTEGER NOT NULL DEFAULT 0,
+      duration_turns  INTEGER NOT NULL DEFAULT 20,
+      upkeep_per_turn INTEGER NOT NULL DEFAULT 0,
+      created_at      INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+    CREATE INDEX IF NOT EXISTS idx_mercs_kingdom ON mercenaries(kingdom_id);
+  `);
   await _db.exec(`
     CREATE TABLE IF NOT EXISTS war_log (
       id              INTEGER PRIMARY KEY AUTOINCREMENT,
