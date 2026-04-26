@@ -233,7 +233,143 @@ function awardUnitXp(k, unit, xpAmount) {
   return awardTroopXp(k, unit, xpAmount).troop_levels;
 }
 
-// ── Economy system ────────────────────────────────────────────────────────────
+// ── Defence system ────────────────────────────────────────────────────────────
+
+// Wall strength racial modifier
+const WALL_STRENGTH_MULT = {
+  human:1.00, dwarf:1.35, high_elf:1.10, orc:0.85, dark_elf:0.90, dire_wolf:0.80,
+};
+// Guard tower (thief detection) racial modifier
+const TOWER_DETECT_MULT = {
+  human:1.00, dwarf:1.00, high_elf:1.10, orc:0.80, dark_elf:1.40, dire_wolf:0.70,
+};
+// Outpost (ranger patrol) racial modifier
+const OUTPOST_RANGER_MULT = {
+  human:1.00, dwarf:0.80, high_elf:0.95, orc:0.90, dark_elf:1.30, dire_wolf:1.40,
+};
+
+const WALL_UPGRADES = {
+  reinforced:    { name:'Reinforced Walls',  cost:10000,  desc:'+25% wall strength, −10% land lost per attack',      requires:null          },
+  battlements:   { name:'Battlements',       cost:30000,  desc:'Guard towers +20% effectiveness',                    requires:'reinforced'  },
+  fortress_walls:{ name:'Fortress Walls',    cost:100000, desc:'War machines on walls deal +50% damage',             requires:'battlements' },
+};
+const TOWER_DEF_UPGRADES = {
+  arrow_slits:   { name:'Arrow Slits',       cost:5000,   desc:'+20% ranged defence from guard towers',              requires:null           },
+  watchtower:    { name:'Watchtower',         cost:20000,  desc:'Thieves detect incoming attacks 1 turn early',       requires:'arrow_slits'  },
+  signal_tower:  { name:'Signal Tower',       cost:50000,  desc:'Attack warnings shared with alliance members',       requires:'watchtower'   },
+};
+const OUTPOST_UPGRADES = {
+  ranger_station:{ name:'Ranger Station',    cost:5000,   desc:'+25% ranger patrol effectiveness',                   requires:null              },
+  forward_camp:  { name:'Forward Camp',       cost:20000,  desc:'Rangers detect incoming expeditions targeting land', requires:'ranger_station'  },
+  field_hq:      { name:'Field Headquarters', cost:60000,  desc:'Expedition rangers return with +10% gold bonus',    requires:'forward_camp'    },
+};
+
+// Citadel threshold
+const CITADEL_REQ = { walls:50, guard_towers:20, outposts:20, castles:1 };
+
+// Compute overall defence rating label
+function defenceRating(k) {
+  const walls   = k.bld_walls         || 0;
+  const towers  = k.bld_guard_towers  || 0;
+  const outpost = k.bld_outposts      || 0;
+  const wm      = k.war_machines      || 0;
+  const castle  = k.bld_castles       || 0;
+  let defUpgrades = {};
+  try { defUpgrades = JSON.parse(k.defence_upgrades||'{}'); } catch {}
+  if (defUpgrades.citadel) return '🏰 Citadel';
+  if (walls === 0)                               return '🔴 Undefended';
+  if (walls < 10 && towers === 0)               return '🟠 Lightly Defended';
+  if (walls >= 10 && (towers > 0 || outpost > 0)) {
+    if (wm > 0 && towers > 0 && outpost > 0)   return '🟢 Fortified';
+    return '🟡 Defended';
+  }
+  return '🟠 Lightly Defended';
+}
+
+// Wall contribution to defence power
+function wallDefencePower(k) {
+  const walls   = k.bld_walls || 0;
+  if (!walls) return 0;
+  const race   = k.race || 'human';
+  const mult   = WALL_STRENGTH_MULT[race] || 1.0;
+  let wallUpgrades = {};
+  try { wallUpgrades = JSON.parse(k.wall_upgrades||'{}'); } catch {}
+  const reinMult   = wallUpgrades.reinforced    ? 1.25 : 1.0;
+  const fortMult   = wallUpgrades.fortress_walls? 1.50 : 1.0; // on WM power — applied in combat
+
+  // Base: each wall = 100 defence power (scaled by race + upgrades)
+  const wmOnWalls  = Math.min(k.war_machines||0, walls);
+  const wmBonus    = wmOnWalls * 500 * ((k.res_war_machines||100)/100) * (wallUpgrades.fortress_walls ? 1.75 : wallUpgrades.battlements ? 1.20 : 1.0);
+  return Math.floor(walls * 100 * mult * reinMult + wmBonus);
+}
+
+// Guard tower contribution — thief detection
+function towerDetectionPower(k) {
+  const towers  = k.bld_guard_towers || 0;
+  if (!towers) return 0;
+  const race    = k.race || 'human';
+  const mult    = TOWER_DETECT_MULT[race] || 1.0;
+  let twUpgrades = {};
+  try { twUpgrades = JSON.parse(k.tower_def_upgrades||'{}'); } catch {}
+  const arrowMult  = twUpgrades.arrow_slits ? 1.20 : 1.0;
+  const btlMult    = (JSON.parse(k.wall_upgrades||'{}').battlements) ? 1.20 : 1.0;
+  const thievesOnWatch = Math.min(k.thieves||0, towers * 10);
+  return Math.floor((towers * 50 + thievesOnWatch * 15) * mult * arrowMult * btlMult);
+}
+
+// Outpost contribution — ranger patrol defence
+function outpostRangerPower(k) {
+  const outposts = k.bld_outposts || 0;
+  if (!outposts) return 0;
+  const race   = k.race || 'human';
+  const mult   = OUTPOST_RANGER_MULT[race] || 1.0;
+  let opUpgrades = {};
+  try { opUpgrades = JSON.parse(k.outpost_upgrades||'{}'); } catch {}
+  const stationMult = opUpgrades.ranger_station ? 1.25 : 1.0;
+  const rangersOnPatrol = Math.min(k.rangers||0, outposts * 20);
+  return Math.floor((outposts * 30 + rangersOnPatrol * 10) * mult * stationMult);
+}
+
+// Check and award Citadel status
+function checkCitadel(k, events) {
+  const updates = {};
+  let defUpgrades = {};
+  try { defUpgrades = JSON.parse(k.defence_upgrades||'{}'); } catch {}
+  if (defUpgrades.citadel) return updates; // already unlocked
+  const req = CITADEL_REQ;
+  if ((k.bld_walls||0) >= req.walls && (k.bld_guard_towers||0) >= req.guard_towers &&
+      (k.bld_outposts||0) >= req.outposts && (k.bld_castles||0) >= req.castles) {
+    defUpgrades.citadel = true;
+    updates.defence_upgrades = JSON.stringify(defUpgrades);
+    events.push({ type:'system', message:`🏰 Castle Citadel achieved! Your fortress stands among the greatest in Narmir. +15% permanent defence bonus, war machines on walls deal ×2 damage.` });
+  }
+  return updates;
+}
+
+// Process building siege damage on successful attack (no walls = building damage)
+function applySiegeDamage(attacker, defender, win) {
+  const updates = {};
+  if (!win) return updates;
+  const walls = defender.bld_walls || 0;
+  if (walls > 0) {
+    // Walls take damage — % based on wall upgrades
+    let wallUpgrades = {};
+    try { wallUpgrades = JSON.parse(defender.wall_upgrades||'{}'); } catch {}
+    const siegeResist = wallUpgrades.fortress_walls ? 0.03 : wallUpgrades.reinforced ? 0.06 : 0.10;
+    const wallLost    = Math.max(1, Math.floor(walls * siegeResist));
+    updates.bld_walls = Math.max(0, walls - wallLost);
+  } else {
+    // No walls — random buildings take damage
+    const DAMAGEABLE = ['bld_farms','bld_markets','bld_barracks','bld_schools','bld_cathedrals','bld_shrines'];
+    const target = DAMAGEABLE[Math.floor(Math.random() * DAMAGEABLE.length)];
+    const current = defender[target] || 0;
+    if (current > 0) {
+      const dmg = Math.max(1, Math.floor(current * 0.05));
+      updates[target] = Math.max(0, current - dmg);
+    }
+  }
+  return updates;
+}
 
 const FARM_YIELD_MULT       = { human:1.00, dwarf:0.90, high_elf:1.15, orc:0.85, dark_elf:0.95, dire_wolf:0.80 };
 const FARM_WORKERS_PER      = { human:10,   dwarf:8,    high_elf:12,   orc:15,   dark_elf:10,   dire_wolf:12   };
@@ -465,6 +601,7 @@ function purchaseUpgrade(k, category, upgradeKey) {
   const defs = {
     farm: FARM_UPGRADES, market: MARKET_UPGRADES, tavern: TAVERN_UPGRADES,
     tower: TOWER_UPGRADES, school: SCHOOL_UPGRADES, shrine: SHRINE_UPGRADES, library: LIBRARY_UPGRADES,
+    wall: WALL_UPGRADES, tower_def: TOWER_DEF_UPGRADES, outpost: OUTPOST_UPGRADES,
   }[category];
   if (!defs) return { error:'Invalid category' };
   const def = defs[upgradeKey];
@@ -476,7 +613,7 @@ function purchaseUpgrade(k, category, upgradeKey) {
   if (def.requires && !upgrades[def.requires])     return { error:`Requires ${def.requires.replace(/_/g,' ')} first` };
   if (def.raceOnly && k.race !== def.raceOnly)     return { error:`Only available to ${def.raceOnly.replace(/_/g,' ')}` };
   if ((k.gold||0) < def.cost)                     return { error:`Need ${def.cost.toLocaleString()} gold` };
-  const bldCheck = { farm:'bld_farms', market:'bld_markets', tavern:'bld_taverns', tower:'bld_cathedrals', school:'bld_schools', shrine:'bld_shrines', library:'bld_libraries' };
+  const bldCheck = { farm:'bld_farms', market:'bld_markets', tavern:'bld_taverns', tower:'bld_cathedrals', school:'bld_schools', shrine:'bld_shrines', library:'bld_libraries', wall:'bld_walls', tower_def:'bld_guard_towers', outpost:'bld_outposts' };
   if (bldCheck[category] && !((k[bldCheck[category]]||0) > 0)) return { error:`Need at least 1 ${category}` };
   upgrades[upgradeKey] = true;
   return { updates:{ gold:(k.gold||0)-def.cost, [colName]:JSON.stringify(upgrades) } };
@@ -696,6 +833,10 @@ function processTurn(k) {
   const smithyUpdates = processSmithyProduction({ ...k, ...updates }, events);
   Object.assign(updates, smithyUpdates);
 
+  // ── 8d. Defence — citadel check ───────────────────────────────────────────────
+  const citadelUpdates = checkCitadel({ ...k, ...updates }, events);
+  Object.assign(updates, citadelUpdates);
+
   // ── 8c. Mage tower research — research from mages in towers ──────────────────
   const towerUpdates = processMageTower({ ...k, ...updates }, events);
   Object.assign(updates, towerUpdates);
@@ -855,7 +996,7 @@ const CAPS = {
   // No cap on researchers or engineers
 
   // Buildings: small kingdoms start with low limits
-  bld_farms:        { base: 500,   max: 1000000 },
+  walls:        { base: 500,   max: 1000000 },
   bld_barracks:     { base: 10,    max: 50000   },
   bld_outposts:     { base: 10,    max: 25000   },
   bld_guard_towers: { base: 10,    max: 25000   },
@@ -1060,7 +1201,7 @@ const BUILDING_COL = {
   vaults: 'bld_vaults', smithies: 'bld_smithies', markets: 'bld_markets',
   cathedrals: 'bld_cathedrals', shrines: 'bld_shrines', training: 'bld_training',
   colosseums: 'bld_colosseums', castles: 'bld_castles', libraries: 'bld_libraries',
-  housing: 'bld_housing',
+  housing: 'bld_housing', walls: 'bld_walls',
   war_machine: 'war_machines', weapons: 'weapons_stockpile', armor: 'armor_stockpile',
 };
 
@@ -1068,7 +1209,7 @@ const BUILDING_GOLD_COST = {
   farms: 50, barracks: 200, outposts: 150, guard_towers: 150,
   schools: 500, armories: 400, vaults: 400, smithies: 800,
   markets: 2000, cathedrals: 3000, shrines: 1000, training: 10000, colosseums: 1500,
-  castles: 25000, libraries: 2000, housing: 500,
+  castles: 25000, libraries: 2000, housing: 500, walls: 300,
   war_machine: 5000, weapons: 100, armor: 150,
 };
 
@@ -1508,11 +1649,19 @@ function resolveMilitaryAttack(attacker, defender, sentUnits, db_unused) {
   const defWmPower      = defWmCrewable * 500 * ((defender.res_war_machines||100)/100) * raceBonus(defender,'war_machines');
   // Engineer garrison repair bonus
   const defEngBonus     = Math.floor((defender.engineers||0) / 10) * 50;
-  // Structure defence
-  const defStructures   = (Math.floor((defender.bld_guard_towers||0) / 2) * 200)
-                        + (Math.floor((defender.bld_castles||0) / 500) * 5000);
+  // Wall defence power (includes war machines mounted on walls)
+  const defWallPower    = wallDefencePower(defender);
+  // Outpost ranger patrol power
+  const defOutpostPower = outpostRangerPower(defender);
+  // Guard tower detection power (adds to structural defence)
+  const defTowerPower   = towerDetectionPower(defender);
+  // Structure defence (castles)
+  const defStructures   = Math.floor((defender.bld_castles||0) / 500) * 5000;
+  // Citadel bonus
+  let defCitadelMult = 1.0;
+  try { if (JSON.parse(defender.defence_upgrades||'{}').citadel) defCitadelMult = 1.15; } catch {}
 
-  const defPower = (defFighterPower + defRangerPower + defMagePower + defWmPower + defEngBonus + defStructures) * defMoraleMult;
+  const defPower = (defFighterPower + defRangerPower + defMagePower + defWmPower + defEngBonus + defWallPower + defOutpostPower + defTowerPower + defStructures) * defMoraleMult * defCitadelMult;
 
   // ── Step 6: Battle resolution ─────────────────────────────────────────────
   const variance = 0.8 + Math.random() * 0.4;
@@ -1544,6 +1693,18 @@ function resolveMilitaryAttack(attacker, defender, sentUnits, db_unused) {
 
   // Land transfer
   const landTransferred = win ? Math.floor(defender.land * 0.10) : 0;
+
+  // Siege damage — walls take damage on win, no walls = building damage
+  const siegeUpdates = applySiegeDamage(attacker, defender, win);
+  Object.assign(defenderUpdates, siegeUpdates);
+  if (win && siegeUpdates.bld_walls !== undefined) {
+    const wallsLost = (defender.bld_walls||0) - siegeUpdates.bld_walls;
+    if (wallsLost > 0) report.wallsDestroyed = wallsLost;
+  }
+  if (win && !defender.bld_walls) {
+    const dmgCol = Object.keys(siegeUpdates)[0];
+    if (dmgCol) report.buildingDamaged = dmgCol.replace('bld_','').replace(/_/g,' ');
+  }
 
   // ── Step 8: Morale changes ────────────────────────────────────────────────
   const victoryMargin = Math.min(2.0, Math.max(0.1, powerRatio));
@@ -2621,6 +2782,10 @@ module.exports = {
   goldPerTurn, manaPerTurn, foodBalance, farmProduction, foodConsumption,
   marketIncomeFull, tavernEntertainmentBonus, commodityPrice,
   processFoodEconomy, processMercenaries, hireMercenaries, purchaseUpgrade,
+  WALL_UPGRADES, TOWER_DEF_UPGRADES, OUTPOST_UPGRADES,
+  WALL_STRENGTH_MULT, TOWER_DETECT_MULT, OUTPOST_RANGER_MULT, CITADEL_REQ,
+  defenceRating, wallDefencePower, towerDetectionPower, outpostRangerPower,
+  checkCitadel, applySiegeDamage,
   TOWER_UPGRADES, SCHOOL_UPGRADES, SHRINE_UPGRADES, LIBRARY_UPGRADES,
   FARM_UPGRADES, MARKET_UPGRADES, TAVERN_UPGRADES, MERC_TIERS, COMMODITY_VALUES,
   FARM_YIELD_MULT, FOOD_CONSUMPTION_MULT, MARKET_INCOME_MULT, TRADE_RATE_MULT,
