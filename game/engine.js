@@ -996,7 +996,7 @@ const CAPS = {
   // No cap on researchers or engineers
 
   // Buildings: small kingdoms start with low limits
-  walls:        { base: 500,   max: 1000000 },
+  bld_walls:         { base: 500,   max: 1000000 },
   bld_barracks:     { base: 10,    max: 50000   },
   bld_outposts:     { base: 10,    max: 25000   },
   bld_guard_towers: { base: 10,    max: 25000   },
@@ -1191,7 +1191,7 @@ const BUILDING_COST = {
   farms: 2500, barracks: 5000, outposts: 7500, guard_towers: 2500,
   schools: 7500, armories: 2500, vaults: 10000, smithies: 10000,
   markets: 10000, cathedrals: 15000, shrines: 5000, training: 20000, colosseums: 5000,
-  castles: 100000, libraries: 10000, housing: 5000,
+  castles: 100000, libraries: 10000, housing: 5000, walls: 500,
   war_machine: 200, weapons: 10, armor: 10,
 };
 
