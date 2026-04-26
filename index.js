@@ -39,9 +39,9 @@ app.use(generalLimiter);
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ── Turn regen constants ───────────────────────────────────────────────────────
-const REGEN_AMOUNT = 5;
-const REGEN_MAX    = 200;
-const REGEN_MS     = 15 * 60 * 1000;
+const REGEN_AMOUNT = 7;   // +7 turns every 25 minutes = ~400/day
+const REGEN_MAX    = 400;
+const REGEN_MS     = 25 * 60 * 1000;
 
 const AI_KINGDOMS = [
   { username: 'ai_ironforge',   kingdomName: 'Ironforge Hold',     race: 'dwarf'     },
@@ -522,7 +522,7 @@ async function start() {
         const k = await db.get('SELECT id FROM kingdoms WHERE player_id = ?', [p.id]);
         if (k) await db.run(`UPDATE kingdoms SET
           gold=10000, mana=0, land=504, population=50000, food=0, morale=100,
-          turn=0, turns_stored=200, fighters=0, rangers=50, clerics=0, mages=0,
+          turn=0, turns_stored=400, fighters=0, rangers=50, clerics=0, mages=0,
           thieves=0, ninjas=0, researchers=100, engineers=100, scribes=0,
           war_machines=0, weapons_stockpile=0, armor_stockpile=0,
           bld_farms=200, bld_barracks=1, bld_schools=1, bld_armories=1,
