@@ -44,6 +44,11 @@
   .topbar { display: flex; align-items: center; justify-content: space-between; padding: 0 14px; height: 52px; background: var(--bg2); border-bottom: 1px solid var(--border); gap: 10px; flex-shrink: 0; position: sticky; top: 0; z-index: 50; }
   .sidebar { display: none; }
   .main { padding: 14px 14px 90px; flex: 1; }
+  body.panel-warfare #kd-top { display: none; }
+  body.panel-warfare .main { padding-top: 6px; }
+  .admin-tab { background:none; border:none; border-bottom:3px solid transparent; color:var(--text3); cursor:pointer; font-size:19px; font-weight:600; padding:12px 20px; margin-bottom:-2px; transition:all .2s; white-space:nowrap; border-radius:6px 6px 0 0; }
+  .admin-tab:hover { color:var(--text2); background:var(--bg3); }
+  .admin-tab.active { color:var(--purple); border-bottom-color:var(--purple); background:rgba(124,106,245,.08); }
 
   /* ── Bottom nav — sticky to viewport bottom ── */
   .bottom-nav {
@@ -3531,6 +3536,10 @@ function switchTab(id, btn) {
   if (id === 'alliances') {
     loadAlliancePanel();
   }
+  // Show/hide kingdom header and resource strip
+  var hideHeader = ['warfare'];
+  document.body.classList.toggle('panel-warfare', hideHeader.includes(id));
+
   if (id === 'warfare') {
     loadWarfarePanel();
   }
