@@ -371,6 +371,56 @@ function applySiegeDamage(attacker, defender, win) {
   return updates;
 }
 
+// ── Season system ─────────────────────────────────────────────────────────────
+const SEASON_ORDER     = ['spring','summer','fall','winter'];
+const SEASON_DURATION  = { spring:3, summer:5, fall:2, winter:3 }; // real days
+const SEASON_FARM_MULT = { spring:1.10, summer:1.20, fall:0.90, winter:0.70 };
+const SEASON_ICONS     = { spring:'🌸', summer:'☀️', fall:'🍂', winter:'❄️' };
+
+// ── Location system ───────────────────────────────────────────────────────────
+// Chance modifiers for finding a kingdom by race
+const LOCATE_RACE_MULT = { human:1.00, dwarf:0.80, high_elf:0.95, orc:0.90, dark_elf:1.30, dire_wolf:1.40 };
+
+function calcDiscoveryChance(k) {
+  const baseChance = 0.12; // 12% base
+  const race = k.race || 'human';
+  const raceMult = LOCATE_RACE_MULT[race] || 1.0;
+  const rangerBonus = Math.min(0.05, (k.rangers||0) / 10000 * 0.05);
+  return Math.min(0.20, baseChance * raceMult + rangerBonus);
+}
+
+function processLocationMapsWip(k, events) {
+  const updates = {};
+  let wip = [];
+  try { wip = JSON.parse(k.location_maps_wip||'[]'); } catch {}
+  if (!wip.length) return updates;
+
+  const scribesAvail = k.scribes || 0;
+  let scribesUsed = 0;
+  const completed = [];
+  const remaining = [];
+
+  for (const item of wip) {
+    const cost = 10; // scribes required
+    if (scribesUsed + cost > scribesAvail) { remaining.push(item); continue; }
+    scribesUsed += cost;
+    item.turns_remaining = (item.turns_remaining || 5) - 1;
+    if (item.turns_remaining <= 0) {
+      completed.push(item);
+      let disc = {};
+      try { disc = JSON.parse(k.discovered_kingdoms||'{}'); } catch {}
+      disc[item.target_id] = { found: true, mapped: true };
+      updates.discovered_kingdoms = JSON.stringify(disc);
+      events.push({ type:'system', message:`🗺️ Scribes have completed a location map for ${item.target_name}. You may now interact with them.` });
+    } else {
+      remaining.push(item);
+    }
+  }
+
+  updates.location_maps_wip = JSON.stringify(remaining);
+  return updates;
+}
+
 const FARM_YIELD_MULT       = { human:1.00, dwarf:0.90, high_elf:1.15, orc:0.85, dark_elf:0.95, dire_wolf:0.80 };
 const FARM_WORKERS_PER      = { human:10,   dwarf:8,    high_elf:12,   orc:15,   dark_elf:10,   dire_wolf:12   };
 const FOOD_CONSUMPTION_MULT = { human:1.00, dwarf:0.85, high_elf:0.80, orc:1.35, dark_elf:0.95, dire_wolf:1.40 };
@@ -442,8 +492,15 @@ function farmProduction(k) {
   const freePop       = Math.max(0, (k.population||0) - totalHiredUnits(k));
   const workedFarms   = Math.min(farms, Math.floor(freePop / workersNeeded));
   let   baseYield     = workedFarms * 10 * (FARM_YIELD_MULT[race] || 1.0);
+  // Apply season and active event farm multiplier
+  let activeEv = {};
+  try { activeEv = JSON.parse(k.active_event||'{}'); } catch {}
+  const seasonMult  = (k._season_farm_mult) || 1.0; // injected by processTurn
+  const evFarmMult  = activeEv.farm_yield  ? activeEv.farm_yield.mult  : 1.0;
+
   if (upgrades.irrigated)  baseYield *= 1.30;
   if (upgrades.plantation) baseYield *= 1.60;
+  baseYield *= seasonMult * evFarmMult;
   return Math.floor(baseYield);
 }
 
@@ -655,6 +712,21 @@ function processTurn(k) {
   // ── 4c. Mercenary upkeep and expiry ───────────────────────────────────────────
   const mercUpdates = processMercenaries({ ...k, ...updates }, events);
   Object.assign(updates, mercUpdates);
+
+  // ── 4d. Location maps in progress ────────────────────────────────────────────
+  const locUpdates = processLocationMapsWip({ ...k, ...updates }, events);
+  Object.assign(updates, locUpdates);
+
+  // ── 4e. Active event tick-down ────────────────────────────────────────────────
+  let activeEv2 = {};
+  try { activeEv2 = JSON.parse((updates.active_event || k.active_event)||'{}'); } catch {}
+  let changed = false;
+  for (const key of Object.keys(activeEv2)) {
+    activeEv2[key].turns_remaining = (activeEv2[key].turns_remaining||1) - 1;
+    if (activeEv2[key].turns_remaining <= 0) { delete activeEv2[key]; }
+    changed = true;
+  }
+  if (changed) updates.active_event = JSON.stringify(activeEv2);
 
   // ── 5. Troop upkeep ───────────────────────────────────────────────────────────
   // Researchers, engineers, scribes are exempt if housed in their buildings.
@@ -2577,6 +2649,24 @@ async function resolveExpeditions(db, k, engine) {
         if (engine.io) engine.io.emit('chat:system', { message: serverAnnounce, ts: Date.now() });
       }
 
+      // Kingdom location discovery — scout expeditions have a chance of finding a kingdom
+      if (exp.type === 'scout') {
+        const discoveryChance = calcDiscoveryChance(k);
+        if (Math.random() < discoveryChance) {
+          // Pick a random undiscovered kingdom
+          let disc = {};
+          try { disc = JSON.parse(k.discovered_kingdoms||'{}'); } catch {}
+          const allKingdoms = await db.all('SELECT id, name FROM kingdoms WHERE id != ?', [k.id]);
+          const undiscovered = allKingdoms.filter(t => !disc[t.id]?.found);
+          if (undiscovered.length > 0) {
+            const found = undiscovered[Math.floor(Math.random()*undiscovered.length)];
+            disc[found.id] = { found: true, mapped: false };
+            await db.run('UPDATE kingdoms SET discovered_kingdoms=? WHERE id=?', [JSON.stringify(disc), k.id]);
+            expeditionEvents.push({ type:'system', message:`🔍 Rangers discovered the location of ${found.name}! Commission scribes to map it for permanent access.` });
+          }
+        }
+      }
+
       // Save rewards to expedition row for log display
       const rewardJson = JSON.stringify(rewards.map(r => r.text));
       await db.run('UPDATE expeditions SET rewards = ? WHERE id = ?', [rewardJson, exp.id]);
@@ -2782,6 +2872,8 @@ module.exports = {
   goldPerTurn, manaPerTurn, foodBalance, farmProduction, foodConsumption,
   marketIncomeFull, tavernEntertainmentBonus, commodityPrice,
   processFoodEconomy, processMercenaries, hireMercenaries, purchaseUpgrade,
+  SEASON_ORDER, SEASON_DURATION, SEASON_FARM_MULT, SEASON_ICONS,
+  LOCATE_RACE_MULT, calcDiscoveryChance, processLocationMapsWip,
   WALL_UPGRADES, TOWER_DEF_UPGRADES, OUTPOST_UPGRADES,
   WALL_STRENGTH_MULT, TOWER_DETECT_MULT, OUTPOST_RANGER_MULT, CITADEL_REQ,
   defenceRating, wallDefencePower, towerDetectionPower, outpostRangerPower,
