@@ -336,6 +336,7 @@
     <button class="nav-item" onclick="switchTab('training',this)"><span class="icon">&#9876;</span>Training</button>
     <button class="nav-item" onclick="switchTab('exploration',this)"><span class="icon">&#9685;</span>Exploration</button>
 
+    <button class="nav-item" onclick="switchTab('defence',this)"><span class="icon">🛡️</span>Defence</button>
     <div class="nav-section">Warfare</div>
     <button class="nav-item" onclick="switchTab('attack',this)"><span class="icon">&#9876;</span>Attack</button>
     <button class="nav-item" onclick="switchTab('spells',this)"><span class="icon">&#10024;</span>Spells</button>
@@ -401,6 +402,11 @@
         <div class="lbl">Morale</div>
         <div class="val" id="m-morale">100%</div>
         <div class="sub">Tax: <span id="m-tax">42%</span></div>
+      </div>
+      <div class="metric">
+        <div class="lbl">Defence</div>
+        <div class="val" style="font-size:14px" id="m-defence-rating">—</div>
+        <div class="sub"><span id="m-walls">0</span> walls</div>
       </div>
       <div class="metric">
         <div class="lbl">Food</div>
@@ -1021,6 +1027,14 @@
           <button class="btn" onclick="setBuildMax('ba-barracks','barracks')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
         <div class="trow">
+          <span class="bld-icon" style="background:#3a3a3a">🧱</span>
+          <span class="name">Walls</span><span class="desc">Protects buildings · mounts war machines · 1 land</span>
+          <span id="tool-notice-walls"></span>
+          <span class="count" id="bld-walls">0</span>
+          <input type="number" id="ba-walls" min="0" value="0" oninput="updateBuildDisplay()" style="width:80px" placeholder="Eng">
+          <button class="btn" onclick="setBuildMax('ba-walls','walls')" style="padding:5px 10px;font-size:11px">Max</button>
+        </div>
+        <div class="trow">
           <span class="bld-icon" style="background:#5a4a1e">🏴</span>
           <span class="name">Outposts</span><span class="desc">Early attack warning · 1 land</span>
           <span class="count" id="bld-outposts">0</span>
@@ -1305,6 +1319,109 @@
 </style>
 
 <!-- ═══════════════════════════════════════════ ATTACK PANEL ══ -->
+<!-- DEFENCE PANEL -->
+<div id="defence" class="panel" style="display:none">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+    <div>
+      <div class="card-title">🛡️ Defence</div>
+      <div style="font-size:13px;color:var(--text3);margin-top:2px">Rating: <span id="def-rating" style="font-weight:700">—</span></div>
+    </div>
+    <button class="btn" onclick="loadDefence()">↻ Refresh</button>
+  </div>
+
+  <!-- Citadel progress bar -->
+  <div class="card" id="citadel-card" style="margin-bottom:12px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div class="card-title" style="margin-bottom:0">🏰 Castle Citadel</div>
+      <span id="citadel-status" style="font-size:12px;color:var(--text3)">Not achieved</span>
+    </div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:10px">Requires 50 walls · 20 guard towers · 20 outposts · 1 castle. Grants +15% permanent defence and ×2 war machine damage on walls.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px">
+      <div style="text-align:center;background:var(--bg3);border-radius:var(--radius);padding:8px">
+        <div style="font-size:10px;color:var(--text3);margin-bottom:3px">WALLS</div>
+        <div style="font-size:16px;font-weight:700" id="cit-walls">0</div>
+        <div style="font-size:10px;color:var(--text3)">/ 50</div>
+      </div>
+      <div style="text-align:center;background:var(--bg3);border-radius:var(--radius);padding:8px">
+        <div style="font-size:10px;color:var(--text3);margin-bottom:3px">TOWERS</div>
+        <div style="font-size:16px;font-weight:700" id="cit-towers">0</div>
+        <div style="font-size:10px;color:var(--text3)">/ 20</div>
+      </div>
+      <div style="text-align:center;background:var(--bg3);border-radius:var(--radius);padding:8px">
+        <div style="font-size:10px;color:var(--text3);margin-bottom:3px">OUTPOSTS</div>
+        <div style="font-size:16px;font-weight:700" id="cit-outposts">0</div>
+        <div style="font-size:10px;color:var(--text3)">/ 20</div>
+      </div>
+      <div style="text-align:center;background:var(--bg3);border-radius:var(--radius);padding:8px">
+        <div style="font-size:10px;color:var(--text3);margin-bottom:3px">CASTLE</div>
+        <div style="font-size:16px;font-weight:700" id="cit-castle">0</div>
+        <div style="font-size:10px;color:var(--text3)">/ 1</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:2px solid var(--border2);padding-bottom:0">
+    <button class="admin-tab active" onclick="showDefTab('walls',this)">🧱 Walls</button>
+    <button class="admin-tab" onclick="showDefTab('towers',this)">🗼 Guard Towers</button>
+    <button class="admin-tab" onclick="showDefTab('outposts',this)">⛺ Outposts</button>
+  </div>
+
+  <!-- WALLS TAB -->
+  <div id="dtab-walls">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div class="card" style="margin:0">
+        <div class="card-title" style="margin-bottom:10px">Wall overview</div>
+        <div class="trow"><span class="name">Walls built</span><span class="count" id="def-walls">0</span></div>
+        <div class="trow"><span class="name">War machines mounted</span><span class="count" id="def-wm-walls" style="color:var(--gold)">0</span></div>
+        <div class="trow"><span class="name">Wall defence power</span><span class="count" id="def-wall-power" style="color:var(--green)">0</span></div>
+        <div class="trow"><span class="name">Race modifier</span><span class="count" id="def-wall-race">×1.00</span></div>
+        <div class="trow" style="border-top:1px solid var(--border2);margin-top:4px;padding-top:4px"><span class="name" style="color:var(--amber);font-size:11px">No walls = buildings can be damaged by attackers</span></div>
+      </div>
+      <div class="card" style="margin:0">
+        <div class="card-title" style="margin-bottom:10px">Wall upgrades</div>
+        <div id="wall-upgrade-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GUARD TOWERS TAB -->
+  <div id="dtab-towers" style="display:none">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div class="card" style="margin:0">
+        <div class="card-title" style="margin-bottom:10px">Guard Tower overview</div>
+        <div class="trow"><span class="name">Guard towers</span><span class="count" id="def-gtowers">0</span></div>
+        <div class="trow"><span class="name">Thieves on watch</span><span class="count" id="def-thieves-watch" style="color:var(--amber)">0</span></div>
+        <div class="trow"><span class="name">Max capacity</span><span class="count" id="def-tower-cap">0</span></div>
+        <div class="trow"><span class="name">Tower defence power</span><span class="count" id="def-tower-power" style="color:var(--green)">0</span></div>
+        <div class="trow"><span class="name">Detection modifier</span><span class="count" id="def-tower-race">×1.00</span></div>
+      </div>
+      <div class="card" style="margin:0">
+        <div class="card-title" style="margin-bottom:10px">Tower upgrades</div>
+        <div id="tower-def-upgrade-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OUTPOSTS TAB -->
+  <div id="dtab-outposts" style="display:none">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div class="card" style="margin:0">
+        <div class="card-title" style="margin-bottom:10px">Outpost overview</div>
+        <div class="trow"><span class="name">Outposts</span><span class="count" id="def-outposts">0</span></div>
+        <div class="trow"><span class="name">Rangers on patrol</span><span class="count" id="def-rangers-patrol" style="color:var(--blue)">0</span></div>
+        <div class="trow"><span class="name">Max capacity</span><span class="count" id="def-outpost-cap">0</span></div>
+        <div class="trow"><span class="name">Outpost defence power</span><span class="count" id="def-outpost-power" style="color:var(--green)">0</span></div>
+        <div class="trow"><span class="name">Patrol modifier</span><span class="count" id="def-outpost-race">×1.00</span></div>
+      </div>
+      <div class="card" style="margin:0">
+        <div class="card-title" style="margin-bottom:10px">Outpost upgrades</div>
+        <div id="outpost-upgrade-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="attack" class="panel" style="display:none">
   <div id="atk-map-warn" style="display:none;background:rgba(232,184,75,.08);border:1px solid var(--gold);border-radius:var(--radius);padding:12px 16px;font-size:13px;color:var(--gold);margin-bottom:16px">
     🗺️ You need a <strong>map</strong> to attack other kingdoms. Craft one in your <strong>Library</strong> using scribes.
@@ -3241,6 +3358,9 @@ function switchTab(id, btn) {
   if (id === 'alliances') {
     loadAlliancePanel();
   }
+  if (id === 'defence') {
+    loadDefence();
+  }
   if (id === 'studies') {
     loadStudies();
   }
@@ -3604,6 +3724,27 @@ function syncUI() {
   if (sSlider) sSlider.max = smithies;
   var pb = document.getElementById('protection-badge');
   if (pb) pb.style.display = (state.turn || 0) < 200 ? 'inline' : 'none';
+  // Defence rating on status panel
+  var WALL_MULT = { human:1.00, dwarf:1.35, high_elf:1.10, orc:0.85, dark_elf:0.90, dire_wolf:0.80 };
+  var defWalls   = state.bld_walls || 0;
+  var defTowers  = state.bld_guard_towers || 0;
+  var defOutpost = state.bld_outposts || 0;
+  var defCastle  = state.bld_castles || 0;
+  var defUpgrades = {};
+  try { defUpgrades = typeof state.defence_upgrades === 'string' ? JSON.parse(state.defence_upgrades||'{}') : (state.defence_upgrades||{}); } catch {}
+  var drEl = document.getElementById('m-defence-rating');
+  var wlEl = document.getElementById('m-walls');
+  if (wlEl) wlEl.textContent = fmt(defWalls);
+  if (drEl) {
+    var rating = defUpgrades.citadel ? '🏰 Citadel'
+      : defWalls === 0 ? '🔴 Undefended'
+      : defWalls < 10 && defTowers === 0 ? '🟠 Lightly Defended'
+      : defWalls >= 10 && (defTowers > 0 || defOutpost > 0) && (state.war_machines||0) > 0 && defTowers > 0 && defOutpost > 0 ? '🟢 Fortified'
+      : defWalls >= 10 ? '🟡 Defended'
+      : '🟠 Lightly Defended';
+    drEl.textContent = rating;
+    drEl.style.color = defUpgrades.citadel ? 'var(--gold)' : defWalls === 0 ? 'var(--red)' : defWalls < 10 ? 'var(--amber)' : 'var(--green)';
+  }
   renderActiveEffects();
   renderRacialBadge();
   updateSmithyDisplay();
@@ -3651,6 +3792,7 @@ function updateTurnsDisplay() {
   <button class="bnav-item" onclick="switchTabMobile('economy',this)"><span class="bicon">💰</span>Economy</button>
   <button class="bnav-item" onclick="switchTabMobile('training',this)"><span class="bicon">🛡️</span>Train</button>
   <button class="bnav-item" onclick="switchTabMobile('exploration',this)"><span class="bicon">🧭</span>Explore</button>
+  <button class="bnav-item" onclick="switchTabMobile('defence',this)"><span class="bicon">🛡️</span>Defence</button>
   <div class="bnav-sep"></div>
   <button class="bnav-item" onclick="switchTabMobile('attack',this)"><span class="bicon">🗡️</span>Attack</button>
   <button class="bnav-item" onclick="switchTabMobile('spells',this)"><span class="bicon">✨</span>Spells</button>
@@ -3843,7 +3985,8 @@ async function loadKingdom() {
     hammer_turns_used:  kingdom.hammer_turns_used  || 0,
     smithy_allocation:  (function(){ try{ return JSON.parse(kingdom.smithy_allocation||'{}'); }catch(e){ return {}; } })(),
     racial_bonuses_unlocked: (function(){ try{ return JSON.parse(kingdom.racial_bonuses_unlocked||'{}'); }catch(e){ return {}; } })(),
-    tower_upgrades:   (function(){ try{ return JSON.parse(kingdom.tower_upgrades  ||'{}'); }catch(e){ return {}; } })(),
+    defence_upgrades: (function(){ try{ return JSON.parse(kingdom.defence_upgrades||'{}'); }catch(e){ return {}; } })(),
+    bld_walls: kingdom.bld_walls || 0,
     school_upgrades:  (function(){ try{ return JSON.parse(kingdom.school_upgrades ||'{}'); }catch(e){ return {}; } })(),
     shrine_upgrades:  (function(){ try{ return JSON.parse(kingdom.shrine_upgrades ||'{}'); }catch(e){ return {}; } })(),
     library_upgrades: (function(){ try{ return JSON.parse(kingdom.library_upgrades||'{}'); }catch(e){ return {}; } })(),
@@ -4420,6 +4563,11 @@ function applyServerUpdates(u) {
   if (u.hammer_turns_used !== undefined) state.hammer_turns_used = u.hammer_turns_used;
   if (u.tools_hammers     !== undefined) state.tools_hammers     = u.tools_hammers;
   if (u.tools_scaffolding !== undefined) state.tools_scaffolding = u.tools_scaffolding;
+  if (u.defence_upgrades !== undefined) state.defence_upgrades = u.defence_upgrades;
+  if (u.bld_walls        !== undefined) state.bld_walls        = u.bld_walls;
+  if (u.wall_upgrades    !== undefined) state.wall_upgrades    = u.wall_upgrades;
+  if (u.tower_def_upgrades !== undefined) state.tower_def_upgrades = u.tower_def_upgrades;
+  if (u.outpost_upgrades !== undefined) state.outpost_upgrades = u.outpost_upgrades;
   if (u.tower_upgrades   !== undefined) state.tower_upgrades   = u.tower_upgrades;
   if (u.school_upgrades  !== undefined) state.school_upgrades  = u.school_upgrades;
   if (u.shrine_upgrades  !== undefined) state.shrine_upgrades  = u.shrine_upgrades;
@@ -4456,6 +4604,7 @@ function applyServerUpdates(u) {
 var BUILD_FIELDS = [
   { id:'b-farm',      key:'farm',        pieces:10,  alloc:'ba-farm'      },
   { id:'b-barracks',  key:'barracks',    pieces:2,   alloc:'ba-barracks'  },
+  { id:'b-walls',     key:'walls',       pieces:5,   alloc:'ba-walls'     },
   { id:'b-outpost',   key:'outpost',     pieces:2,   alloc:'ba-outpost'   },
   { id:'b-tower',     key:'tower',       pieces:2,   alloc:'ba-tower'     },
   { id:'b-school',    key:'school',      pieces:5,   alloc:'ba-school'    },
@@ -4832,7 +4981,83 @@ async function forgeScaffolding() {
   toast('🏗️ 1 scaffolding built', 'success');
 }
 
-// ── Studies Panel ─────────────────────────────────────────────────────────────
+// ── Defence Panel ─────────────────────────────────────────────────────────────
+
+var WALL_UPGRADES_JS = {
+  reinforced:     { name:'Reinforced Walls',  cost:10000,  desc:'+25% wall strength, −10% land lost per attack', requires:null           },
+  battlements:    { name:'Battlements',        cost:30000,  desc:'Guard towers +20% effectiveness',               requires:'reinforced'   },
+  fortress_walls: { name:'Fortress Walls',     cost:100000, desc:'War machines on walls deal +50% damage',        requires:'battlements'  },
+};
+var TOWER_DEF_UPGRADES_JS = {
+  arrow_slits:  { name:'Arrow Slits',        cost:5000,   desc:'+20% ranged defence from guard towers',          requires:null           },
+  watchtower:   { name:'Watchtower',          cost:20000,  desc:'Detects incoming attacks 1 turn early (news)',   requires:'arrow_slits'  },
+  signal_tower: { name:'Signal Tower',        cost:50000,  desc:'Attack warning shared with alliance members',    requires:'watchtower'   },
+};
+var OUTPOST_UPGRADES_JS = {
+  ranger_station: { name:'Ranger Station',    cost:5000,   desc:'+25% ranger patrol effectiveness',               requires:null              },
+  forward_camp:   { name:'Forward Camp',       cost:20000,  desc:'Rangers detect incoming expeditions',            requires:'ranger_station'  },
+  field_hq:       { name:'Field Headquarters', cost:60000,  desc:'Expedition rangers return with +10% gold',       requires:'forward_camp'    },
+};
+
+var WALL_RACE_MULT    = { human:1.00, dwarf:1.35, high_elf:1.10, orc:0.85, dark_elf:0.90, dire_wolf:0.80 };
+var TOWER_RACE_MULT   = { human:1.00, dwarf:1.00, high_elf:1.10, orc:0.80, dark_elf:1.40, dire_wolf:0.70 };
+var OUTPOST_RACE_MULT = { human:1.00, dwarf:0.80, high_elf:0.95, orc:0.90, dark_elf:1.30, dire_wolf:1.40 };
+
+function showDefTab(id, btn) {
+  ['walls','towers','outposts'].forEach(function(t){ document.getElementById('dtab-'+t).style.display='none'; });
+  document.querySelectorAll('#defence .admin-tab').forEach(function(b){ b.classList.remove('active'); });
+  document.getElementById('dtab-'+id).style.display='block';
+  if (btn) btn.classList.add('active');
+}
+
+async function loadDefence() {
+  var data = await apiCall('GET', '/api/kingdom/defence/overview');
+  if (data.error) return toast(data.error, 'error');
+  var race = state.race || 'human';
+
+  var el = function(id){ return document.getElementById(id); };
+
+  // Rating
+  if (el('def-rating')) el('def-rating').textContent = data.defence_rating || '—';
+
+  // Citadel progress
+  var cit = data.defence_upgrades?.citadel;
+  if (el('citadel-status')) { el('citadel-status').textContent = cit ? '🏰 ACHIEVED' : 'Not yet achieved'; el('citadel-status').style.color = cit ? 'var(--gold)' : 'var(--text3)'; }
+  var setBar = function(id, val, max) {
+    var e = el(id); if (!e) return;
+    e.textContent = fmt(val);
+    e.style.color = val >= max ? 'var(--gold)' : val >= Math.floor(max*0.5) ? 'var(--green)' : 'var(--text2)';
+  };
+  setBar('cit-walls',   data.bld_walls||0,        50);
+  setBar('cit-towers',  data.bld_guard_towers||0,  20);
+  setBar('cit-outposts',data.bld_outposts||0,      20);
+  setBar('cit-castle',  data.bld_castles||0,        1);
+
+  // Walls
+  if (el('def-walls'))      el('def-walls').textContent      = fmt(data.bld_walls||0);
+  if (el('def-wm-walls'))   el('def-wm-walls').textContent   = fmt(data.wm_on_walls||0);
+  if (el('def-wall-power')) el('def-wall-power').textContent = fmt(data.wall_power||0);
+  if (el('def-wall-race'))  el('def-wall-race').textContent  = '×' + (WALL_RACE_MULT[race]||1.00).toFixed(2);
+
+  // Guard Towers
+  if (el('def-gtowers'))      el('def-gtowers').textContent      = fmt(data.bld_guard_towers||0);
+  if (el('def-thieves-watch'))el('def-thieves-watch').textContent= fmt(data.thieves_on_watch||0);
+  if (el('def-tower-cap'))    el('def-tower-cap').textContent    = fmt((data.bld_guard_towers||0)*10);
+  if (el('def-tower-power'))  el('def-tower-power').textContent  = fmt(data.tower_power||0);
+  if (el('def-tower-race'))   el('def-tower-race').textContent   = '×' + (TOWER_RACE_MULT[race]||1.00).toFixed(2);
+
+  // Outposts
+  if (el('def-outposts'))       el('def-outposts').textContent       = fmt(data.bld_outposts||0);
+  if (el('def-rangers-patrol')) el('def-rangers-patrol').textContent = fmt(data.rangers_on_patrol||0);
+  if (el('def-outpost-cap'))    el('def-outpost-cap').textContent    = fmt((data.bld_outposts||0)*20);
+  if (el('def-outpost-power'))  el('def-outpost-power').textContent  = fmt(data.outpost_power||0);
+  if (el('def-outpost-race'))   el('def-outpost-race').textContent   = '×' + (OUTPOST_RACE_MULT[race]||1.00).toFixed(2);
+
+  // Upgrade lists
+  renderUpgrades('wall',      WALL_UPGRADES_JS,      data.wall_upgrades||{},      'wall-upgrade-list');
+  renderUpgrades('tower_def', TOWER_DEF_UPGRADES_JS, data.tower_def_upgrades||{}, 'tower-def-upgrade-list');
+  renderUpgrades('outpost',   OUTPOST_UPGRADES_JS,   data.outpost_upgrades||{},   'outpost-upgrade-list');
+}
 
 var studiesData = {};
 
