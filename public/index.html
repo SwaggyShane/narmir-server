@@ -201,6 +201,9 @@
   .news-turn-group { margin-bottom: 16px; }
   .news-filter.active { background: var(--purple); color:#fff; border-color:var(--purple); }
   .bld-icon { display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;font-size:15px;flex-shrink:0;margin-right:4px; }
+  .build-trow { display:grid;grid-template-columns:36px 1fr 60px 88px 52px;gap:0 8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--border); }
+  .build-trow .bname { font-size:13px;color:var(--text); }
+  .build-trow .bcount { text-align:right;font-weight:600;font-size:13px;color:var(--text); }
   .news-turn-header {
     display: flex; align-items: center; gap: 10px;
     font-size: 11px; font-weight: 700; color: var(--text3);
@@ -338,9 +341,8 @@
 
     <button class="nav-item" onclick="switchTab('defence',this)"><span class="icon">🛡️</span>Defence</button>
     <div class="nav-section">Warfare</div>
-    <button class="nav-item" onclick="switchTab('attack',this)"><span class="icon">&#9876;</span>Attack</button>
-    <button class="nav-item" onclick="switchTab('spells',this)"><span class="icon">&#10024;</span>Spells</button>
-    <button class="nav-item" onclick="switchTab('covert',this)"><span class="icon">&#128373;</span>Covert</button>
+    <button class="nav-item" onclick="switchTab('defence',this)"><span class="icon">🛡️</span>Defence</button>
+    <button class="nav-item" onclick="switchTab('warfare',this)"><span class="icon">⚔️</span>Warfare</button>
 
     <div class="nav-section">Social</div>
     <button class="nav-item" onclick="switchTab('rankings',this)"><span class="icon">🏆</span>Rankings</button>
@@ -1008,8 +1010,10 @@
           </div>
         </div>
 
-        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;padding:4px 0 8px;display:grid;grid-template-columns:auto 1fr auto auto auto;gap:0 8px">
-          <span></span><span></span><span style="text-align:right;min-width:40px">Built</span><span style="text-align:center;min-width:80px">Engineers</span><span></span>
+        <div id="build-rows" style="--build-cols:36px 1fr 60px 88px 52px">
+        <style>#build-rows .trow{display:grid;grid-template-columns:36px 1fr 60px 88px 52px;gap:0 8px;align-items:center}#build-rows .trow .name{font-size:13px}#build-rows .trow .count{text-align:right;font-weight:600;font-size:13px}#build-rows .trow input{width:100%!important}#build-rows .trow .desc{display:none}</style>
+        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;padding:4px 0 8px;display:grid;grid-template-columns:36px 1fr 60px 88px 52px;gap:0 8px">
+          <span></span><span></span><span style="text-align:right">Built</span><span style="text-align:center">Engineers</span><span></span>
         </div>
 
         <div class="trow">
@@ -1155,6 +1159,7 @@
           <input type="number" id="ba-armor" min="0" value="0" oninput="updateBuildDisplay()" style="width:80px" placeholder="Eng">
           <button class="btn" onclick="setBuildMax('ba-armor','armor')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
+        </div><!-- end build-rows -->
       </div>
 
       <!-- Build queue -->
@@ -1419,6 +1424,87 @@
         <div id="outpost-upgrade-list"></div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- WARFARE PANEL -->
+<div id="warfare" class="panel" style="display:none">
+  <div class="card-title" style="margin-bottom:12px">⚔️ Warfare</div>
+
+  <!-- War log at top -->
+  <div class="card" style="margin-bottom:12px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="font-size:13px;font-weight:700;color:var(--text)">⚔️ War Log</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn" style="font-size:11px;padding:4px 10px" onclick="loadWarLog()">↻ Refresh</button>
+        <button class="btn" style="font-size:11px;padding:4px 10px" onclick="clearExpeditionLog()">🗑️ Clear</button>
+      </div>
+    </div>
+    <div id="war-log-list-warfare" style="max-height:260px;overflow-y:auto">
+      <div style="color:var(--text3);font-size:13px;text-align:center;padding:20px">Loading...</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:2px solid var(--border2);padding-bottom:0">
+    <button class="admin-tab active" onclick="showWarfareTab('attack',this)">⚔️ Attack</button>
+    <button class="admin-tab" onclick="showWarfareTab('spells',this)">✨ Spells</button>
+    <button class="admin-tab" onclick="showWarfareTab('covert',this)">🕵️ Covert</button>
+  </div>
+
+  <!-- ATTACK TAB — mirrors existing attack panel content -->
+  <div id="wtab-attack">
+    <div id="wtab-attack-map-warn" style="display:none;background:rgba(232,184,75,.08);border:1px solid var(--gold);border-radius:var(--radius);padding:12px 16px;font-size:13px;color:var(--gold);margin-bottom:16px">
+      🗺️ You need a <strong>map</strong> to attack other kingdoms.
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 340px;gap:16px;align-items:start">
+      <div class="card">
+        <div class="card-title">Select target</div>
+        <div style="display:flex;gap:8px;margin-bottom:12px">
+          <input type="text" id="atk-search-w" placeholder="Search by name..." style="flex:1;width:auto" oninput="filterTargets(this.value,'target-list-w')">
+          <button class="btn" onclick="refreshTargets()">↻</button>
+        </div>
+        <div id="target-list-w" style="max-height:420px;overflow-y:auto"></div>
+      </div>
+      <div style="position:sticky;top:0;display:flex;flex-direction:column;gap:12px">
+        <div class="card" id="atk-panel-w">
+          <div class="card-title">Army composition</div>
+          <div style="background:var(--bg3);border-radius:var(--radius);padding:10px 12px;margin-bottom:12px">
+            <div style="font-size:12px;color:var(--text3);margin-bottom:2px">Target</div>
+            <div id="atk-target-name-w" style="font-size:15px;font-weight:600;color:var(--text)">— none selected —</div>
+            <div id="atk-target-info-w" style="font-size:11px;color:var(--text3);margin-top:2px"></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px">
+            <div class="trow"><span class="name" style="font-size:12px">⚔️ Fighters</span><input type="number" id="atk-fighters-w" min="0" value="0" style="width:80px" oninput="updateAtkEstimateW()"></div>
+            <div class="trow"><span class="name" style="font-size:12px">🏹 Rangers</span><input type="number" id="atk-rangers-w" min="0" value="0" style="width:80px" oninput="updateAtkEstimateW()"></div>
+            <div class="trow"><span class="name" style="font-size:12px">✨ Mages</span><input type="number" id="atk-mages-w" min="0" value="0" style="width:80px" oninput="updateAtkEstimateW()"></div>
+            <div class="trow"><span class="name" style="font-size:12px">⚙️ War machines</span><input type="number" id="atk-wm-w" min="0" value="0" style="width:80px" oninput="updateAtkEstimateW()"></div>
+            <div class="trow" style="padding-top:4px;border-top:1px solid var(--border)">
+              <span class="name" style="font-size:12px">🕵️ Ninjas</span><input type="number" id="atk-ninjas-w" min="0" value="0" style="width:80px" oninput="updateAtkEstimateW()">
+            </div>
+            <div class="trow"><span class="name" style="font-size:12px">🗝️ Thieves</span><input type="number" id="atk-thieves-w" min="0" value="0" style="width:80px" oninput="updateAtkEstimateW()"></div>
+          </div>
+          <div id="atk-estimate-w" style="background:var(--bg4);border-radius:var(--radius);padding:10px 12px;margin-bottom:12px;font-size:12px">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:var(--text3)">Attack power</span><span id="atk-est-power-w" style="color:var(--green);font-weight:700">—</span></div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:var(--text3)">Est. defence</span><span id="atk-est-def-w" style="color:var(--red)">—</span></div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:var(--text3)">Win probability</span><span id="atk-est-winpct-w" style="font-weight:700">—</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="color:var(--text3)">Land on win</span><span id="atk-est-land-w" style="color:var(--gold)">—</span></div>
+            <div id="atk-bully-warn-w" style="display:none;color:var(--amber);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)"></div>
+          </div>
+          <button class="btn btn-red" style="width:100%;font-size:14px;padding:10px" onclick="launchAttackW()">⚔️ Launch attack</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SPELLS TAB -->
+  <div id="wtab-spells" style="display:none">
+    <div id="warfare-spells-content"></div>
+  </div>
+
+  <!-- COVERT TAB -->
+  <div id="wtab-covert" style="display:none">
+    <div id="warfare-covert-content"></div>
   </div>
 </div>
 
@@ -3358,6 +3444,9 @@ function switchTab(id, btn) {
   if (id === 'alliances') {
     loadAlliancePanel();
   }
+  if (id === 'warfare') {
+    loadWarfarePanel();
+  }
   if (id === 'defence') {
     loadDefence();
   }
@@ -3689,6 +3778,7 @@ function syncUI() {
     vaults:'bld_vaults', smithies:'bld_smithies', markets:'bld_markets',
     cathedrals:'bld_cathedrals', training:'bld_training', colosseums:'bld_colosseums',
     castles:'bld_castles', libraries:'bld_libraries', shrines:'bld_shrines', housing:'bld_housing',
+    walls:'bld_walls',
     weapons_stockpile:'weapons_stockpile', armor_stockpile:'armor_stockpile',
     war_machines:'war_machines'
   };
@@ -3794,9 +3884,8 @@ function updateTurnsDisplay() {
   <button class="bnav-item" onclick="switchTabMobile('exploration',this)"><span class="bicon">🧭</span>Explore</button>
   <button class="bnav-item" onclick="switchTabMobile('defence',this)"><span class="bicon">🛡️</span>Defence</button>
   <div class="bnav-sep"></div>
-  <button class="bnav-item" onclick="switchTabMobile('attack',this)"><span class="bicon">🗡️</span>Attack</button>
-  <button class="bnav-item" onclick="switchTabMobile('spells',this)"><span class="bicon">✨</span>Spells</button>
-  <button class="bnav-item" onclick="switchTabMobile('covert',this)"><span class="bicon">🕵️</span>Covert</button>
+  <button class="bnav-item" onclick="switchTabMobile('defence',this)"><span class="bicon">🛡️</span>Defence</button>
+  <button class="bnav-item" onclick="switchTabMobile('warfare',this)"><span class="bicon">⚔️</span>Warfare</button>
   <div class="bnav-sep"></div>
   <button class="bnav-item" onclick="switchTabMobile('rankings',this)"><span class="bicon">🏆</span>Ranks</button>
   <button class="bnav-item" onclick="switchTabMobile('war_panel',this)"><span class="bicon">⚔️</span>War Log</button>
@@ -4981,7 +5070,157 @@ async function forgeScaffolding() {
   toast('🏗️ 1 scaffolding built', 'success');
 }
 
-// ── Defence Panel ─────────────────────────────────────────────────────────────
+// ── Warfare Panel ─────────────────────────────────────────────────────────────
+
+function showWarfareTab(id, btn) {
+  ['attack','spells','covert'].forEach(function(t){ document.getElementById('wtab-'+t).style.display='none'; });
+  document.querySelectorAll('#warfare .admin-tab').forEach(function(b){ b.classList.remove('active'); });
+  document.getElementById('wtab-'+id).style.display='block';
+  if (btn) btn.classList.add('active');
+  if (id === 'spells')  renderWarfareSpells();
+  if (id === 'covert')  renderWarfareCovert();
+}
+
+async function loadWarfarePanel() {
+  // Load war log into warfare panel
+  var result = await apiCall('GET', '/api/kingdom/war-log');
+  var el = document.getElementById('war-log-list-warfare');
+  if (!el) return;
+  if (!result || !result.rows || result.rows.length === 0) {
+    el.innerHTML = '<div style="text-align:center;padding:20px 0">'
+      + '<div style="font-size:24px;margin-bottom:8px">🕊️</div>'
+      + '<div style="font-size:14px;color:var(--text2);font-weight:600">It\'s been a quiet day.</div>'
+      + '<div style="font-size:16px;font-weight:700;color:var(--red);margin-top:4px">BREAK SOME $#@&!</div>'
+      + '</div>';
+    return;
+  }
+  var rows = result.rows || [];
+  var html = '';
+  rows.slice(0, 20).forEach(function(r) {
+    var icon  = ACTION_ICONS[r.action_type]  || '⚔️';
+    var label = ACTION_LABELS[r.action_type] || r.action_type;
+    var win   = r.outcome === 'victory' || r.outcome === 'success';
+    var isCovert = ['spy','loot','assassinate'].includes(r.action_type);
+    var atkDisplay = (isCovert && win && r.obscured !== 0)
+      ? '<span style="color:var(--text3)">Unknown</span>'
+      : '<span style="color:var(--red)">' + escHtml(r.attacker_name||'?') + '</span>';
+    var defDisplay = '<span style="color:var(--text2)">' + escHtml(r.defender_name||'?') + '</span>';
+    var outcomeColor = win ? 'var(--green)' : 'var(--text3)';
+    var isMe = r.attacker_id === state.kingdomId || r.defender_id === state.kingdomId;
+    html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);' + (isMe?'background:rgba(124,106,245,.06)':'') + '">'
+      + '<span style="font-size:16px;flex-shrink:0">' + icon + '</span>'
+      + '<div style="flex:1;min-width:0;font-size:12px">'
+      + atkDisplay + ' → ' + defDisplay + ' <span style="color:var(--text3)">· ' + label + '</span>'
+      + parseWarDetail(r)
+      + '</div>'
+      + '<div style="text-align:right;flex-shrink:0">'
+      + '<div style="font-size:11px;font-weight:600;color:' + outcomeColor + '">' + (win?'Victory':'Repelled') + '</div>'
+      + '<div style="font-size:10px;color:var(--text3)">' + timeAgo(r.created_at) + '</div>'
+      + '</div></div>';
+  });
+  el.innerHTML = html;
+
+  // Populate target lists in attack tab
+  renderTargets(targets, 'target-list-w', 'selectTargetW');
+  updateAtkEstimateW();
+}
+
+function parseWarDetail(r) {
+  if (!r.detail) return '';
+  try {
+    var d = typeof r.detail === 'string' ? JSON.parse(r.detail) : r.detail;
+    var parts = [];
+    if (r.action_type === 'attack') {
+      if (d.landTaken > 0)  parts.push('+' + fmt(d.landTaken) + ' land');
+      if (d.atkLost  > 0)   parts.push(fmt(d.atkLost) + ' lost');
+      if (d.ninjaKills > 0) parts.push(fmt(d.ninjaKills) + ' ninja kills');
+    } else if (r.action_type === 'assassinate') {
+      if (d.killed && d.unit) parts.push(fmt(d.killed) + ' ' + d.unit + ' killed');
+    } else if (r.action_type === 'loot') {
+      if (d.stolen && d.type) parts.push(fmt(d.stolen) + ' ' + d.type + ' stolen');
+    }
+    return parts.length ? '<div style="font-size:10px;color:var(--text3);margin-top:1px">' + parts.join(' · ') + '</div>' : '';
+  } catch(e) { return ''; }
+}
+
+var selectedTargetW = null;
+
+function selectTargetW(t) {
+  selectedTargetW = t;
+  var nm = document.getElementById('atk-target-name-w');
+  var inf = document.getElementById('atk-target-info-w');
+  if (nm)  nm.textContent  = t.name;
+  if (inf) inf.textContent = (RACE_ICONS[t.race]||'') + ' ' + (t.race||'').replace(/_/g,' ') + ' · ' + fmt(t.land) + ' ac · Rank #' + (t.rank||'?');
+  updateAtkEstimateW();
+}
+
+function updateAtkEstimateW() {
+  var f  = parseInt(document.getElementById('atk-fighters-w')?.value) || 0;
+  var rn = parseInt(document.getElementById('atk-rangers-w')?.value)  || 0;
+  var m  = parseInt(document.getElementById('atk-mages-w')?.value)    || 0;
+  var wm = parseInt(document.getElementById('atk-wm-w')?.value)       || 0;
+  if (f + rn + m === 0) return;
+  var weaponBonus = 1 + Math.min(1,(state.weapons_stockpile||0)/Math.max(f,1))*0.25;
+  var atkF   = f  * ((state.res_weapons||100)/100) * weaponBonus * ((state.res_military||100)/100);
+  var atkRn  = rn * 0.7 * ((state.res_military||100)/100);
+  var atkM   = m  * 2.5 * ((state.res_attack_magic||100)/100);
+  var atkWm  = wm * 500 * ((state.res_war_machines||100)/100);
+  var mMult  = Math.min(1.10, Math.max(0.80, (state.morale||100)/100));
+  var bullyRatio = selectedTargetW ? Math.max((state.land||1)/Math.max(1,selectedTargetW.land||1), ((state.fighters||1)/Math.max(1,selectedTargetW.fighters||1))*0.5) : 0;
+  var bullyPenalty = bullyRatio >= 8 ? 0.40 : bullyRatio >= 4 ? 0.60 : bullyRatio >= 2 ? 0.80 : 1.0;
+  var bullyMsg = bullyRatio >= 8 ? '🚨 ×8+ — will be shamed. −60% power.' : bullyRatio >= 4 ? '⚠️ ×4–8 — morale suffers. −40%.' : bullyRatio >= 2 ? '⚠️ ×2–4 — −20% power.' : '';
+  var atkPower = Math.round((atkF + atkRn + atkM + atkWm) * mMult * bullyPenalty);
+  var defPower = selectedTargetW ? Math.round((selectedTargetW.fighters||0)*1.0 + (selectedTargetW.mages||0)*1.5) : 0;
+  var winPct   = defPower > 0 ? Math.min(95, Math.max(5, Math.round(atkPower/(atkPower+defPower)*100))) : 90;
+  var winColor = winPct >= 60 ? 'var(--green)' : winPct >= 40 ? 'var(--amber)' : 'var(--red)';
+  var land = selectedTargetW ? Math.floor((selectedTargetW.land||0)*0.10) : 0;
+  var g=function(id){return document.getElementById(id);};
+  if(g('atk-est-power-w'))  { g('atk-est-power-w').textContent=fmt(atkPower); g('atk-est-power-w').style.color=winPct>=50?'var(--green)':'var(--amber)'; }
+  if(g('atk-est-def-w'))    g('atk-est-def-w').textContent    = defPower>0?'~'+fmt(defPower)+' (est.)':'—';
+  if(g('atk-est-winpct-w')) { g('atk-est-winpct-w').textContent=winPct+'%'; g('atk-est-winpct-w').style.color=winColor; }
+  if(g('atk-est-land-w'))   g('atk-est-land-w').textContent   = land>0?'+'+fmt(land)+' ac':'—';
+  if(g('atk-bully-warn-w')) { g('atk-bully-warn-w').style.display=bullyMsg?'block':'none'; g('atk-bully-warn-w').textContent=bullyMsg; }
+}
+
+async function launchAttackW() {
+  if (!selectedTargetW) return toast('Select a target kingdom first', 'error');
+  if ((state.maps||0) < 1) return toast('You need a map to attack', 'error');
+  var f  = parseInt(document.getElementById('atk-fighters-w')?.value)  || 0;
+  var rn = parseInt(document.getElementById('atk-rangers-w')?.value)   || 0;
+  var m  = parseInt(document.getElementById('atk-mages-w')?.value)     || 0;
+  var wm = parseInt(document.getElementById('atk-wm-w')?.value)        || 0;
+  var nj = parseInt(document.getElementById('atk-ninjas-w')?.value)    || 0;
+  var th = parseInt(document.getElementById('atk-thieves-w')?.value)   || 0;
+  if (f+rn+m <= 0) return toast('Send at least some troops', 'error');
+  var result = await apiCall('POST', '/api/kingdom/attack', {
+    targetId:selectedTargetW.id, fighters:f, rangers:rn, mages:m, warMachines:wm, ninjas:nj, thieves:th
+  });
+  if (result.error) return toast(result.error, 'error');
+  applyServerUpdates(result.updates);
+  state.turns_stored = Math.max(0, (state.turns_stored||0)-1);
+  syncUI(); updateTurnsDisplay();
+  var r = result.report;
+  showBattleReport({ type:'Military attack', target:selectedTargetW.name, win:r.win, rows:[
+    ['Outcome', r.win?'🏆 Victory':'❌ Repelled'],
+    ['Land '+(r.win?'captured':'difference'), r.win?'+'+fmt(r.landTransferred)+' ac':'0'],
+    ['Your losses', fmt((r.atkFightersLost||0)+(r.atkRangersLost||0)) + ' troops'],
+    ['Enemy losses', fmt(r.defFightersLost||0) + ' defenders'],
+    ['Morale', (r.atkMoraleChange>=0?'+':'')+r.atkMoraleChange],
+  ]});
+  loadWarfarePanel();
+}
+
+function renderWarfareSpells() {
+  var el = document.getElementById('warfare-spells-content');
+  var src = document.getElementById('spells');
+  if (el && src) el.innerHTML = src.innerHTML;
+}
+
+function renderWarfareCovert() {
+  var el = document.getElementById('warfare-covert-content');
+  var src = document.getElementById('covert');
+  if (el && src) el.innerHTML = src.innerHTML;
+}
 
 var WALL_UPGRADES_JS = {
   reinforced:     { name:'Reinforced Walls',  cost:10000,  desc:'+25% wall strength, −10% land lost per attack', requires:null           },
