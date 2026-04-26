@@ -42,11 +42,11 @@ function raceBonus(kingdom, stat) {
 }
 
 function goldPerTurn(k) {
-  const baseRate = Math.floor(k.land * (k.tax / 100) * (k.res_economy / 100));
-  const marketBonus = Math.floor(k.bld_markets / 30) * 200;
-  const castleBonus = Math.floor(k.bld_castles / 500) * 500;
-  const econBonus = raceBonus(k, 'economy');
-  return Math.floor((baseRate + marketBonus + castleBonus) * econBonus * 2.25);
+  const baseRate    = Math.floor((k.land||0) * ((k.tax||40) / 100) * ((k.res_economy||100) / 100));
+  const castleBonus = Math.floor((k.bld_castles||0) / 500) * 500;
+  const econBonus   = raceBonus(k, 'economy');
+  const mktIncome   = marketIncomeFull(k);
+  return Math.floor((baseRate + castleBonus) * econBonus * 2.25) + mktIncome;
 }
 
 function manaPerTurn(k) {
@@ -70,13 +70,7 @@ function manaPerTurn(k) {
 }
 
 function foodBalance(k) {
-  const totalTroops = k.fighters + k.rangers + k.clerics + k.mages +
-                      k.thieves + k.ninjas + k.researchers + k.engineers;
-  const production = Math.floor(k.bld_farms / 10) * 100;
-  // Aggressive races (dire wolf, orc) eat more
-  const consumptionMult = raceBonus(k, 'military') > 1.1 ? 1.15 : 1.0;
-  const consumption = Math.floor((totalTroops + Math.floor(k.population / 50)) * consumptionMult);
-  return production - consumption;
+  return farmProduction(k) - foodConsumption(k);
 }
 
 // Race-specific population per housing building
@@ -239,6 +233,232 @@ function awardUnitXp(k, unit, xpAmount) {
   return awardTroopXp(k, unit, xpAmount).troop_levels;
 }
 
+// ── Economy system ────────────────────────────────────────────────────────────
+
+const FARM_YIELD_MULT       = { human:1.00, dwarf:0.90, high_elf:1.15, orc:0.85, dark_elf:0.95, dire_wolf:0.80 };
+const FARM_WORKERS_PER      = { human:10,   dwarf:8,    high_elf:12,   orc:15,   dark_elf:10,   dire_wolf:12   };
+const FOOD_CONSUMPTION_MULT = { human:1.00, dwarf:0.85, high_elf:0.80, orc:1.35, dark_elf:0.95, dire_wolf:1.40 };
+const MARKET_INCOME_MULT    = { human:1.00, dwarf:1.25, high_elf:1.10, orc:0.85, dark_elf:1.05, dire_wolf:0.75 };
+const TRADE_RATE_MULT       = { human:1.00, dwarf:1.15, high_elf:1.20, orc:0.80, dark_elf:1.30, dire_wolf:0.70 };
+
+const COMMODITY_VALUES = { food:2, weapons:6, armor:8, mana:4, maps:50, scrolls:200, blueprints:150 };
+const COMMODITY_RACE_DISCOUNT = {
+  dwarf:    { weapons:0.85, armor:0.85 },
+  high_elf: { scrolls:0.80, mana:0.85 },
+  dark_elf: { _all:0.90 },
+  orc:      { food:1.20 },
+  dire_wolf:{ maps:0.80 },
+  human:    {},
+};
+
+const FARM_UPGRADES = {
+  irrigated:  { name:'Irrigated Farm', cost:500,   yieldBonus:0.30, requires:null         },
+  granary:    { name:'Granary',        cost:2000,  bufferTurns:10,  requires:null         },
+  plantation: { name:'Plantation',     cost:10000, yieldBonus:0.60, requires:'irrigated'  },
+};
+const MARKET_UPGRADES = {
+  trading_post: { name:'Trading Post', cost:5000,  unlocksTrade:true,      requires:null            },
+  bazaar:       { name:'Bazaar',       cost:50000, incomeBonus:0.50,       requires:'trading_post'  },
+  black_market: { name:'Black Market', cost:15000, raceOnly:'dark_elf',    requires:'trading_post'  },
+};
+const TAVERN_UPGRADES = {
+  inn:        { name:'Inn',        cost:8000,  unlocksMercTier:'sellsword', requires:null  },
+  guild_hall: { name:'Guild Hall', cost:30000, unlocksMercTier:'veteran',   requires:'inn' },
+};
+const MERC_TIERS = {
+  rabble:    { levelMin:5,  levelMax:10, costPer:50,   duration:10, upkeepPct:0.25, requires:null         },
+  sellsword: { levelMin:15, levelMax:25, costPer:150,  duration:20, upkeepPct:0.25, requires:'inn'        },
+  veteran:   { levelMin:30, levelMax:45, costPer:400,  duration:30, upkeepPct:0.25, requires:'guild_hall' },
+  elite:     { levelMin:50, levelMax:65, costPer:1000, duration:40, upkeepPct:0.25, requires:'guild_hall' },
+};
+
+function totalHiredUnits(k) {
+  return (k.fighters||0)+(k.rangers||0)+(k.clerics||0)+(k.mages||0)+(k.thieves||0)+(k.ninjas||0)+(k.researchers||0)+(k.engineers||0)+(k.scribes||0);
+}
+
+function farmProduction(k) {
+  const farms = k.bld_farms || 0;
+  if (!farms) return 0;
+  let upgrades = {};
+  try { upgrades = JSON.parse(k.farm_upgrades || '{}'); } catch {}
+  const race         = k.race || 'human';
+  const workersNeeded = FARM_WORKERS_PER[race] || 10;
+  const freePop       = Math.max(0, (k.population||0) - totalHiredUnits(k));
+  const workedFarms   = Math.min(farms, Math.floor(freePop / workersNeeded));
+  let   baseYield     = workedFarms * 10 * (FARM_YIELD_MULT[race] || 1.0);
+  if (upgrades.irrigated)  baseYield *= 1.30;
+  if (upgrades.plantation) baseYield *= 1.60;
+  return Math.floor(baseYield);
+}
+
+function foodConsumption(k) {
+  const race   = k.race || 'human';
+  const mult   = FOOD_CONSUMPTION_MULT[race] || 1.0;
+  const troops = totalHiredUnits(k);
+  const pop    = Math.floor((k.population||0) / 100);
+  return Math.floor((troops + pop) * mult);
+}
+
+function marketIncomeFull(k) {
+  const markets = k.bld_markets || 0;
+  if (!markets) return 0;
+  let upgrades = {};
+  try { upgrades = JSON.parse(k.market_upgrades || '{}'); } catch {}
+  const race         = k.race || 'human';
+  const mult         = MARKET_INCOME_MULT[race] || 1.0;
+  const freePop      = Math.max(0, (k.population||0) - totalHiredUnits(k));
+  const workedMarkets = Math.min(markets, Math.floor(freePop / 5));
+  const tradeRoutes   = Math.min(k.maps || 0, markets);
+  let   income        = (workedMarkets * 50 + tradeRoutes * 30) * mult;
+  if (upgrades.bazaar)       income *= 1.50;
+  if (upgrades.black_market) income *= 1.20;
+  return Math.floor(income);
+}
+
+function tavernEntertainmentBonus(k) {
+  const taverns = k.bld_taverns || 0;
+  if (!taverns) return 0;
+  let upgrades = {};
+  try { upgrades = JSON.parse(k.tavern_upgrades || '{}'); } catch {}
+  const base = taverns * 2;
+  return Math.floor(upgrades.guild_hall ? base*1.5 : upgrades.inn ? base*1.2 : base);
+}
+
+function commodityPrice(item, race, supplyIndex) {
+  const base     = COMMODITY_VALUES[item] || 1;
+  const raceDisc = COMMODITY_RACE_DISCOUNT[race] || {};
+  const discount = raceDisc[item] || raceDisc._all || 1.0;
+  const supply   = (supplyIndex && supplyIndex[item]) || 1.0;
+  return Math.max(1, Math.round(base * discount * supply));
+}
+
+function processFoodEconomy(k, events) {
+  const updates   = {};
+  const prod      = farmProduction(k);
+  const cons      = foodConsumption(k);
+  const balance   = prod - cons;
+  let   food      = k.food || 0;
+  let   upgrades  = {};
+  try { upgrades = JSON.parse(k.farm_upgrades || '{}'); } catch {}
+  const maxStore  = cons * (upgrades.granary ? 15 : 5);
+
+  if (balance >= 0) {
+    food = Math.min(food + balance, maxStore);
+    const surpTurns = (k.food_surplus_turns || 0) + 1;
+    updates.food              = food;
+    updates.food_surplus_turns  = surpTurns;
+    updates.food_shortage_turns = 0;
+    if (surpTurns >= 5) {
+      updates.morale = Math.min(200, (k.morale||100) + 2);
+      events.push({ type:'system', message:`🌾 Food surplus: +${balance.toLocaleString()} units. Troops are well fed.` });
+    } else {
+      events.push({ type:'system', message:`🌾 Food: +${balance.toLocaleString()} surplus. Stores: ${food.toLocaleString()}.` });
+    }
+  } else {
+    const shortage  = Math.abs(balance);
+    const shortTurns = (k.food_shortage_turns || 0) + 1;
+    updates.food_shortage_turns = shortTurns;
+    updates.food_surplus_turns  = 0;
+
+    if (food >= shortage) {
+      food -= shortage;
+      updates.food = food;
+      events.push({ type:'system', message:`⚠️ Food deficit: drawing ${shortage.toLocaleString()} from stores. ${food.toLocaleString()} remaining.` });
+    } else {
+      updates.food = 0;
+      events.push({ type:'system', message:`🚨 Food shortage! Turn ${shortTurns} — build more farms or reduce troops.` });
+      if (shortTurns >= 3) {
+        const hit = shortTurns >= 8 ? 20 : shortTurns >= 5 ? 10 : 5;
+        updates.morale = Math.max(20, (k.morale||100) - hit);
+        events.push({ type:'system', message:`😤 Starvation morale penalty: -${hit} morale.` });
+      }
+      if (shortTurns >= 5) {
+        updates.population = Math.max(1000, (k.population||0) - 500);
+        events.push({ type:'system', message:`👥 Population fleeing starvation: -500 people.` });
+      }
+      if (shortTurns >= 8) {
+        const desert = Math.floor((k.fighters||0) * 0.02);
+        if (desert > 0) {
+          updates.fighters = Math.max(0, (k.fighters||0) - desert);
+          events.push({ type:'system', message:`⚔️ ${desert.toLocaleString()} fighters deserted — starvation.` });
+        }
+      }
+    }
+  }
+  return updates;
+}
+
+function processMercenaries(k, events) {
+  const updates = {};
+  let mercs = [];
+  try { mercs = JSON.parse(k.mercenaries || '[]'); } catch {}
+  if (!mercs.length) return updates;
+
+  const currentTurn = k.turn || 0;
+  let   gold        = k.gold || 0;
+  const active      = [];
+
+  for (const m of mercs) {
+    const served = currentTurn - (m.hired_at_turn || 0);
+    const upkeep = m.upkeep_per_turn || 0;
+    if (served >= m.duration_turns) {
+      updates[m.unit_type] = Math.max(0, (updates[m.unit_type] ?? (k[m.unit_type]||0)) - m.count);
+      events.push({ type:'system', message:`⚔️ ${m.count} ${m.tier} ${m.unit_type} completed their contract and departed.` });
+    } else if (gold >= upkeep) {
+      gold -= upkeep;
+      active.push(m);
+    } else {
+      updates[m.unit_type] = Math.max(0, (updates[m.unit_type] ?? (k[m.unit_type]||0)) - m.count);
+      events.push({ type:'system', message:`⚔️ ${m.count} ${m.tier} ${m.unit_type} left — upkeep unpaid.` });
+    }
+  }
+  updates.mercenaries = JSON.stringify(active);
+  updates.gold        = gold;
+  return updates;
+}
+
+function hireMercenaries(k, unitType, tier, count) {
+  const tierDef = MERC_TIERS[tier];
+  if (!tierDef) return { error:'Invalid tier' };
+  let tavUpgrades = {};
+  try { tavUpgrades = JSON.parse(k.tavern_upgrades||'{}'); } catch {}
+  if (tierDef.requires && !tavUpgrades[tierDef.requires])
+    return { error:`Requires ${tierDef.requires.replace('_',' ')} upgrade` };
+  if (!(k.bld_taverns > 0)) return { error:'Need at least 1 tavern' };
+
+  const level  = tierDef.levelMin + Math.floor(Math.random() * (tierDef.levelMax - tierDef.levelMin + 1));
+  const cost   = tierDef.costPer * count;
+  const upkeep = Math.ceil(cost * tierDef.upkeepPct / tierDef.duration);
+  if ((k.gold||0) < cost) return { error:`Need ${cost.toLocaleString()} gold` };
+
+  let mercs = [];
+  try { mercs = JSON.parse(k.mercenaries||'[]'); } catch {}
+  mercs.push({ unit_type:unitType, tier, level, count, hired_at_turn:k.turn||0, duration_turns:tierDef.duration, upkeep_per_turn:upkeep });
+
+  return {
+    updates: { gold:(k.gold||0)-cost, [unitType]:(k[unitType]||0)+count, mercenaries:JSON.stringify(mercs) },
+    hired:   { tier, level, count, unitType, duration:tierDef.duration, upkeep, cost },
+  };
+}
+
+function purchaseUpgrade(k, category, upgradeKey) {
+  const defs    = { farm:FARM_UPGRADES, market:MARKET_UPGRADES, tavern:TAVERN_UPGRADES }[category];
+  if (!defs) return { error:'Invalid category' };
+  const def = defs[upgradeKey];
+  if (!def) return { error:'Invalid upgrade' };
+  const colName = `${category}_upgrades`;
+  let upgrades = {};
+  try { upgrades = JSON.parse(k[colName]||'{}'); } catch {}
+  if (upgrades[upgradeKey])                        return { error:'Already purchased' };
+  if (def.requires && !upgrades[def.requires])     return { error:`Requires ${def.requires.replace(/_/g,' ')} first` };
+  if (def.raceOnly && k.race !== def.raceOnly)     return { error:`Only available to ${def.raceOnly.replace(/_/g,' ')}` };
+  if ((k.gold||0) < def.cost)                     return { error:`Need ${def.cost.toLocaleString()} gold` };
+  const bldCheck = { farm:'bld_farms', market:'bld_markets', tavern:'bld_taverns' };
+  if (bldCheck[category] && !((k[bldCheck[category]]||0) > 0)) return { error:`Need at least 1 ${category}` };
+  upgrades[upgradeKey] = true;
+  return { updates:{ gold:(k.gold||0)-def.cost, [colName]:JSON.stringify(upgrades) } };
+}
+
 function processTurn(k) {
   const events = [];
   const updates = { turn: k.turn + 1, updated_at: Math.floor(Date.now() / 1000) };
@@ -262,29 +482,19 @@ function processTurn(k) {
     events.push({ type: 'system', message: `👥 Population declined by ${Math.abs(growth).toLocaleString()} to ${updates.population.toLocaleString()} due to low morale.` });
   }
 
-  // ── 4. Food balance ───────────────────────────────────────────────────────────
-  const food = foodBalance(k);
-  updates.food = food;
-  if (food >= 0) {
-    events.push({ type: 'system', message: `🌾 Food surplus: +${food.toLocaleString()} units. Troops are well fed.` });
-  } else {
-    events.push({ type: 'system', message: `🌾 Food shortage: ${food.toLocaleString()} units deficit. Troops are starving!` });
-    const totalTroops = (k.fighters||0) + (k.rangers||0) + (k.clerics||0) + (k.mages||0) +
-                        (k.thieves||0) + (k.ninjas||0) + (k.researchers||0) + (k.engineers||0);
-    const starvePct = Math.min(0.05, Math.abs(food) / Math.max(totalTroops, 1) * 0.005);
-    if (starvePct > 0) {
-      const lost = Math.floor(totalTroops * starvePct);
-      updates.fighters    = Math.max(0, Math.floor((k.fighters||0)    * (1 - starvePct)));
-      updates.rangers     = Math.max(0, Math.floor((k.rangers||0)     * (1 - starvePct)));
-      updates.clerics     = Math.max(0, Math.floor((k.clerics||0)     * (1 - starvePct)));
-      updates.mages       = Math.max(0, Math.floor((k.mages||0)       * (1 - starvePct)));
-      updates.thieves     = Math.max(0, Math.floor((k.thieves||0)     * (1 - starvePct)));
-      updates.ninjas      = Math.max(0, Math.floor((k.ninjas||0)      * (1 - starvePct)));
-      updates.researchers = Math.max(0, Math.floor((k.researchers||0) * (1 - starvePct)));
-      updates.engineers   = Math.max(0, Math.floor((k.engineers||0)   * (1 - starvePct)));
-      events.push({ type: 'system', message: `💀 ${lost.toLocaleString()} units deserted due to starvation (${Math.floor(starvePct * 100)}% losses across all troops).` });
-    }
+  // ── 4. Food economy — farms, consumption, shortage consequences ──────────────
+  const foodUpdates = processFoodEconomy({ ...k, ...updates }, events);
+  Object.assign(updates, foodUpdates);
+
+  // ── 4b. Tavern entertainment bonus ────────────────────────────────────────────
+  const entBonus = tavernEntertainmentBonus(k);
+  if (entBonus > 0) {
+    updates.res_entertainment = Math.min(500, (k.res_entertainment||0) + Math.floor(entBonus / 10));
   }
+
+  // ── 4c. Mercenary upkeep and expiry ───────────────────────────────────────────
+  const mercUpdates = processMercenaries({ ...k, ...updates }, events);
+  Object.assign(updates, mercUpdates);
 
   // ── 5. Troop upkeep ───────────────────────────────────────────────────────────
   // Researchers, engineers, scribes are exempt if housed in their buildings.
@@ -2366,7 +2576,11 @@ function processActiveEffects(k, events) {
 }
 
 module.exports = {
-  goldPerTurn, manaPerTurn, foodBalance, popGrowth,
+  goldPerTurn, manaPerTurn, foodBalance, farmProduction, foodConsumption,
+  marketIncomeFull, tavernEntertainmentBonus, commodityPrice,
+  processFoodEconomy, processMercenaries, hireMercenaries, purchaseUpgrade,
+  FARM_UPGRADES, MARKET_UPGRADES, TAVERN_UPGRADES, MERC_TIERS, COMMODITY_VALUES,
+  FARM_YIELD_MULT, FOOD_CONSUMPTION_MULT, MARKET_INCOME_MULT, TRADE_RATE_MULT,
   processTurn, hireUnits, studyDiscipline,
   queueBuildings, processBuildQueue, processLibrary, processMageTower, processShrine, processActiveEffects, forgeTools,
   resolveMilitaryAttack, castSpell,
