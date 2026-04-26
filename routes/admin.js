@@ -281,7 +281,12 @@ module.exports = function(db, io) {
     res.json({ ok: true });
   });
 
-  // ── Admin Events ──────────────────────────────────────────────────────────────
+  // ── Flush all location data ───────────────────────────────────────────────────
+  router.post('/flush-locations', async (_req, res) => {
+    await db.run("UPDATE kingdoms SET discovered_kingdoms='{}', location_maps_wip='[]'");
+    console.log('[admin] All location data flushed');
+    res.json({ ok: true, message: 'All kingdom location data cleared. Players must rediscover kingdoms.' });
+  });
   router.get('/events/log', async (_req, res) => {
     const rows = await db.all(`SELECT * FROM event_log ORDER BY fired_at DESC LIMIT 200`);
     res.json(rows);

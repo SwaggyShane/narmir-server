@@ -1026,6 +1026,7 @@ module.exports = function(db) {
       bld_shrines:      k.bld_shrines || 0,
       bld_cathedrals:   k.bld_cathedrals || 0,
       bld_schools:      k.bld_schools || 0,
+      bld_taverns:      k.bld_taverns  || 0,
     });
   });
   router.post('/economy/upgrade', requireAuth, async (req, res) => {
