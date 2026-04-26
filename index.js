@@ -238,11 +238,13 @@ async function aiAction(db, engine, ai) {
   // Only act occasionally — roughly 1 in 4 ticks
   if (Math.random() > 0.25) return;
 
-  // Per-target cooldown — don't attack the same kingdom more than once every 8 turns
-  const recentAttacks = await db.all(`
-    SELECT defender_id FROM war_log
-    WHERE attacker_id = ? AND created_at > datetime('now', '-8 minutes')`, [ai.id]);
-  const recentTargetIds = new Set(recentAttacks.map(r => r.defender_id));
+  // Per-target cooldown — don't act on the same kingdom more than once every 20 minutes
+  const cooldownSecs = 20 * 60;
+  const recentActions = await db.all(
+    `SELECT defender_id FROM war_log WHERE attacker_id = ? AND created_at > ?`,
+    [ai.id, Math.floor(Date.now()/1000) - cooldownSecs]
+  );
+  const recentTargetIds = new Set(recentActions.map(r => r.defender_id));
 
   // Get potential targets — exclude recently attacked, exclude protected kingdoms
   const targets = await db.all(`
@@ -325,7 +327,7 @@ async function aiAction(db, engine, ai) {
           [target.id, 'covert', result.targetEvent, target.turn]);
       }
       await db.run(`INSERT INTO war_log (action_type, attacker_id, attacker_name, defender_id, defender_name, outcome, detail, obscured) VALUES (?,?,?,?,?,?,?,?)`,
-        ['loot', ai.id, ai.name, target.id, target.name, 'success', JSON.stringify({ stolen: result.stolen, type: lootType }), 0]);
+        ['loot', ai.id, ai.name, target.id, target.name, 'success', JSON.stringify({ stolen: result.stolen, type: lootType }), 1]);
     }
 
   // Assassination — needs ninjas
@@ -344,7 +346,7 @@ async function aiAction(db, engine, ai) {
           [target.id, 'covert', result.targetEvent, target.turn]);
       }
       await db.run(`INSERT INTO war_log (action_type, attacker_id, attacker_name, defender_id, defender_name, outcome, detail, obscured) VALUES (?,?,?,?,?,?,?,?)`,
-        ['assassinate', ai.id, ai.name, target.id, target.name, 'success', JSON.stringify({ killed: result.killed, unit: unitType }), 0]);
+        ['assassinate', ai.id, ai.name, target.id, target.name, 'success', JSON.stringify({ killed: result.killed, unit: unitType }), 1]);
     }
   }
 }
