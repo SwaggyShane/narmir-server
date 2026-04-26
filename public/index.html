@@ -44,8 +44,23 @@
   .topbar { display: flex; align-items: center; justify-content: space-between; padding: 0 14px; height: 52px; background: var(--bg2); border-bottom: 1px solid var(--border); gap: 10px; flex-shrink: 0; position: sticky; top: 0; z-index: 50; }
   .sidebar { display: none; }
   .main { padding: 14px 14px 90px; flex: 1; }
-  body.panel-warfare #kd-top { display: none; }
-  body.panel-warfare .main { padding-top: 6px; }
+  body.panel-warfare #kd-top,
+  body.panel-news #kd-top,
+  body.panel-rankings #kd-top,
+  body.panel-exploration #kd-top,
+  body.panel-studies #kd-top,
+  body.panel-training #kd-top,
+  body.panel-alliances #kd-top,
+  body.panel-hire #kd-top,
+  body.panel-globalchat #kd-top { display: none; }
+  body.panel-warfare .main,
+  body.panel-news .main,
+  body.panel-rankings .main,
+  body.panel-exploration .main,
+  body.panel-studies .main,
+  body.panel-training .main,
+  body.panel-alliances .main,
+  body.panel-hire .main { padding-top: 6px; }
   .admin-tab { background:none; border:none; border-bottom:3px solid transparent; color:var(--text3); cursor:pointer; font-size:19px; font-weight:600; padding:12px 20px; margin-bottom:-2px; transition:all .2s; white-space:nowrap; border-radius:6px 6px 0 0; }
   .admin-tab:hover { color:var(--text2); background:var(--bg3); }
   .admin-tab.active { color:var(--purple); border-bottom-color:var(--purple); background:rgba(124,106,245,.08); }
@@ -323,9 +338,9 @@
           <div style="display:flex;align-items:center;gap:6px">
             <span style="font-size:13px;color:var(--text2)">Turns:</span>
             <span id="turns-stored-disp" style="font-size:15px;font-weight:700;color:var(--gold)">200</span>
-            <span style="font-size:12px;color:var(--text3)">/200</span>
+            <span style="font-size:12px;color:var(--text3)">/400</span>
           </div>
-          <div class="countdown">+5 in <span id="regen-countdown">15:00</span></div>
+          <div class="countdown">+7 in <span id="regen-countdown">25:00</span></div>
         </div>
         <button class="turn-btn" onclick="takeTurn()">Take Turn</button>
         <button onclick="doLogout()" style="background:transparent;border:1px solid var(--border2);border-radius:var(--radius);color:var(--text2);padding:6px 10px;font-size:12px;cursor:pointer;white-space:nowrap">Logout</button>
@@ -3521,24 +3536,22 @@ function switchTab(id, btn) {
     if (mapWarn) mapWarn.style.display = (state.maps || 0) < 1 ? 'block' : 'none';
     updateAtkEstimate();
   }
-  var kdTop = document.getElementById('kd-top');
   if (id === 'globalchat') {
-    if (kdTop) kdTop.style.display = 'none';
     document.querySelector('.main').style.padding = '0';
     var badge = document.getElementById('chat-badge');
     if (badge) badge.style.display = 'none';
     if (!socket) initSocket();
     else loadGlobalChatHistory();
   } else {
-    if (kdTop) kdTop.style.display = '';
     document.querySelector('.main').style.padding = '';
   }
   if (id === 'alliances') {
     loadAlliancePanel();
   }
   // Show/hide kingdom header and resource strip
-  var hideHeader = ['warfare'];
-  document.body.classList.toggle('panel-warfare', hideHeader.includes(id));
+  var hideHeader = ['warfare','news','rankings','exploration','studies','training','alliances','hire','globalchat'];
+  hideHeader.forEach(function(p){ document.body.classList.remove('panel-'+p); });
+  if (hideHeader.includes(id)) document.body.classList.add('panel-'+id);
 
   if (id === 'warfare') {
     loadWarfarePanel();
@@ -3556,8 +3569,7 @@ function switchTab(id, btn) {
     loadWorldMap();
   }
   if (id === 'rankings') {
-    if (rankingsCache && rankingsCache.length > 0) renderRankingsPanel(rankingsCache);
-    else loadRankings(true);
+    loadRankings(true);
   }
   if (id === 'spells') {
     renderSpells();
@@ -3944,15 +3956,15 @@ function syncUI() {
   populateInputs();
 }
 
-// Regen countdown — syncs to server's 15-min cycle
-var regenSecs = 15 * 60;
+// Regen countdown — syncs to server's 25-min cycle
+var regenSecs = 25 * 60;
 setInterval(function() {
   regenSecs--;
   if (regenSecs < 0) {
-    regenSecs = 15 * 60;
-    // Optimistically add 5 turns client-side (server does the real update)
+    regenSecs = 25 * 60;
+    // Optimistically add 7 turns client-side (server does the real update)
     if (typeof state.turns_stored !== 'undefined') {
-      state.turns_stored = Math.min(200, (state.turns_stored || 0) + 5);
+      state.turns_stored = Math.min(400, (state.turns_stored || 0) + 7);
       updateTurnsDisplay();
     }
   }
@@ -4438,11 +4450,8 @@ var ACTION_LABELS = {
 async function loadWarLog() {
   var el = document.getElementById('war-log-list');
   if (el) el.innerHTML = '<div style="color:var(--text3);font-size:13px;text-align:center;padding:24px 0">Loading...</div>';
-  var rows = await apiCall('GET', '/api/kingdom/war-log');
-  if (!Array.isArray(rows)) {
-    if (el) el.innerHTML = '<div style="color:var(--text3);font-size:13px;text-align:center;padding:24px 0">No events yet.</div>';
-    return;
-  }
+  var result = await apiCall('GET', '/api/kingdom/war-log');
+  var rows = Array.isArray(result) ? result : (result && result.rows ? result.rows : []);
   renderWarLog(rows);
 }
 
