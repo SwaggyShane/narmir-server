@@ -43,7 +43,7 @@ async function initDb() {
       food        INTEGER NOT NULL DEFAULT 0,
       turn        INTEGER NOT NULL DEFAULT 0,
       last_turn_at INTEGER NOT NULL DEFAULT (unixepoch()),
-      turns_stored INTEGER NOT NULL DEFAULT 200,
+      turns_stored INTEGER NOT NULL DEFAULT 400,
       res_economy       INTEGER NOT NULL DEFAULT 100,
       res_weapons       INTEGER NOT NULL DEFAULT 100,
       res_armor         INTEGER NOT NULL DEFAULT 100,
