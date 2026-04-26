@@ -107,6 +107,7 @@ textarea{width:100%;resize:vertical;min-height:60px}
   <div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:2px solid var(--border2);padding-bottom:0">
     <button class="admin-tab active" onclick="showAdminTab('manage',this)">⚙️ Manage</button>
     <button class="admin-tab" onclick="showAdminTab('kingdoms',this)">🏰 Kingdoms</button>
+    <button class="admin-tab" onclick="showAdminTab('events',this)">📅 Events</button>
     <button class="admin-tab" onclick="showAdminTab('changelog',this)">📋 Changelog</button>
   </div>
 
@@ -197,6 +198,121 @@ textarea{width:100%;resize:vertical;min-height:60px}
 </div><!-- end atab-kingdoms -->
 
 <!-- TAB: Changelog & Wishlist -->
+<div id="atab-events" class="atab" style="display:none">
+  <div style="display:grid;grid-template-columns:1fr 380px;gap:20px;align-items:start">
+
+    <!-- Event log -->
+    <div>
+      <div class="section-title" style="margin-bottom:12px">📜 Recent event log</div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+        <input type="text" id="ev-log-search" placeholder="Search kingdom or event..." style="flex:1;min-width:160px" oninput="filterEventLog()">
+        <select id="ev-log-season" onchange="filterEventLog()" style="width:120px">
+          <option value="">All seasons</option>
+          <option value="spring">🌸 Spring</option>
+          <option value="summer">☀️ Summer</option>
+          <option value="fall">🍂 Fall</option>
+          <option value="winter">❄️ Winter</option>
+        </select>
+        <button class="btn" onclick="loadEventLog()">↻ Refresh</button>
+      </div>
+      <div style="background:var(--bg2);border-radius:8px;overflow:hidden">
+        <div style="display:grid;grid-template-columns:140px 1fr 80px 80px;gap:0;padding:8px 12px;font-size:11px;color:var(--text3);text-transform:uppercase;border-bottom:1px solid var(--border)">
+          <span>Kingdom</span><span>Event</span><span>Season</span><span>When</span>
+        </div>
+        <div id="ev-log-list" style="max-height:480px;overflow-y:auto">
+          <div style="padding:24px;text-align:center;color:var(--text3)">Loading...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Event editor -->
+    <div>
+      <div class="section-title" style="margin-bottom:12px">✏️ Event editor</div>
+      <div style="background:var(--bg2);border-radius:8px;padding:16px;margin-bottom:16px">
+        <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:10px" id="ev-edit-title">New event</div>
+        <input type="hidden" id="ev-id">
+        <div style="margin-bottom:8px">
+          <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Key (unique, no spaces)</label>
+          <input type="text" id="ev-key" placeholder="e.g. summer_drought" style="width:100%">
+        </div>
+        <div style="margin-bottom:8px">
+          <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Name</label>
+          <input type="text" id="ev-name" placeholder="Drought" style="width:100%">
+        </div>
+        <div style="margin-bottom:8px">
+          <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Description</label>
+          <input type="text" id="ev-desc" placeholder="A dry spell withers crops." style="width:100%">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <div>
+            <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Season</label>
+            <select id="ev-season" style="width:100%">
+              <option value="all">All seasons</option>
+              <option value="spring">🌸 Spring</option>
+              <option value="summer">☀️ Summer</option>
+              <option value="fall">🍂 Fall</option>
+              <option value="winter">❄️ Winter</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Effect type</label>
+            <select id="ev-effect-type" style="width:100%">
+              <option value="morale">Morale (flat ±)</option>
+              <option value="gold">Gold (% of current)</option>
+              <option value="food">Food (% if <1, flat if ≥1)</option>
+              <option value="population">Population (% if <1, flat if ≥1)</option>
+              <option value="farm_yield">Farm yield (% mult, N turns)</option>
+              <option value="military">Military power (% mult, N turns)</option>
+              <option value="mana">Mana production (% mult, N turns)</option>
+              <option value="market">Market income (% mult, N turns)</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <div>
+            <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Effect value (negative = bad)</label>
+            <input type="number" id="ev-effect-value" step="0.01" value="5" style="width:100%">
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Duration (turns)</label>
+            <input type="number" id="ev-effect-duration" min="1" value="1" style="width:100%">
+          </div>
+        </div>
+        <div style="margin-bottom:8px">
+          <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Race only (leave blank for all)</label>
+          <select id="ev-race-only" style="width:100%">
+            <option value="">All races</option>
+            <option value="human">Human</option>
+            <option value="dwarf">Dwarf</option>
+            <option value="high_elf">High Elf</option>
+            <option value="dark_elf">Dark Elf</option>
+            <option value="orc">Orc</option>
+            <option value="dire_wolf">Dire Wolf</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <label style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:6px">
+            <input type="checkbox" id="ev-active" checked> Active
+          </label>
+          <label style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:6px">
+            <input type="checkbox" id="ev-positive" checked> Positive event
+          </label>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-green" style="flex:1" onclick="saveEvent()">💾 Save event</button>
+          <button class="btn" onclick="clearEventForm()">✕ Clear</button>
+        </div>
+      </div>
+
+      <!-- Event list -->
+      <div class="section-title" style="margin-bottom:8px">All events</div>
+      <div id="ev-list" style="max-height:400px;overflow-y:auto;background:var(--bg2);border-radius:8px">
+        <div style="padding:24px;text-align:center;color:var(--text3)">Loading...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="atab-changelog" class="atab" style="display:none">
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
 
@@ -367,6 +483,36 @@ textarea{width:100%;resize:vertical;min-height:60px}
       <div class="cl-item">✅ Mercenary upkeep collected automatically each turn — non-payment causes immediate departure</div>
       <div class="cl-item">✅ New DB tables: trade_offers, mercenaries</div>
       <div class="cl-item">✅ New DB columns: farm_upgrades, market_upgrades, tavern_upgrades, food_shortage_turns, food_surplus_turns, mercenaries</div>
+
+      <div class="cl-section">Seasons & Daily Events</div>
+      <div class="cl-item">✅ Season system — 13-day real-time cycle: Spring (3d) → Summer (5d) → Fall (2d) → Winter (3d). Stored in server_state, advances automatically on regen tick.</div>
+      <div class="cl-item">✅ Season badge on status panel — shows icon + name + days remaining (e.g. 🌸 Spring · 2.3d left)</div>
+      <div class="cl-item">✅ Season farm yield multipliers — Spring ×1.10, Summer ×1.20, Fall ×0.90, Winter ×0.70</div>
+      <div class="cl-item">✅ Daily random events — one event per kingdom per real day, fired during regen. Season-appropriate events selected, race-specific events mixed in at 10% chance.</div>
+      <div class="cl-item">✅ 21 default events seeded — spring bloom, heat wave, blizzard, harvest festival, travelling merchants, winter plague, and more. Race-specific: ice trade (dwarf), great hunt (dire wolf), elven bloom (high elf), shadow markets (dark elf), orc rampage.</div>
+      <div class="cl-item">✅ Active event effects tick down each turn (farm_yield, military, mana, market multipliers persist N turns then expire).</div>
+      <div class="cl-item">✅ Admin events panel — event log with kingdom/season filter, full event editor (create/edit/delete/toggle active). Effect type dropdown: morale, gold, food, population, farm_yield, military, mana, market.</div>
+
+      <div class="cl-section">Location System</div>
+      <div class="cl-item">✅ Kingdom locations must be discovered before interaction. Rankings shows all kingdoms — unfound show 🔍 badge, all attack/spy/cast buttons disabled until mapped.</div>
+      <div class="cl-item">✅ Discovery — ranger scout expeditions have 10–15% base chance of finding a kingdom. Race modifier: Dire Wolf ×1.40, Dark Elf ×1.30, Human ×1.00, Dwarf ×0.80. Ranger count adds up to +5%.</div>
+      <div class="cl-item">✅ Mapping — 10 scribes work for 5 turns to create a permanent location map (consumes 1 blank map). Multiple kingdoms can be mapped simultaneously if scribes available.</div>
+      <div class="cl-item">✅ Auto-store — attacking a kingdom or being caught on covert ops instantly stores their location as mapped.</div>
+      <div class="cl-item">✅ Map theft — new covert action: steal a location map from another kingdom. Success ~20–50% based on thieves. Target receives news event. Stolen kingdom becomes un-interactable until re-found.</div>
+      <div class="cl-item">✅ New DB columns: discovered_kingdoms (JSON per kingdom), location_maps_wip (JSON array of in-progress mappings)</div>
+
+      <div class="cl-section">Smithy Overhaul</div>
+      <div class="cl-item">✅ Hammers and scaffolding now purchased for gold — no more engineer allocation sliders. Hammers: 25 GC each. Scaffolding: 2,500 GC each.</div>
+      <div class="cl-item">✅ Input box defaults to max affordable quantity. Max button fills to max. Requires at least 1 smithy.</div>
+      <div class="cl-item">✅ Degradation mechanic preserved — hammers and scaffolding still wear out each turn.</div>
+
+      <div class="cl-section">UI & Bug Fixes</div>
+      <div class="cl-item">✅ Spells — when spellbook below 100: "🔮 Your mages need direction. STUDY!" instead of "undefined". Spell labels/descriptions guarded against undefined entries.</div>
+      <div class="cl-item">✅ Upgrade purchase — after buying an upgrade the button shows ✅ Purchased and disables. Next upgrade's Buy button only appears after manual Refresh click.</div>
+      <div class="cl-item">✅ Tavern count — bld_taverns added to bldMap in syncUI. Was always showing 0.</div>
+      <div class="cl-item">✅ Defence panel — kd-top (kingdom header + resource strip) now hidden on Defence panel, matching the other panels.</div>
+      <div class="cl-item">✅ Alliance panel — mobile layout fixed. Single column on mobile, two columns on desktop.</div>
+      <div class="cl-item">✅ Turns — increased to 400/day in 25-minute increments (+7 turns per regen cycle).</div>
 
       <div class="cl-section">Admin</div>
       <div class="cl-item">✅ Three-tab layout — ⚙️ Manage · 🏰 Kingdoms · 📋 Changelog</div>
@@ -774,10 +920,137 @@ function showAdminTab(id, btn) {
   document.querySelectorAll('.admin-tab').forEach(function(b){ b.classList.remove('active'); });
   document.getElementById('atab-'+id).style.display='block';
   if (btn) btn.classList.add('active');
+  if (id === 'events') { loadEventLog(); loadEventList(); }
+}
+
+// ── Admin Events ──────────────────────────────────────────────────────────────
+
+var allEventLogs = [];
+var allEventDefs = [];
+
+async function loadEventLog() {
+  var result = await api('GET', '/api/admin/events/log');
+  allEventLogs = Array.isArray(result) ? result : [];
+  renderEventLog(allEventLogs);
+}
+
+async function loadEventList() {
+  var result = await api('GET', '/api/admin/events/list');
+  allEventDefs = Array.isArray(result) ? result : [];
+  renderEventList(allEventDefs);
+}
+
+function filterEventLog() {
+  var q      = (document.getElementById('ev-log-search')?.value||'').toLowerCase();
+  var season = document.getElementById('ev-log-season')?.value || '';
+  var filtered = allEventLogs.filter(function(e) {
+    var matchQ = !q || e.kingdom_name.toLowerCase().includes(q) || e.event_name.toLowerCase().includes(q);
+    var matchS = !season || e.season === season;
+    return matchQ && matchS;
+  });
+  renderEventLog(filtered);
+}
+
+function renderEventLog(rows) {
+  var el = document.getElementById('ev-log-list');
+  if (!el) return;
+  if (!rows.length) { el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3)">No events found.</div>'; return; }
+  var SICONS = { spring:'🌸', summer:'☀️', fall:'🍂', winter:'❄️' };
+  el.innerHTML = rows.map(function(r) {
+    var ago = Math.floor((Date.now()/1000 - r.fired_at)/3600);
+    var agoStr = ago < 1 ? 'Just now' : ago < 24 ? ago+'h ago' : Math.floor(ago/24)+'d ago';
+    return '<div style="display:grid;grid-template-columns:140px 1fr 80px 80px;gap:4px;padding:8px 12px;border-bottom:1px solid var(--border);font-size:12px;align-items:center">'
+      + '<span style="color:var(--text);font-weight:600">' + escHtml(r.kingdom_name) + '</span>'
+      + '<span style="color:var(--text2)">' + escHtml(r.event_name) + '</span>'
+      + '<span style="color:var(--text3)">' + (SICONS[r.season]||'') + ' ' + r.season + '</span>'
+      + '<span style="color:var(--text3)">' + agoStr + '</span>'
+      + '</div>';
+  }).join('');
+}
+
+function renderEventList(events) {
+  var el = document.getElementById('ev-list');
+  if (!el) return;
+  if (!events.length) { el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3)">No events.</div>'; return; }
+  var SICONS = { spring:'🌸', summer:'☀️', fall:'🍂', winter:'❄️', all:'🌍' };
+  el.innerHTML = events.map(function(e) {
+    return '<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border);font-size:12px">'
+      + '<div style="flex:1">'
+      + '<div style="font-weight:600;color:' + (e.is_positive?'var(--green)':'var(--red)') + '">' + (SICONS[e.season]||'') + ' ' + escHtml(e.name) + '</div>'
+      + '<div style="color:var(--text3);font-size:11px">' + escHtml(e.key) + ' · ' + e.effect_type + ' ' + e.effect_value + (e.race_only?' · '+e.race_only:'') + '</div>'
+      + '</div>'
+      + '<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:' + (e.is_active?'rgba(76,175,130,.15)':'rgba(224,92,92,.15)') + ';color:' + (e.is_active?'var(--green)':'var(--red)') + '">' + (e.is_active?'Active':'Off') + '</span>'
+      + '<button class="btn" style="font-size:10px;padding:3px 8px" onclick="editEvent(' + JSON.stringify(e).replace(/"/g,"'") + ')">Edit</button>'
+      + '<button class="btn btn-red" style="font-size:10px;padding:3px 8px" onclick="deleteEvent(' + e.id + ',\'' + escHtml(e.name) + '\')">Del</button>'
+      + '</div>';
+  }).join('');
+}
+
+function editEvent(e) {
+  document.getElementById('ev-id').value    = e.id || '';
+  document.getElementById('ev-key').value   = e.key || '';
+  document.getElementById('ev-name').value  = e.name || '';
+  document.getElementById('ev-desc').value  = e.description || '';
+  document.getElementById('ev-season').value = e.season || 'all';
+  document.getElementById('ev-effect-type').value     = e.effect_type || 'morale';
+  document.getElementById('ev-effect-value').value    = e.effect_value ?? 5;
+  document.getElementById('ev-effect-duration').value = e.effect_duration ?? 1;
+  document.getElementById('ev-race-only').value = e.race_only || '';
+  document.getElementById('ev-active').checked   = !!e.is_active;
+  document.getElementById('ev-positive').checked = !!e.is_positive;
+  document.getElementById('ev-edit-title').textContent = 'Editing: ' + e.name;
+}
+
+function clearEventForm() {
+  ['ev-id','ev-key','ev-name','ev-desc'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('ev-season').value='all';
+  document.getElementById('ev-effect-type').value='morale';
+  document.getElementById('ev-effect-value').value='5';
+  document.getElementById('ev-effect-duration').value='1';
+  document.getElementById('ev-race-only').value='';
+  document.getElementById('ev-active').checked=true;
+  document.getElementById('ev-positive').checked=true;
+  document.getElementById('ev-edit-title').textContent='New event';
+}
+
+async function saveEvent() {
+  var id       = document.getElementById('ev-id').value;
+  var payload  = {
+    key:              document.getElementById('ev-key').value.trim().replace(/\s+/g,'_'),
+    name:             document.getElementById('ev-name').value.trim(),
+    description:      document.getElementById('ev-desc').value.trim(),
+    season:           document.getElementById('ev-season').value,
+    effect_type:      document.getElementById('ev-effect-type').value,
+    effect_value:     parseFloat(document.getElementById('ev-effect-value').value)||0,
+    effect_duration:  parseInt(document.getElementById('ev-effect-duration').value)||1,
+    race_only:        document.getElementById('ev-race-only').value || null,
+    is_active:        document.getElementById('ev-active').checked ? 1 : 0,
+    is_positive:      document.getElementById('ev-positive').checked ? 1 : 0,
+  };
+  if (!payload.key || !payload.name) return toast('Key and name are required','error');
+  var endpoint = id ? '/api/admin/events/update' : '/api/admin/events/create';
+  if (id) payload.id = id;
+  var result = await api('POST', endpoint, payload);
+  if (result.error) return toast(result.error,'error');
+  toast(id ? 'Event updated' : 'Event created','success');
+  clearEventForm();
+  loadEventList();
+}
+
+async function deleteEvent(id, name) {
+  if (!confirm('Delete event "'+name+'"?')) return;
+  var result = await api('POST','/api/admin/events/delete',{id});
+  if (result.error) return toast(result.error,'error');
+  toast('Event deleted','success');
+  loadEventList();
+}
+
+function escHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 function saveAdminNotes() {
-  var notes = document.getElementById('admin-notes').value;
   localStorage.setItem('narmir_admin_notes', notes);
   toast('Notes saved', 'success');
 }

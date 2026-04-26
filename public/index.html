@@ -52,7 +52,8 @@
   body.panel-training #kd-top,
   body.panel-alliances #kd-top,
   body.panel-hire #kd-top,
-  body.panel-globalchat #kd-top { display: none; }
+  body.panel-globalchat #kd-top,
+  body.panel-defence #kd-top { display: none; }
   body.panel-warfare .main,
   body.panel-news .main,
   body.panel-rankings .main,
@@ -306,7 +307,8 @@
     #toast.show { transform: translateY(0); }
     #attack > div, #spells > div, #covert > div { grid-template-columns: 1fr 320px !important; }
     #spells > div { grid-template-columns: 1fr 340px !important; }
-    #alliances > div { grid-template-columns: 1fr 300px !important; }
+    #alliances > div { grid-template-columns: 1fr; }
+    @media (min-width:900px) { #alliances > div { grid-template-columns: 1fr 300px !important; } }
     /* Right action panel stays at top while target list scrolls */
     #attack > div > div:last-child,
     #spells > div > div:last-child,
@@ -382,7 +384,11 @@
     <div class="kingdom-header" style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
       <div>
         <h1 style="font-size:26px;font-weight:700;color:var(--text);line-height:1.2" id="kingdom-name">—</h1>
-        <div style="color:var(--text2);font-size:13px;margin-top:4px"><span id="kingdom-owner-line">—</span> · Turn <span id="turn-num" style="color:var(--text);font-weight:600">0</span> · <span id="protection-badge" class="badge badge-green" style="display:none">🛡️ Protected</span></div>
+        <div style="color:var(--text2);font-size:13px;margin-top:4px">
+          <span id="kingdom-owner-line">—</span> · Turn <span id="turn-num" style="color:var(--text);font-weight:600">0</span> ·
+          <span id="season-badge" style="font-size:12px;color:var(--text3)">🌸 Spring</span>
+          <span id="protection-badge" class="badge badge-green" style="display:none">🛡️ Protected</span>
+        </div>
         <div style="margin-top:6px"><span class="race-tag" id="race-tag-display" onclick="openRaceLore()" style="cursor:pointer" title="Click for race lore">—</span></div>
         <div style="margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
           <span style="font-size:13px;color:var(--text3);cursor:pointer" onclick="showXpModal()" title="Click for XP breakdown">Level <span id="kingdom-level" style="color:var(--gold);font-weight:700;font-size:16px;text-decoration:underline dotted;text-underline-offset:3px">1</span> <span style="font-size:10px;color:var(--text3)">ⓘ</span></span>
@@ -1219,27 +1225,30 @@
           </div>
         </div>
 
-        <!-- Smithy allocation -->
+        <!-- Smithy gold purchase -->
         <div style="background:var(--bg4);border-radius:var(--radius);padding:12px;margin-bottom:12px">
-          <div style="font-size:12px;color:var(--text2);font-weight:600;margin-bottom:10px">Smithy production allocation <span style="color:var(--text3);font-weight:400">— engineers assigned per smithy per turn</span></div>
+          <div style="font-size:12px;color:var(--text2);font-weight:600;margin-bottom:10px">Purchase tools <span style="color:var(--text3);font-weight:400">— instant gold purchase · requires at least 1 smithy</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div>
-              <div style="font-size:12px;color:var(--text3);margin-bottom:4px">🔨 Hammers (1 turn each · free)</div>
-              <div style="display:flex;align-items:center;gap:8px">
-                <input type="range" id="smithy-hammer-alloc" min="0" max="1" step="1" value="0" oninput="updateSmithyDisplay()" style="flex:1">
-                <span id="smithy-hammer-val" style="color:var(--gold);font-weight:600;min-width:20px">0</span>
+              <div style="font-size:12px;color:var(--text3);margin-bottom:6px">🔨 Hammers — <strong style="color:var(--gold)">25 GC each</strong></div>
+              <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Stored: <span id="smith-hammers-stored" style="color:var(--text)">0</span> / <span id="smith-hammers-cap">0</span> · Max afford: <span id="smith-hammers-afford" style="color:var(--gold)">0</span></div>
+              <div style="display:flex;gap:6px">
+                <input type="number" id="smith-buy-hammers" min="1" value="0" style="flex:1" placeholder="qty">
+                <button class="btn btn-gold" onclick="buySmithyTool('hammers')" style="font-size:12px;padding:6px 12px">Buy</button>
+                <button class="btn" onclick="setSmithyMax('hammers')" style="font-size:11px;padding:6px 8px">Max</button>
               </div>
             </div>
             <div>
-              <div style="font-size:12px;color:var(--text3);margin-bottom:4px">🏗️ Scaffolding (1 turn · 2,500 GC each)</div>
-              <div style="display:flex;align-items:center;gap:8px">
-                <input type="range" id="smithy-scaffold-alloc" min="0" max="1" step="1" value="0" oninput="updateSmithyDisplay()" style="flex:1">
-                <span id="smithy-scaffold-val" style="color:var(--gold);font-weight:600;min-width:20px">0</span>
+              <div style="font-size:12px;color:var(--text3);margin-bottom:6px">🏗️ Scaffolding — <strong style="color:var(--gold)">2,500 GC each</strong></div>
+              <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Stored: <span id="smith-scaffolding-stored" style="color:var(--text)">0</span> / <span id="smith-scaffolding-cap">0</span> · Max afford: <span id="smith-scaffolding-afford" style="color:var(--gold)">0</span></div>
+              <div style="display:flex;gap:6px">
+                <input type="number" id="smith-buy-scaffolding" min="1" value="0" style="flex:1" placeholder="qty">
+                <button class="btn btn-gold" onclick="buySmithyTool('scaffolding')" style="font-size:12px;padding:6px 12px">Buy</button>
+                <button class="btn" onclick="setSmithyMax('scaffolding')" style="font-size:11px;padding:6px 8px">Max</button>
               </div>
             </div>
           </div>
           <div style="font-size:11px;color:var(--text3);margin-top:8px" id="smithy-alloc-note"></div>
-          <button class="btn btn-amber" style="width:100%;margin-top:10px" onclick="saveSmithyAllocation()">Save production allocation</button>
         </div>
       </div>
     </div>
@@ -2896,13 +2905,16 @@ function renderSpells() {
 
   if (sb < 100) {
     el.innerHTML = '<div style="font-size:13px;color:var(--text3);padding:12px 0">'
-      + 'Spellbook too low (' + sb + '). Research Spellbook to 100 to unlock Tier I spells.</div>';
+      + '🔮 Your mages need direction. STUDY! (Spellbook at ' + sb + ' — research to 100 to unlock Tier I spells.)</div>';
     return;
   }
 
   var currentTier = 0;
   var html = '';
   SCROLL_DEFS.forEach(function(s) {
+    if (!s || !s.id) return; // guard against malformed entries
+    var label = s.label || s.name || s.id || '(unknown spell)';
+    var desc  = s.desc  || '';
     var unlocked = sb >= s.minSB;
     var scrollCount = scrolls[s.id] || 0;
     if (s.tier !== currentTier) {
@@ -2917,12 +2929,12 @@ function renderSpells() {
       : (unlocked ? '<span style="font-size:11px;color:var(--text3);margin-left:6px">no scrolls</span>' : '');
     html += '<div class="spell-card" id="sc-' + s.id + '" onclick="' + (unlocked ? 'selectSpell(\'' + s.id + '\')' : '') + '" style="opacity:' + opacity + ';' + (!unlocked ? 'cursor:default' : '') + '">'
       + '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">'
-      + '<span style="font-weight:600;color:var(--text)">' + s.label + '</span>'
+      + '<span style="font-weight:600;color:var(--text)">' + escHtml(label) + '</span>'
       + '<span style="font-size:11px;color:var(--text3)">SB ' + s.minSB + ' · ' + s.mages + ' mages · ' + s.turns + ' turns to craft</span>'
       + scrollBadge
       + (unlocked ? '' : '<span style="font-size:10px;color:var(--amber);margin-left:auto">🔒 locked</span>')
       + '</div>'
-      + '<div style="font-size:12px;color:var(--text2)">' + (s.desc || '') + '</div>'
+      + '<div style="font-size:12px;color:var(--text2)">' + escHtml(desc) + '</div>'
       + '</div>';
   });
   if (currentTier > 0) html += '</div>';
@@ -3549,7 +3561,7 @@ function switchTab(id, btn) {
     loadAlliancePanel();
   }
   // Show/hide kingdom header and resource strip
-  var hideHeader = ['warfare','news','rankings','exploration','studies','training','alliances','hire','globalchat'];
+  var hideHeader = ['warfare','news','rankings','exploration','studies','training','alliances','hire','globalchat','defence'];
   hideHeader.forEach(function(p){ document.body.classList.remove('panel-'+p); });
   if (hideHeader.includes(id)) document.body.classList.add('panel-'+id);
 
@@ -3886,7 +3898,7 @@ function syncUI() {
     vaults:'bld_vaults', smithies:'bld_smithies', markets:'bld_markets',
     cathedrals:'bld_cathedrals', training:'bld_training', colosseums:'bld_colosseums',
     castles:'bld_castles', libraries:'bld_libraries', shrines:'bld_shrines', housing:'bld_housing',
-    walls:'bld_walls',
+    walls:'bld_walls', taverns:'bld_taverns',
     weapons_stockpile:'weapons_stockpile', armor_stockpile:'armor_stockpile',
     war_machines:'war_machines'
   };
@@ -4263,6 +4275,12 @@ async function loadKingdom() {
   if (taxSlider) { taxSlider.value = kingdom.tax || 42; updateTax(kingdom.tax || 42); }
 
   loadRankings();
+  // Load season
+  apiCall('GET', '/api/kingdom/season').then(function(s) {
+    if (!s || s.error) return;
+    var el = document.getElementById('season-badge');
+    if (el) el.textContent = (s.icon||'🌸') + ' ' + (s.season||'spring').charAt(0).toUpperCase()+(s.season||'spring').slice(1) + ' (' + s.daysLeft + 'd left)';
+  });
   loadNews();
   loadAllocationFromState();
   loadBuildAllocation();
@@ -5114,46 +5132,48 @@ async function saveResearchAllocation() {
 
 function updateSmithyDisplay() {
   var smithies = state.bld_smithies || 0;
-  var hv = parseInt(document.getElementById('smithy-hammer-alloc')?.value) || 0;
-  var sv = parseInt(document.getElementById('smithy-scaffold-alloc')?.value) || 0;
-  var hEl = document.getElementById('smithy-hammer-val');
-  var sEl = document.getElementById('smithy-scaffold-val');
-  if (hEl) hEl.textContent = hv;
-  if (sEl) sEl.textContent = sv;
-  var note = document.getElementById('smithy-alloc-note');
-  if (note) {
-    var smithiesNow = state.bld_smithies || 0;
-    if (smithiesNow === 0) {
-      note.textContent = 'You need at least 1 smithy to produce tools.';
-    } else {
-      var hSlider = document.getElementById('smithy-hammer-alloc');
-      var sSlider = document.getElementById('smithy-scaffold-alloc');
-      if (hSlider) hSlider.max = smithiesNow;
-      if (sSlider) sSlider.max = smithiesNow;
-      var hvN = parseInt(hSlider?.value) || 0;
-      var svN = parseInt(sSlider?.value) || 0;
-      if (hvN === 0 && svN === 0) {
-        note.textContent = smithiesNow + ' smithie' + (smithiesNow !== 1 ? 's' : '') + ' ready — set sliders above to produce tools.';
-      } else {
-        note.textContent = 'Will produce up to ' + hvN + ' hammer' + (hvN !== 1 ? 's' : '') + ' and ' + svN + ' scaffolding' + (svN > 0 ? ' (' + fmt(svN * 2500) + ' GC/turn)' : '') + ' per turn.';
-      }
-    }
+  var hammerCap = smithies * 25;
+  var scaffCap  = smithies * 10;
+  var hammers   = state.hammers_stored || 0;
+  var scaff     = state.scaffolding_stored || 0;
+  var gold      = state.gold || 0;
+  var maxH = Math.max(0, Math.min(hammerCap - hammers, Math.floor(gold / 25)));
+  var maxS = Math.max(0, Math.min(scaffCap  - scaff,  Math.floor(gold / 2500)));
+  var g = function(id){ return document.getElementById(id); };
+  if (g('smith-hammers-stored'))     g('smith-hammers-stored').textContent     = fmt(hammers);
+  if (g('smith-hammers-cap'))        g('smith-hammers-cap').textContent        = fmt(hammerCap);
+  if (g('smith-hammers-afford'))     g('smith-hammers-afford').textContent     = fmt(maxH);
+  if (g('smith-scaffolding-stored')) g('smith-scaffolding-stored').textContent = fmt(scaff);
+  if (g('smith-scaffolding-cap'))    g('smith-scaffolding-cap').textContent    = fmt(scaffCap);
+  if (g('smith-scaffolding-afford')) g('smith-scaffolding-afford').textContent = fmt(maxS);
+  var note = g('smithy-alloc-note');
+  if (note) note.textContent = smithies === 0 ? 'You need at least 1 smithy to purchase tools.' : '';
+}
+
+function setSmithyMax(type) {
+  var smithies = state.bld_smithies || 0;
+  var gold = state.gold || 0;
+  if (type === 'hammers') {
+    var max = Math.max(0, Math.min(smithies*25-(state.hammers_stored||0), Math.floor(gold/25)));
+    var el = document.getElementById('smith-buy-hammers'); if (el) el.value = max;
+  } else {
+    var max2 = Math.max(0, Math.min(smithies*10-(state.scaffolding_stored||0), Math.floor(gold/2500)));
+    var el2 = document.getElementById('smith-buy-scaffolding'); if (el2) el2.value = max2;
   }
 }
 
-async function forgeHammer() {
-  var smithies = state.bld_smithies || 0;
-  if (smithies === 0) return toast('You need at least 1 smithy', 'error');
-  var cap = smithies * 25;
-  if ((state.tools_hammers || 0) >= cap) return toast('Hammer storage full (' + cap + '/' + cap + ')', 'error');
-  var result = await apiCall('POST', '/api/kingdom/forge-tools', { toolType: 'hammers', quantity: 1 });
+async function buySmithyTool(type) {
+  var id = type === 'hammers' ? 'smith-buy-hammers' : 'smith-buy-scaffolding';
+  var amount = parseInt(document.getElementById(id)?.value) || 0;
+  if (amount <= 0) return toast('Enter a quantity', 'error');
+  var ep = type === 'hammers' ? '/api/kingdom/smithy/buy-hammers' : '/api/kingdom/smithy/buy-scaffolding';
+  var result = await apiCall('POST', ep, { amount });
   if (result.error) return toast(result.error, 'error');
-  if (result.updates) applyServerUpdates(result.updates);
-  if (result.turns_stored !== undefined) state.turns_stored = result.turns_stored;
-  if (result.events && result.events.length) appendNewsItems(result.events);
-  syncUI();
-  await loadActiveExpeditions();
-  toast('⚒️ 1 hammer forged', 'success');
+  if (result.hammers_stored    !== undefined) state.hammers_stored    = result.hammers_stored;
+  if (result.scaffolding_stored !== undefined) state.scaffolding_stored = result.scaffolding_stored;
+  if (result.gold !== undefined) state.gold = result.gold;
+  syncUI(); updateSmithyDisplay();
+  toast('Purchased ' + result.bought + ' ' + type + ' for ' + fmt(result.cost) + ' GC', 'success');
 }
 
 async function forgeScaffolding() {
@@ -5730,11 +5750,16 @@ function renderUpgrades(category, defs, owned, containerId) {
 async function buyUpgrade(category, key) {
   var result = await apiCall('POST', '/api/kingdom/economy/upgrade', { category, upgradeKey: key });
   if (result.error) return toast(result.error, 'error');
-  state.gold = (state.gold||0) - (result.updates?.gold !== undefined ? (state.gold - result.updates.gold) : 0);
   if (result.updates) applyServerUpdates(result.updates);
   syncUI();
-  toast('Upgrade purchased!', 'success');
-  loadEconomy();
+  toast('Upgrade purchased! Refresh the panel to see the next upgrade.', 'success');
+  // Mark the button as purchased without reloading the full panel
+  var btn = document.querySelector('[onclick="buyUpgrade(\'' + category + '\',\'' + key + '\')"]');
+  if (btn) {
+    btn.textContent = '✅ Purchased';
+    btn.disabled = true;
+    btn.style.opacity = '0.6';
+  }
 }
 
 function renderCommodityMarket(mktUpgrades) {
