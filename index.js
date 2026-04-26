@@ -351,7 +351,77 @@ async function aiAction(db, engine, ai) {
   }
 }
 
+const SEASON_ICONS = { spring:'🌸', summer:'☀️', fall:'🍂', winter:'❄️' };
+
+async function fireDailyEvent(db, k, season) {
+  const now = Math.floor(Date.now()/1000);
+  if ((now - (k.last_event_at||0)) < 86400) return null;
+  const allEvents = await db.all(`SELECT * FROM events WHERE is_active=1 AND (season=? OR season='all') ORDER BY RANDOM() LIMIT 10`, [season]);
+  if (!allEvents.length) return null;
+  const eligible = allEvents.filter(e => !e.race_only || e.race_only === k.race);
+  if (!eligible.length) return null;
+  const ev = eligible[Math.floor(Math.random()*eligible.length)];
+  const updates = { last_event_at: now };
+  let message = `${SEASON_ICONS[season]||''} ${ev.name}: ${ev.description}`;
+  const val = ev.effect_value, dur = ev.effect_duration;
+  switch (ev.effect_type) {
+    case 'morale':
+      updates.morale = Math.max(0, Math.min(200, (k.morale||100) + val));
+      message += val > 0 ? ` (+${val} morale)` : ` (${val} morale)`; break;
+    case 'gold': {
+      const d = Math.floor((k.gold||0) * Math.abs(val)) * (val>0?1:-1);
+      updates.gold = Math.max(0, (k.gold||0)+d);
+      message += d>0?` (+${d.toLocaleString()} gold)`:` (${d.toLocaleString()} gold)`; break; }
+    case 'food': {
+      const fd = Math.abs(val)<1 ? Math.floor((k.food||0)*Math.abs(val))*(val>0?1:-1) : Math.floor(val);
+      updates.food = Math.max(0, (k.food||0)+fd);
+      message += fd>0?` (+${fd.toLocaleString()} food)`:` (${fd.toLocaleString()} food)`; break; }
+    case 'population': {
+      const pd = Math.abs(val)<1 ? Math.floor((k.population||0)*Math.abs(val))*(val>0?1:-1) : Math.floor(val);
+      updates.population = Math.max(1000, (k.population||0)+pd);
+      message += pd>0?` (+${pd.toLocaleString()} pop)`:` (${pd.toLocaleString()} pop)`; break; }
+    case 'farm_yield': case 'military': case 'mana': case 'market': {
+      let active = {}; try { active=JSON.parse(k.active_event||'{}'); } catch {}
+      active[ev.effect_type] = { mult:1+val, turns_remaining:dur };
+      updates.active_event = JSON.stringify(active);
+      message += val>0?` (+${Math.round(val*100)}% for ${dur} turns)`:` (${Math.round(val*100)}% for ${dur} turns)`; break; }
+  }
+  await db.run(`INSERT INTO event_log (kingdom_id,kingdom_name,event_key,event_name,season,fired_at) VALUES (?,?,?,?,?,?)`,
+    [k.id, k.name, ev.key, ev.name, season, now]);
+  return { updates, message };
+}
+
 async function runRegen(db) {
+  // Update season first
+  const sRow = await db.get("SELECT value FROM server_state WHERE key='current_season'");
+  const tRow = await db.get("SELECT value FROM server_state WHERE key='season_started_at'");
+  let season = sRow?.value || 'spring';
+  const startedAt = parseInt(tRow?.value) || Math.floor(Date.now()/1000);
+  const daysSince = (Math.floor(Date.now()/1000) - startedAt) / 86400;
+  const SEASON_DUR = { spring:3, summer:5, fall:2, winter:3 };
+  if (daysSince >= (SEASON_DUR[season]||3)) {
+    const ORDER = ['spring','summer','fall','winter'];
+    season = ORDER[(ORDER.indexOf(season)+1)%ORDER.length];
+    await db.run("UPDATE server_state SET value=? WHERE key='current_season'", [season]);
+    await db.run("UPDATE server_state SET value=CAST(unixepoch() AS TEXT) WHERE key='season_started_at'");
+    console.log('[season] Changed to', season);
+  }
+
+  // Fire daily events for all kingdoms
+  const kingdoms = await db.all('SELECT * FROM kingdoms WHERE turn > 0');
+  for (const k of kingdoms) {
+    const result = await fireDailyEvent(db, k, season);
+    if (result) {
+      for (const [col, val] of Object.entries(result.updates)) {
+        if (['last_event_at','active_event','gold','food','morale','population'].includes(col)) {
+          await db.run(`UPDATE kingdoms SET ${col}=? WHERE id=?`, [val, k.id]);
+        }
+      }
+      await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)',
+        [k.id, 'system', result.message, k.turn]);
+    }
+  }
+
   await db.run(`
     UPDATE kingdoms
     SET turns_stored = MIN(?, turns_stored + ?)
@@ -360,8 +430,7 @@ async function runRegen(db) {
   await db.run(
     "UPDATE server_state SET value = CAST(unixepoch() AS TEXT) WHERE key = 'last_regen_at'"
   );
-  console.log('[turns] Regen complete — +' + REGEN_AMOUNT + ' turns to all kingdoms');
-  // Process AI turns after regen
+  console.log('[turns] Regen complete — +' + REGEN_AMOUNT + ' turns · season: ' + season);
   try { await processAiTurns(db); } catch(e) { console.error('[ai] turn error:', e.message); }
 }
 
