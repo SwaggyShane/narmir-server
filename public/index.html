@@ -1489,12 +1489,108 @@
 
   <!-- SPELLS TAB -->
   <div id="wtab-wspells" style="display:none">
-    <div id="warfare-spells-inject"></div>
+    <div id="wspell-map-warn" style="display:none;background:rgba(232,184,75,.08);border:1px solid var(--gold);border-radius:var(--radius);padding:10px 14px;font-size:13px;color:var(--gold);margin-bottom:12px">
+      🗺️ You need a <strong>map</strong> to cast spells on other kingdoms.
+    </div>
+    <div class="card" style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="font-size:13px;font-weight:600;color:var(--text)">Spellbook: <span id="wsp-sb">0</span> · Mana: <span id="wsp-mana">0</span></div>
+      </div>
+      <div id="wsp-spell-list" style="max-height:280px;overflow-y:auto"></div>
+    </div>
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title" style="margin-bottom:8px">Target kingdom</div>
+      <input type="text" id="wsp-target-search" placeholder="Search kingdoms..." style="width:100%;margin-bottom:8px" oninput="filterWspellTargets(this.value)">
+      <div id="wsp-target-list" style="max-height:240px;overflow-y:auto"></div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="margin-bottom:10px">Cast spell</div>
+      <div style="background:var(--bg3);border-radius:var(--radius);padding:10px 12px;margin-bottom:10px">
+        <div style="font-size:11px;color:var(--text3)">Selected spell</div>
+        <div id="wsp-cast-name" style="font-size:14px;font-weight:600;color:var(--purple)">— none selected —</div>
+        <div id="wsp-cast-desc" style="font-size:11px;color:var(--text2);margin-top:2px"></div>
+      </div>
+      <div style="background:var(--bg3);border-radius:var(--radius);padding:10px 12px;margin-bottom:10px">
+        <div style="font-size:11px;color:var(--text3)">Target</div>
+        <div id="wsp-cast-target" style="font-size:13px;font-weight:600;color:var(--text)">— none selected —</div>
+      </div>
+      <div style="margin-bottom:10px">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Obscure cast (+50% mana, hides identity)</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <input type="range" id="wsp-obscure" min="0" max="1" step="1" value="0" oninput="updateWspellCalc()">
+          <span id="wsp-obscure-val" style="font-size:12px;color:var(--text)">Off</span>
+        </div>
+      </div>
+      <div style="background:var(--bg4);border-radius:var(--radius);padding:10px 12px;margin-bottom:10px;font-size:12px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="color:var(--text3)">Scroll required</span><span id="wsp-scroll" style="color:var(--purple)">—</span></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="color:var(--text3)">Scrolls held</span><span id="wsp-scrolls-held">0</span></div>
+        <div style="display:flex;justify-content:space-between;font-weight:600"><span style="color:var(--text2)">Total mana cost</span><span id="wsp-total-mana" style="color:var(--gold)">—</span></div>
+      </div>
+      <button class="btn btn-purple" style="width:100%;padding:10px;font-size:14px" onclick="castWspell()">✨ Cast spell</button>
+    </div>
   </div>
 
   <!-- COVERT TAB -->
   <div id="wtab-wcovert" style="display:none">
-    <div id="warfare-covert-inject"></div>
+    <div id="wcov-map-warn" style="display:none;background:rgba(232,184,75,.08);border:1px solid var(--gold);border-radius:var(--radius);padding:10px 14px;font-size:13px;color:var(--gold);margin-bottom:12px">
+      🗺️ You need a <strong>map</strong> to perform covert operations.
+    </div>
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title" style="margin-bottom:8px">Select target</div>
+      <input type="text" id="wcov-search" placeholder="Search kingdoms..." style="width:100%;margin-bottom:8px" oninput="filterWcovTargets(this.value)">
+      <div id="wcov-target-list" style="max-height:280px;overflow-y:auto"></div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="margin-bottom:10px">Operation</div>
+      <div style="background:var(--bg3);border-radius:var(--radius);padding:10px 12px;margin-bottom:10px">
+        <div style="font-size:11px;color:var(--text3)">Target</div>
+        <div id="wcov-target-name" style="font-size:14px;font-weight:600;color:var(--text)">— none selected —</div>
+        <div id="wcov-target-info" style="font-size:11px;color:var(--text3);margin-top:2px"></div>
+      </div>
+      <!-- Spy -->
+      <div style="border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:8px">
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">🔍 Spy</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Sends thieves to gather intelligence. Requires: Thieves.</div>
+        <div class="trow"><span class="name" style="font-size:12px">Thieves</span><span style="font-size:12px;color:var(--amber)" id="wcov-thieves-count">0</span></div>
+        <button class="btn" style="width:100%;margin-top:8px" onclick="doWcovert('spy')">Send spies</button>
+      </div>
+      <!-- Loot -->
+      <div style="border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:8px">
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">💰 Loot</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Steal research, gold, weapons or food. Requires: Thieves.</div>
+        <select id="wcov-loot-type" style="width:100%;margin-bottom:8px">
+          <option value="gold">Gold</option>
+          <option value="research">Research</option>
+          <option value="weapons">Weapons</option>
+          <option value="food">Food</option>
+        </select>
+        <button class="btn btn-amber" style="width:100%" onclick="doWcovert('loot')">Send thieves</button>
+      </div>
+      <!-- Assassinate -->
+      <div style="border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:8px">
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">🗡️ Assassinate</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Silently eliminate enemy units. Requires: Ninjas.</div>
+        <select id="wcov-assass-type" style="width:100%;margin-bottom:8px">
+          <option value="fighters">Fighters</option>
+          <option value="engineers">Engineers</option>
+          <option value="researchers">Researchers</option>
+          <option value="mages">Mages</option>
+        </select>
+        <div class="trow"><span class="name" style="font-size:12px">Ninjas</span><span style="font-size:12px;color:var(--text)" id="wcov-ninjas-count">0</span></div>
+        <button class="btn btn-red" style="width:100%;margin-top:8px" onclick="doWcovert('assassinate')">Send ninjas</button>
+      </div>
+      <!-- Sabotage -->
+      <div style="border:1px solid var(--border);border-radius:var(--radius);padding:12px">
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">💣 Sabotage</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Destroy war machines or disable buildings.</div>
+        <select id="wcov-sab-type" style="width:100%;margin-bottom:8px">
+          <option value="war_machines">War machines</option>
+          <option value="farms">Farms</option>
+          <option value="markets">Markets</option>
+        </select>
+        <button class="btn btn-red" style="width:100%" onclick="doWcovert('sabotage')">Sabotage</button>
+      </div>
+    </div>
   </div>
 
 </div>
@@ -5065,16 +5161,8 @@ function showWarfareTab(id, btn) {
   document.querySelectorAll('#warfare .admin-tab').forEach(function(b){ b.classList.remove('active'); });
   document.getElementById('wtab-'+id).style.display='block';
   if (btn) btn.classList.add('active');
-  if (id === 'wspells') {
-    var el = document.getElementById('warfare-spells-inject');
-    var src = document.getElementById('spells');
-    if (el && src && !el.innerHTML.trim()) el.innerHTML = src.innerHTML;
-  }
-  if (id === 'wcovert') {
-    var el = document.getElementById('warfare-covert-inject');
-    var src = document.getElementById('covert');
-    if (el && src && !el.innerHTML.trim()) el.innerHTML = src.innerHTML;
-  }
+  if (id === 'wspells') initWspells();
+  if (id === 'wcovert') initWcovert();
 }
 
 async function loadWarfarePanel() {
@@ -5207,6 +5295,129 @@ async function launchAttackW() {
   loadWarfarePanel();
 }
 
+
+// ── Warfare Spells (mobile) ───────────────────────────────────────────────────
+
+var wSelectedSpell = null;
+var wSelectedSpellTarget = null;
+
+function initWspells() {
+  var el = document.getElementById('wsp-spell-list');
+  if (!el) return;
+  if (el.innerHTML.trim()) return;
+  var sbEl = document.getElementById('wsp-sb');
+  var mnEl = document.getElementById('wsp-mana');
+  if (sbEl) sbEl.textContent = fmt(state.scrolls||0);
+  if (mnEl) mnEl.textContent = fmt(state.mana||0);
+  if ((state.scrolls||0) === 0) {
+    el.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:12px 0">No scrolls — craft them in the Library.</div>';
+  } else {
+    var defs = typeof SCROLL_DEFS !== 'undefined' ? SCROLL_DEFS : [];
+    el.innerHTML = defs.map(function(sp) {
+      var spStr = encodeURIComponent(JSON.stringify(sp));
+      return '<div style="padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="selectWspell(JSON.parse(decodeURIComponent(\'' + spStr + '\')))">'
+        + '<div style="font-size:13px;font-weight:600;color:var(--purple)">' + escHtml(sp.name) + '</div>'
+        + '<div style="font-size:11px;color:var(--text3)">' + escHtml(sp.desc||'') + '</div>'
+        + '<div style="font-size:11px;color:var(--text3)">' + fmt(sp.manaCost||0) + ' mana' + (sp.scrollRequired?' · 1 scroll':'') + '</div>'
+        + '</div>';
+    }).join('');
+  }
+  renderTargets(targets, 'wsp-target-list', 'selectWspellTarget');
+  var warn = document.getElementById('wspell-map-warn');
+  if (warn) warn.style.display = (state.maps||0) < 1 ? 'block' : 'none';
+}
+
+function selectWspell(sp) {
+  wSelectedSpell = sp;
+  var nm = document.getElementById('wsp-cast-name');
+  var ds = document.getElementById('wsp-cast-desc');
+  if (nm) nm.textContent = sp.name;
+  if (ds) ds.textContent = sp.desc||'';
+  updateWspellCalc();
+}
+
+function selectWspellTarget(t) {
+  wSelectedSpellTarget = t;
+  var el = document.getElementById('wsp-cast-target');
+  if (el) el.textContent = t.name + ' · ' + fmt(t.land) + ' ac';
+  updateWspellCalc();
+}
+
+function filterWspellTargets(val) {
+  document.querySelectorAll('#wsp-target-list .t-row').forEach(function(el) {
+    el.style.display = el.textContent.toLowerCase().includes(val.toLowerCase()) ? '' : 'none';
+  });
+}
+
+function updateWspellCalc() {
+  if (!wSelectedSpell) return;
+  var obscure = parseInt(document.getElementById('wsp-obscure')?.value||0);
+  var obscEl  = document.getElementById('wsp-obscure-val');
+  if (obscEl) obscEl.textContent = obscure ? 'On' : 'Off';
+  var base  = wSelectedSpell.manaCost || 0;
+  var total = obscure ? Math.ceil(base * 1.5) : base;
+  var tmEl  = document.getElementById('wsp-total-mana');
+  var scEl  = document.getElementById('wsp-scroll');
+  var shEl  = document.getElementById('wsp-scrolls-held');
+  if (scEl) scEl.textContent = wSelectedSpell.scrollRequired ? '1 required' : 'None';
+  if (shEl) shEl.textContent = fmt(state.scrolls||0);
+  if (tmEl) { tmEl.textContent = fmt(total); tmEl.style.color = (state.mana||0) >= total ? 'var(--green)' : 'var(--red)'; }
+}
+
+async function castWspell() {
+  if (!wSelectedSpell) return toast('Select a spell', 'error');
+  var obscure = parseInt(document.getElementById('wsp-obscure')?.value||0);
+  var result = await apiCall('POST', '/api/kingdom/cast-spell', {
+    spellKey: wSelectedSpell.key, targetId: wSelectedSpellTarget?.id||null, obscure: !!obscure
+  });
+  if (result.error) return toast(result.error, 'error');
+  applyServerUpdates(result.updates||{});
+  syncUI();
+  toast(wSelectedSpell.name + ' cast!', 'success');
+  wSelectedSpell = null;
+  var el = document.getElementById('wsp-spell-list'); if (el) el.innerHTML = '';
+  initWspells();
+}
+
+// ── Warfare Covert (mobile) ───────────────────────────────────────────────────
+
+var wSelectedCovertTarget = null;
+
+function initWcovert() {
+  renderTargets(targets, 'wcov-target-list', 'selectWcovTarget');
+  var warn = document.getElementById('wcov-map-warn');
+  if (warn) warn.style.display = (state.maps||0) < 1 ? 'block' : 'none';
+  var tc = document.getElementById('wcov-thieves-count'); if (tc) tc.textContent = fmt(state.thieves||0);
+  var nc = document.getElementById('wcov-ninjas-count');  if (nc) nc.textContent = fmt(state.ninjas||0);
+}
+
+function selectWcovTarget(t) {
+  wSelectedCovertTarget = t;
+  var nm  = document.getElementById('wcov-target-name');
+  var inf = document.getElementById('wcov-target-info');
+  if (nm)  nm.textContent  = t.name;
+  if (inf) inf.textContent = (t.race||'').replace(/_/g,' ') + ' · ' + fmt(t.land) + ' ac · Rank #' + (t.rank||'?');
+}
+
+function filterWcovTargets(val) {
+  document.querySelectorAll('#wcov-target-list .t-row').forEach(function(el) {
+    el.style.display = el.textContent.toLowerCase().includes(val.toLowerCase()) ? '' : 'none';
+  });
+}
+
+async function doWcovert(type) {
+  if (!wSelectedCovertTarget) return toast('Select a target kingdom', 'error');
+  var payload = { targetId: wSelectedCovertTarget.id, action: type };
+  if (type === 'loot')        payload.lootType     = document.getElementById('wcov-loot-type')?.value;
+  if (type === 'assassinate') payload.unitType      = document.getElementById('wcov-assass-type')?.value;
+  if (type === 'sabotage')    payload.sabotageType  = document.getElementById('wcov-sab-type')?.value;
+  var result = await apiCall('POST', '/api/kingdom/covert', payload);
+  if (result.error) return toast(result.error, 'error');
+  applyServerUpdates(result.updates||{});
+  syncUI();
+  toast(type.charAt(0).toUpperCase()+type.slice(1) + ' operation complete', result.success?'success':'error');
+  loadWarfarePanel();
+}
 
 var WALL_UPGRADES_JS = {
   reinforced:     { name:'Reinforced Walls',  cost:10000,  desc:'+25% wall strength, −10% land lost per attack', requires:null           },
