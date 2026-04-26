@@ -309,6 +309,15 @@
     #spells > div { grid-template-columns: 1fr 340px !important; }
     #alliances > div { grid-template-columns: 1fr; }
     @media (min-width:900px) { #alliances > div { grid-template-columns: 1fr 300px !important; } }
+    /* Studies, Defence, Economy inner grids — single column on mobile */
+    #studies [style*="grid-template-columns:1fr 1fr"],
+    #defence [style*="grid-template-columns:1fr 1fr"],
+    #economy [style*="grid-template-columns:1fr 1fr"] { grid-template-columns:1fr !important; }
+    @media (min-width:600px) {
+      #studies [style*="grid-template-columns:1fr 1fr"],
+      #defence [style*="grid-template-columns:1fr 1fr"],
+      #economy [style*="grid-template-columns:1fr 1fr"] { grid-template-columns:1fr 1fr !important; }
+    }
     /* Right action panel stays at top while target list scrolls */
     #attack > div > div:last-child,
     #spells > div > div:last-child,
@@ -439,6 +448,13 @@
         <div class="val" id="m-food">0</div>
         <div class="sub"><span id="m-farms">0</span> farms · <span id="m-food-balance" style="font-weight:600">+0</span>/turn</div>
       </div>
+    </div>
+    <!-- Tax rate strip -->
+    <div style="display:flex;align-items:center;gap:16px;padding:6px 0 2px;font-size:12px;color:var(--text3);border-top:1px solid var(--border)">
+      <span>Tax: <strong id="strip-tax" style="color:var(--gold)">40%</strong></span>
+      <span>Income: <strong id="strip-income" style="color:var(--green)">+0/turn</strong></span>
+      <span>Upkeep: <strong id="strip-upkeep" style="color:var(--red)">-0/turn</strong></span>
+      <span>Net: <strong id="strip-net" style="color:var(--text)">0/turn</strong></span>
     </div>
     </div><!-- end kd-top -->
 
@@ -582,78 +598,86 @@
     <!-- HIRE -->
     <div id="hire" class="panel">
       <div class="card">
-        <div class="card-title">Hire units — 250 GC each · Population: <span id="hire-pop">50,000</span></div>
+        <div class="card-title">Hire units · Population: <span id="hire-pop">50,000</span></div>
         <div style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.8">
-          Barracks capacity: <span id="hire-barracks-cap" style="color:var(--gold)">0</span> troops (<span id="hire-barracks-used" style="color:var(--text2)">0</span> used) &nbsp;·&nbsp;
-          School capacity: <span id="hire-school-cap" style="color:var(--gold)">0</span> researchers (<span id="hire-school-used" style="color:var(--text2)">0</span> used) &nbsp;·&nbsp;
-          Smithy capacity: <span id="hire-smithy-cap" style="color:var(--gold)">0</span> engineers (<span id="hire-smithy-used" style="color:var(--text2)">0</span> used) &nbsp;·&nbsp;
-          Library capacity: <span id="hire-library-cap" style="color:var(--gold)">0</span> scribes (<span id="hire-library-used" style="color:var(--text2)">0</span> used)
+          Barracks: <span id="hire-barracks-cap" style="color:var(--gold)">0</span> cap (<span id="hire-barracks-used" style="color:var(--text2)">0</span> used) ·
+          Schools: <span id="hire-school-cap" style="color:var(--gold)">0</span> cap (<span id="hire-school-used" style="color:var(--text2)">0</span> used) ·
+          Smithies: <span id="hire-smithy-cap" style="color:var(--gold)">0</span> cap (<span id="hire-smithy-used" style="color:var(--text2)">0</span> used) ·
+          Libraries: <span id="hire-library-cap" style="color:var(--gold)">0</span> cap (<span id="hire-library-used" style="color:var(--text2)">0</span> used)
         </div>
-        <div class="trow">
-          <span class="name">Fighters</span><span class="desc">Main attack &amp; defense force</span>
-          <span class="count" id="h-fighters">0</span>
-          <input type="number" id="hire-fighters" min="0" value="0" placeholder="0">
-          <button class="btn btn-gold" onclick="hire('fighters')">Hire</button>
-          <button class="btn btn-red" onclick="fire('fighters')">Fire</button>
+
+        <!-- Header row -->
+        <div style="display:grid;grid-template-columns:1fr 80px 80px 80px;gap:4px 8px;padding:4px 0 8px;border-bottom:1px solid var(--border2);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">
+          <span>Unit</span><span style="text-align:right">Count</span><span style="text-align:center">Price</span><span style="text-align:right">Qty</span>
         </div>
-        <div class="trow">
-          <span class="name">Rangers</span><span class="desc">Search for land, gold &amp; targets</span>
-          <span class="count" id="h-rangers">0</span>
-          <input type="number" id="hire-rangers" min="0" value="0" placeholder="0">
-          <button class="btn btn-gold" onclick="hire('rangers')">Hire</button>
-          <button class="btn btn-red" onclick="fire('rangers')">Fire</button>
+
+        <!-- Unit rows -->
+        <style>
+          .hire-row { display:grid; grid-template-columns:1fr 80px 80px 80px; gap:4px 8px; padding:8px 0; border-bottom:1px solid var(--border); align-items:start; }
+          .hire-row .hname { font-size:13px; color:var(--text); font-weight:600; }
+          .hire-row .hdesc { font-size:11px; color:var(--text3); }
+          .hire-row .hcount { font-size:13px; font-weight:600; text-align:right; color:var(--text); padding-top:2px; }
+          .hire-row .hprice { font-size:12px; text-align:center; color:var(--gold); padding-top:2px; }
+          .hire-row .hbtns { display:flex; flex-direction:column; gap:4px; align-items:flex-end; }
+          .hire-row input { width:100%; font-size:12px; }
+        </style>
+
+        <div class="hire-row">
+          <div><div class="hname">⚔️ Fighters</div><div class="hdesc">Combat · defence</div></div>
+          <div class="hcount" id="h-fighters">0</div>
+          <div class="hprice" id="hp-fighters">250 GC</div>
+          <div class="hbtns"><input type="number" id="hire-fighters" min="0" value="0" placeholder="0"><div style="display:flex;gap:4px;justify-content:flex-end"><button class="btn btn-gold" style="font-size:10px;padding:3px 8px" onclick="hire('fighters')">Hire</button><button class="btn btn-red" style="font-size:10px;padding:3px 8px" onclick="fire('fighters')">Fire</button></div></div>
         </div>
-        <div class="trow">
-          <span class="name">Clerics</span><span class="desc">Battlefield medics &amp; fighters</span>
-          <span class="count" id="h-clerics">0</span>
-          <input type="number" id="hire-clerics" min="0" value="0" placeholder="0">
-          <button class="btn btn-gold" onclick="hire('clerics')">Hire</button>
-          <button class="btn btn-red" onclick="fire('clerics')">Fire</button>
+        <div class="hire-row">
+          <div><div class="hname">🏹 Rangers</div><div class="hdesc">Scout · ranged · explore</div></div>
+          <div class="hcount" id="h-rangers">0</div>
+          <div class="hprice" id="hp-rangers">250 GC</div>
+          <div class="hbtns"><input type="number" id="hire-rangers" min="0" value="0" placeholder="0"><div style="display:flex;gap:4px;justify-content:flex-end"><button class="btn btn-gold" style="font-size:10px;padding:3px 8px" onclick="hire('rangers')">Hire</button><button class="btn btn-red" style="font-size:10px;padding:3px 8px" onclick="fire('rangers')">Fire</button></div></div>
         </div>
-        <div class="trow">
-          <span class="name">Mages</span><span class="desc">Attack magic, absorbs enemy spells</span>
-          <span class="count" id="h-mages">0</span>
-          <input type="number" id="hire-mages" min="0" value="0" placeholder="0">
-          <button class="btn btn-gold" onclick="hire('mages')">Hire</button>
-          <button class="btn btn-red" onclick="fire('mages')">Fire</button>
+        <div class="hire-row">
+          <div><div class="hname">💚 Clerics</div><div class="hdesc">Heal · morale aura · shrine</div></div>
+          <div class="hcount" id="h-clerics">0</div>
+          <div class="hprice" id="hp-clerics">250 GC</div>
+          <div class="hbtns"><input type="number" id="hire-clerics" min="0" value="0" placeholder="0"><div style="display:flex;gap:4px;justify-content:flex-end"><button class="btn btn-gold" style="font-size:10px;padding:3px 8px" onclick="hire('clerics')">Hire</button><button class="btn btn-red" style="font-size:10px;padding:3px 8px" onclick="fire('clerics')">Fire</button></div></div>
         </div>
-        <div class="trow">
-          <span class="name">Thieves</span><span class="desc">Loot research, gold &amp; machines</span>
-          <span class="count" id="h-thieves">0</span>
-          <input type="number" id="hire-thieves" min="0" value="0" placeholder="0">
-          <button class="btn btn-gold" onclick="hire('thieves')">Hire</button>
-          <button class="btn btn-red" onclick="fire('thieves')">Fire</button>
+        <div class="hire-row">
+          <div><div class="hname">✨ Mages</div><div class="hdesc">Spells · tower · library</div></div>
+          <div class="hcount" id="h-mages">0</div>
+          <div class="hprice" id="hp-mages">250 GC</div>
+          <div class="hbtns"><input type="number" id="hire-mages" min="0" value="0" placeholder="0"><div style="display:flex;gap:4px;justify-content:flex-end"><button class="btn btn-gold" style="font-size:10px;padding:3px 8px" onclick="hire('mages')">Hire</button><button class="btn btn-red" style="font-size:10px;padding:3px 8px" onclick="fire('mages')">Fire</button></div></div>
         </div>
-        <div class="trow">
-          <span class="name">Ninjas</span><span class="desc">Assassinate units &amp; sabotage</span>
-          <span class="count" id="h-ninjas">0</span>
-          <input type="number" id="hire-ninjas" min="0" value="0" placeholder="0">
-          <button class="btn btn-gold" onclick="hire('ninjas')">Hire</button>
-          <button class="btn btn-red" onclick="fire('ninjas')">Fire</button>
+        <div class="hire-row">
+          <div><div class="hname">🗝️ Thieves</div><div class="hdesc">Covert ops · loot · spy</div></div>
+          <div class="hcount" id="h-thieves">0</div>
+          <div class="hprice" id="hp-thieves">250 GC</div>
+          <div class="hbtns"><input type="number" id="hire-thieves" min="0" value="0" placeholder="0"><div style="display:flex;gap:4px;justify-content:flex-end"><button class="btn btn-gold" style="font-size:10px;padding:3px 8px" onclick="hire('thieves')">Hire</button><button class="btn btn-red" style="font-size:10px;padding:3px 8px" onclick="fire('thieves')">Fire</button></div></div>
         </div>
-        <div class="trow">
-          <span class="name">Researchers</span><span class="desc">Study all disciplines (max 1M)</span>
-          <span class="count" id="h-researchers">500</span>
-          <input type="number" id="hire-researchers" min="0" value="0" placeholder="0">
-          <button class="btn btn-gold" onclick="hire('researchers')">Hire</button>
-          <button class="btn btn-red" onclick="fire('researchers')">Fire</button>
+        <div class="hire-row">
+          <div><div class="hname">🕵️ Ninjas</div><div class="hdesc">Assassinate · sabotage</div></div>
+          <div class="hcount" id="h-ninjas">0</div>
+          <div class="hprice" id="hp-ninjas">250 GC</div>
+          <div class="hbtns"><input type="number" id="hire-ninjas" min="0" value="0" placeholder="0"><div style="display:flex;gap:4px;justify-content:flex-end"><button class="btn btn-gold" style="font-size:10px;padding:3px 8px" onclick="hire('ninjas')">Hire</button><button class="btn btn-red" style="font-size:10px;padding:3px 8px" onclick="fire('ninjas')">Fire</button></div></div>
         </div>
-        <div class="trow">
-          <span class="name">Scribes</span><span class="desc">Craft maps &amp; blueprints in the library</span>
-          <span class="count" id="h-scribes">0</span>
-          <input type="number" id="hire-scribes" min="0" value="0" placeholder="0">
-          <button class="btn btn-gold" onclick="hire('scribes')">Hire</button>
-          <button class="btn btn-red" onclick="fire('scribes')">Fire</button>
+        <div class="hire-row">
+          <div><div class="hname">📚 Researchers</div><div class="hdesc">Advance disciplines · school</div></div>
+          <div class="hcount" id="h-researchers">0</div>
+          <div class="hprice" id="hp-researchers">250 GC</div>
+          <div class="hbtns"><input type="number" id="hire-researchers" min="0" value="0" placeholder="0"><div style="display:flex;gap:4px;justify-content:flex-end"><button class="btn btn-gold" style="font-size:10px;padding:3px 8px" onclick="hire('researchers')">Hire</button><button class="btn btn-red" style="font-size:10px;padding:3px 8px" onclick="fire('researchers')">Fire</button></div></div>
         </div>
-        <div class="trow">
-          <span class="name">Engineers</span><span class="desc">Construct buildings &amp; operate war machines</span>
-          <span class="count" id="h-engineers">0</span>
-          <input type="number" id="hire-engineers" min="0" value="0" placeholder="0">
-          <button class="btn btn-gold" onclick="hire('engineers')">Hire</button>
-          <button class="btn btn-red" onclick="fire('engineers')">Fire</button>
+        <div class="hire-row">
+          <div><div class="hname">📜 Scribes</div><div class="hdesc">Maps · blueprints · library</div></div>
+          <div class="hcount" id="h-scribes">0</div>
+          <div class="hprice" id="hp-scribes">250 GC</div>
+          <div class="hbtns"><input type="number" id="hire-scribes" min="0" value="0" placeholder="0"><div style="display:flex;gap:4px;justify-content:flex-end"><button class="btn btn-gold" style="font-size:10px;padding:3px 8px" onclick="hire('scribes')">Hire</button><button class="btn btn-red" style="font-size:10px;padding:3px 8px" onclick="fire('scribes')">Fire</button></div></div>
+        </div>
+        <div class="hire-row" style="border-bottom:none">
+          <div><div class="hname">⚙️ Engineers</div><div class="hdesc">Build · war machines · smithy</div></div>
+          <div class="hcount" id="h-engineers">0</div>
+          <div class="hprice" id="hp-engineers">250 GC</div>
+          <div class="hbtns"><input type="number" id="hire-engineers" min="0" value="0" placeholder="0"><div style="display:flex;gap:4px;justify-content:flex-end"><button class="btn btn-gold" style="font-size:10px;padding:3px 8px" onclick="hire('engineers')">Hire</button><button class="btn btn-red" style="font-size:10px;padding:3px 8px" onclick="fire('engineers')">Fire</button></div></div>
         </div>
       </div>
-      <div style="font-size:12px;color:var(--text3);padding:0 4px">Hired units are subtracted from the population pool. Population returns over time based on morale and entertainment. Dismiss units here to return them.</div>
+      <div style="font-size:12px;color:var(--text3);padding:0 4px">Hired units are subtracted from the population pool. Population returns over time based on morale and entertainment.</div>
     </div>
 
     <!-- RESEARCH -->
@@ -748,6 +772,12 @@
             <div class="trow"><span class="name">Clerics in shrine</span><span class="count" id="st-clerics-shrine">0</span></div>
             <div class="trow"><span class="name">Morale gain/turn</span><span class="count" id="st-morale-gain" style="color:var(--green)">0</span></div>
             <div class="trow"><span class="name">Divine Sanctuary</span><span class="count" id="st-sanctuary">—</span></div>
+            <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+              <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px">Cleric allocation</div>
+              <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Available: <span id="st-clerics-avail" style="color:var(--text)">0</span> · Cap: <span id="st-shrine-cap" style="color:var(--gold)">0</span></div>
+              <input type="number" id="st-shrine-clerics" min="0" value="0" style="width:100%;margin-bottom:6px" placeholder="Clerics to assign">
+              <button class="btn btn-green" style="width:100%" onclick="saveStudiesShrineClerics()">Save allocation</button>
+            </div>
           </div>
           <div class="card" style="margin:0">
             <div class="card-title" style="margin-bottom:10px">Shrine upgrades</div>
@@ -1152,6 +1182,13 @@
           <span class="count" id="bld-libraries">0</span>
           <input type="number" id="ba-library" min="0" value="0" oninput="updateBuildDisplay()" style="width:80px" placeholder="Eng">
           <button class="btn" onclick="setBuildMax('ba-library','library')" style="padding:5px 10px;font-size:11px">Max</button>
+        </div>
+        <div class="trow">
+          <span class="bld-icon" style="background:#3a2a1a">🍺</span>
+          <span class="name">Taverns</span><span class="desc">Entertainment · mercenary board · 1 land</span>
+          <span class="count" id="bld-taverns">0</span>
+          <input type="number" id="ba-tavern" min="0" value="0" oninput="updateBuildDisplay()" style="width:80px" placeholder="Eng">
+          <button class="btn" onclick="setBuildMax('ba-tavern','tavern')" style="padding:5px 10px;font-size:11px">Max</button>
         </div>
         <div class="trow">
           <span class="bld-icon" style="background:#5a1a1a">🏰</span>
@@ -1592,6 +1629,7 @@
           <option value="research">Research</option>
           <option value="weapons">Weapons</option>
           <option value="food">Food</option>
+          <option value="location_map">Location Map 🗺️</option>
         </select>
         <button class="btn btn-amber" style="width:100%" onclick="doWcovert('loot')">Send thieves</button>
       </div>
@@ -3792,7 +3830,17 @@ function syncUI() {
   var smUEl= document.getElementById('hire-smithy-used'); if (smUEl) smUEl.textContent = fmt(state.engineers || 0);
   if (smUEl) smUEl.style.color = (state.engineers||0) > smithyCap ? 'var(--red)' : 'var(--text2)';
   var lbEl = document.getElementById('hire-library-cap');  if (lbEl) lbEl.textContent = fmt(libCap);
-  // Support unit hire counts (researchers, engineers, scribes)
+  // Unit prices — race affects cost
+  var UNIT_PRICES = { fighters:250, rangers:250, clerics:250, mages:350, thieves:300, ninjas:400, researchers:200, scribes:200, engineers:200 };
+  var RACE_PRICE_MULT = { human:1.00, dwarf:0.90, high_elf:1.10, orc:0.85, dark_elf:1.10, dire_wolf:0.95 };
+  var raceMult = RACE_PRICE_MULT[state.race] || 1.0;
+  Object.keys(UNIT_PRICES).forEach(function(u) {
+    var el = document.getElementById('hp-' + u);
+    if (el) el.textContent = fmt(Math.round(UNIT_PRICES[u] * raceMult)) + ' GC';
+  });     if (taxEl) taxEl.textContent = (state.tax||40) + '%';
+  var incEl = document.getElementById('strip-income');  if (incEl) incEl.textContent = '+' + fmt(state._gold_per_turn||0) + '/turn';
+  var upkEl = document.getElementById('strip-upkeep'); if (upkEl) upkEl.textContent = '-' + fmt(state._upkeep||0) + '/turn';
+  var netEl = document.getElementById('strip-net');     if (netEl) { var net=(state._gold_per_turn||0)-(state._upkeep||0); netEl.textContent=(net>=0?'+':'')+fmt(net)+'/turn'; netEl.style.color=net>=0?'var(--green)':'var(--red)'; }
   var hRes = document.getElementById('h-researchers'); if (hRes) hRes.textContent = fmt(state.researchers || 0);
   var hEng = document.getElementById('h-engineers');   if (hEng) hEng.textContent = fmt(state.engineers   || 0);
   var hScr = document.getElementById('h-scribes');     if (hScr) hScr.textContent = fmt(state.scribes     || 0);
@@ -4565,20 +4613,20 @@ var RACE_ICONS = {
 };
 
 async function loadRankings(forceRefresh) {
+  var el = document.getElementById('rankings-list');
+  if (el) el.innerHTML = '<tr><td colspan="8" style="color:var(--text3);text-align:center;padding:24px 0">Loading rankings...</td></tr>';
   var rankings = await apiCall('GET', '/api/kingdom/rankings');
-  if (!Array.isArray(rankings)) return;
-
+  if (!Array.isArray(rankings)) {
+    if (el) el.innerHTML = '<tr><td colspan="8" style="color:var(--red);text-align:center;padding:24px 0">Failed to load rankings — tap Refresh to retry.</td></tr>';
+    return;
+  }
   rankingsCache = rankings;
-
-  // Populate attack/covert target lists (exclude self)
   targets = rankings
     .filter(function(r) { return r.id !== state.kingdomId; })
     .map(function(r) { return { id: r.id, name: r.name, race: r.race, rank: r.rank, land: r.land, population: r.population || 0, fighters: r.fighters || 0, mages: r.mages || 0, level: r.level || 1, is_ai: r.is_ai || 0 }; });
   renderTargets(targets, 'target-list', 'selectTarget');
   renderTargets(targets, 'covert-target-list', 'selectCovertTarget');
   renderSpellTargets(targets);
-
-  // Always render into the panel — it'll be ready when user navigates to it
   renderRankingsPanel(rankings);
 }
 
@@ -4828,6 +4876,7 @@ var BUILD_FIELDS = [
   { id:'b-shrine',    key:'shrine',      pieces:50,  alloc:'ba-shrine'    },
   { id:'b-castle',    key:'castle',      pieces:500, alloc:'ba-castle'    },
   { id:'b-library',   key:'library',     pieces:100, alloc:'ba-library'   },
+  { id:'b-tavern',    key:'tavern',       pieces:10,  alloc:'ba-tavern'    },
   { id:'b-wm',        key:'war_machine', pieces:20,  alloc:'ba-wm'        },
   { id:'b-weapons',   key:'weapons',     pieces:1,   alloc:'ba-weapons'   },
   { id:'b-armor',     key:'armor',       pieces:1,   alloc:'ba-armor'     },
@@ -4935,8 +4984,8 @@ async function releaseAllResearchers() {
 }
 
 async function releaseAllEngineers() {
-  var BA_FIELDS = ['ba-farm','ba-barracks','ba-outpost','ba-tower','ba-school','ba-armory','ba-vault',
-    'ba-smithy','ba-market','ba-cathedral','ba-training','ba-colosseum','ba-shrine','ba-castle','ba-library','ba-housing','ba-wm','ba-weapons','ba-armor'];
+  var BA_FIELDS = ['ba-farm','ba-barracks','ba-walls','ba-outpost','ba-tower','ba-school','ba-armory','ba-vault',
+    'ba-smithy','ba-market','ba-cathedral','ba-training','ba-colosseum','ba-shrine','ba-castle','ba-library','ba-tavern','ba-housing','ba-wm','ba-weapons','ba-armor'];
   BA_FIELDS.forEach(function(id) { var el = document.getElementById(id); if (el) el.value = 0; });
   updateBuildDisplay();
   var result = await apiCall('POST', '/api/kingdom/build-allocation', { allocation: {} });
@@ -5353,9 +5402,11 @@ function initWspells() {
     var defs = typeof SCROLL_DEFS !== 'undefined' ? SCROLL_DEFS : [];
     el.innerHTML = defs.map(function(sp) {
       var spStr = encodeURIComponent(JSON.stringify(sp));
+      var spLabel = sp.label || sp.name || sp.id || '(spell)';
+      var spDesc  = sp.desc  || '';
       return '<div style="padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="selectWspell(JSON.parse(decodeURIComponent(\'' + spStr + '\')))">'
-        + '<div style="font-size:13px;font-weight:600;color:var(--purple)">' + escHtml(sp.name) + '</div>'
-        + '<div style="font-size:11px;color:var(--text3)">' + escHtml(sp.desc||'') + '</div>'
+        + '<div style="font-size:13px;font-weight:600;color:var(--purple)">' + escHtml(spLabel) + '</div>'
+        + '<div style="font-size:11px;color:var(--text3)">' + escHtml(spDesc) + '</div>'
         + '<div style="font-size:11px;color:var(--text3)">' + fmt(sp.manaCost||0) + ' mana' + (sp.scrollRequired?' · 1 scroll':'') + '</div>'
         + '</div>';
     }).join('');
@@ -5445,6 +5496,15 @@ function filterWcovTargets(val) {
 
 async function doWcovert(type) {
   if (!wSelectedCovertTarget) return toast('Select a target kingdom', 'error');
+  var lootType = document.getElementById('wcov-loot-type')?.value;
+  // Location map theft uses dedicated route
+  if (type === 'loot' && lootType === 'location_map') {
+    var result = await apiCall('POST', '/api/kingdom/locations/steal-map', { targetId: wSelectedCovertTarget.id });
+    if (result.error) return toast(result.error, 'error');
+    toast(result.message || 'Operation complete', result.success ? 'success' : 'error');
+    loadWarfarePanel();
+    return;
+  }
   var payload = { targetId: wSelectedCovertTarget.id, action: type };
   if (type === 'loot')        payload.lootType     = document.getElementById('wcov-loot-type')?.value;
   if (type === 'assassinate') payload.unitType      = document.getElementById('wcov-assass-type')?.value;
@@ -5593,13 +5653,16 @@ async function loadStudies() {
 
   // Shrine
   if (el('st-shrines'))    el('st-shrines').textContent    = fmt(state.bld_shrines||0);
-  var shrineAlloc = {};
-  try { shrineAlloc = JSON.parse(state.shrine_allocation||'{}'); } catch {}
-  var clericsShrine = Math.min(state.clerics||0, Number(shrineAlloc.clerics)||0);
+  var shrineAlloc2 = {};
+  try { shrineAlloc2 = typeof state.shrine_allocation==='string' ? JSON.parse(state.shrine_allocation||'{}') : (state.shrine_allocation||{}); } catch {}
+  var clericsShrine = Math.min(state.clerics||0, Number(shrineAlloc2.clerics)||0);
   if (el('st-clerics-shrine')) el('st-clerics-shrine').textContent = fmt(clericsShrine);
   var sacredMult = (data.shrine_upgrades||{}).sacred_grove ? 1.15 : 1.0;
   var moraleGain = Math.max(1, Math.floor((clericsShrine/10)*sacredMult));
   if (el('st-morale-gain')) el('st-morale-gain').textContent = clericsShrine > 0 ? '+' + moraleGain : '0';
+  if (el('st-clerics-avail'))  el('st-clerics-avail').textContent  = fmt(state.clerics||0);
+  if (el('st-shrine-cap'))     el('st-shrine-cap').textContent     = fmt((state.bld_shrines||0)*15);
+  if (el('st-shrine-clerics')) el('st-shrine-clerics').value       = clericsShrine;
   var sanct = (data.shrine_upgrades||{}).divine_sanctuary;
   if (el('st-sanctuary')) {
     var lastUsed = data.divine_sanctuary_used || 0;
@@ -5616,6 +5679,12 @@ async function loadStudies() {
   try { libAlloc = JSON.parse(state.library_allocation||'{}'); } catch {}
   if (el('st-scribes-lib')) el('st-scribes-lib').textContent = fmt(Math.min(state.scribes||0, Number(libAlloc.scribes)||0));
   if (el('st-mages-lib'))   el('st-mages-lib').textContent   = fmt(Math.min(state.mages||0,   Number(libAlloc.mages)||0));
+
+  // Sync library/tavern counts from API data (might be more accurate than state)
+  if (data.bld_libraries && state.bld_libraries !== data.bld_libraries) state.bld_libraries = data.bld_libraries;
+  if (data.bld_taverns   && state.bld_taverns   !== data.bld_taverns)   state.bld_taverns   = data.bld_taverns;
+  if (el('st-libraries')) el('st-libraries').textContent = fmt(data.bld_libraries||state.bld_libraries||0);
+  if (el('st-lib-cap'))   el('st-lib-cap').textContent   = fmt((data.bld_libraries||state.bld_libraries||0) * ((data.library_upgrades||{}).grand_library ? 40 : 20));
 
   // Upgrade lists
   renderUpgrades('tower',   TOWER_UPGRADES_JS,   data.tower_upgrades||{},   'tower-upgrade-list');
@@ -5643,6 +5712,16 @@ async function saveResearchFocus() {
 }
 
 var econData = {};
+
+async function saveStudiesShrineClerics() {
+  var clerics = parseInt(document.getElementById('st-shrine-clerics')?.value) || 0;
+  if (clerics > (state.clerics||0)) return toast('Not enough clerics', 'error');
+  var result = await apiCall('POST', '/api/kingdom/shrine-allocation', { allocation: { clerics } });
+  if (result.error) return toast(result.error, 'error');
+  state.shrine_allocation = result.allocation || { clerics };
+  toast('Shrine allocation saved — ' + clerics + ' clerics assigned', 'success');
+  loadStudies();
+}
 
 var COMMODITY_VALUES = { food:2, gold:1, mana:4, weapons:6, armor:8, maps:50, scrolls:200, blueprints:150 };
 var COMMODITY_RACE_DISCOUNT = {

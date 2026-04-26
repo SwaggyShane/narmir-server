@@ -170,6 +170,7 @@ textarea{width:100%;resize:vertical;min-height:60px}
     <button class="btn btn-green" onclick="resetAllTurns()">Reset all turns to 200</button>
     <button class="btn btn-red" onclick="resetAllKingdoms()" style="margin-left:4px">⚠️ Reset all kingdoms to start</button>
     <button class="btn" onclick="seedAi()" style="margin-left:4px">🤖 Seed AI kingdoms</button>
+    <button class="btn btn-red" onclick="flushLocations()" style="margin-left:4px" title="Clears all discovered_kingdoms and location_maps_wip for all players">🗺️ Flush all locations</button>
     <button class="btn btn-amber" onclick="resetAi()" style="margin-left:4px">🔄 Reset AI kingdoms</button>
   </div>
 
@@ -862,6 +863,13 @@ async function loadAiSynopsis() {
 }
 
 function fmt(n) { if (n >= 1e6) return (n/1e6).toFixed(1)+'M'; if (n >= 1e3) return (n/1e3).toFixed(1)+'k'; return String(n||0); }
+
+async function flushLocations() {
+  if (!confirm('This will clear ALL location maps and discovered kingdoms for every player. Are you sure?')) return;
+  var r = await api('POST', '/api/admin/flush-locations');
+  if (r.error) return toast(r.error, 'error');
+  toast(r.message || 'Location data flushed', 'success');
+}
 
 async function seedAi() {
   var r = await api('POST', '/api/admin/seed-ai');
