@@ -50,7 +50,7 @@ module.exports = function(db) {
       ORDER BY created_at DESC
       LIMIT 100
     `);
-    res.json(rows);
+    res.json({ rows });
   });
 
   router.get('/news/list', requireAuth, async (req, res) => {
