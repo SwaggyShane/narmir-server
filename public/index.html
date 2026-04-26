@@ -330,14 +330,12 @@
     <div class="nav-section">Kingdom</div>
     <button class="nav-item active" onclick="switchTab('status',this)"><span class="icon">&#9632;</span>Status</button>
     <button class="nav-item" onclick="switchTab('hire',this)"><span class="icon">&#9651;</span>Hire</button>
-    <button class="nav-item" onclick="switchTab('mage_tower',this)"><span class="icon">🗼</span>Mage Tower</button>
-    <button class="nav-item" onclick="switchTab('school',this)"><span class="icon">📚</span>School</button>
-    <button class="nav-item" onclick="switchTab('shrine',this)"><span class="icon">⛩️</span>Shrine</button>
+    <button class="nav-item" onclick="switchTab('studies',this)"><span class="icon">🏛️</span>Studies</button>
     <button class="nav-item" onclick="switchTab('economy',this)"><span class="icon">💰</span>Economy</button>
     <button class="nav-item" onclick="switchTab('build',this)"><span class="icon">&#9650;</span>Build</button>
     <button class="nav-item" onclick="switchTab('training',this)"><span class="icon">&#9876;</span>Training</button>
     <button class="nav-item" onclick="switchTab('exploration',this)"><span class="icon">&#9685;</span>Exploration</button>
-    <button class="nav-item" onclick="switchTab('library',this)"><span class="icon">&#128218;</span>Library</button>
+    <button class="nav-item" onclick="switchTab('studies',this)"><span class="icon">🏛️</span>Studies</button>
 
     <div class="nav-section">Warfare</div>
     <button class="nav-item" onclick="switchTab('attack',this)"><span class="icon">&#9876;</span>Attack</button>
@@ -628,6 +626,123 @@
     </div>
 
     <!-- RESEARCH -->
+    <!-- STUDIES PANEL -->
+    <div id="studies" class="panel" style="display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+        <div class="card-title">🏛️ Studies</div>
+        <button class="btn" onclick="loadStudies()">↻ Refresh</button>
+      </div>
+      <div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:2px solid var(--border2);padding-bottom:0">
+        <button class="admin-tab active" onclick="showStudiesTab('tower',this)">🗼 Tower</button>
+        <button class="admin-tab" onclick="showStudiesTab('school',this)">📚 School</button>
+        <button class="admin-tab" onclick="showStudiesTab('shrine',this)">⛩️ Shrine</button>
+        <button class="admin-tab" onclick="showStudiesTab('slibrary',this)">📖 Library</button>
+      </div>
+
+      <!-- TOWER TAB -->
+      <div id="stab-tower">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div class="card" style="margin:0">
+            <div class="card-title" style="margin-bottom:10px">Mage Tower overview</div>
+            <div class="trow"><span class="name">Towers</span><span class="count" id="st-towers">0</span></div>
+            <div class="trow"><span class="name">Mana/turn</span><span class="count" id="st-mana-turn" style="color:var(--purple)">0</span></div>
+            <div class="trow"><span class="name">Mages in tower</span><span class="count" id="st-mages-tower">0</span></div>
+          </div>
+          <div class="card" style="margin:0">
+            <div class="card-title" style="margin-bottom:10px">Tower upgrades</div>
+            <div id="tower-upgrade-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SCHOOL TAB -->
+      <div id="stab-school" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div class="card" style="margin:0">
+            <div class="card-title" style="margin-bottom:10px">School overview</div>
+            <div class="trow"><span class="name">Schools</span><span class="count" id="st-schools">0</span></div>
+            <div class="trow"><span class="name">Researchers</span><span class="count" id="st-researchers">0</span></div>
+            <div class="trow"><span class="name">Capacity</span><span class="count" id="st-school-cap">0</span></div>
+          </div>
+          <div class="card" style="margin:0">
+            <div class="card-title" style="margin-bottom:10px">School upgrades</div>
+            <div id="school-upgrade-list"></div>
+          </div>
+        </div>
+        <!-- Research focus -->
+        <div class="card">
+          <div class="card-title" style="margin-bottom:8px">Research focus</div>
+          <div style="font-size:12px;color:var(--text3);margin-bottom:12px">Choose one discipline to study. Repository upgrade unlocks a second slot.</div>
+          <div id="research-focus-slot-1" style="margin-bottom:12px">
+            <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px">Primary discipline</div>
+            <select id="focus-select-1" style="width:100%;margin-bottom:6px" onchange="updateFocusPreview()">
+              <option value="economy">Economy</option>
+              <option value="weapons">Weapons</option>
+              <option value="armor">Armor</option>
+              <option value="military">Military tactics</option>
+              <option value="attack_magic">Attack magic</option>
+              <option value="defense_magic">Defense magic</option>
+              <option value="entertainment">Entertainment</option>
+              <option value="construction">Construction</option>
+              <option value="war_machines">War machines</option>
+              <option value="spellbook">Spellbook</option>
+            </select>
+            <div style="font-size:11px;color:var(--text3)" id="focus-current-1"></div>
+          </div>
+          <div id="research-focus-slot-2" style="display:none;margin-bottom:12px">
+            <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px">Secondary discipline <span style="color:var(--gold);font-size:10px">Repository</span></div>
+            <select id="focus-select-2" style="width:100%;margin-bottom:6px" onchange="updateFocusPreview()">
+              <option value="economy">Economy</option>
+              <option value="weapons">Weapons</option>
+              <option value="armor">Armor</option>
+              <option value="military">Military tactics</option>
+              <option value="attack_magic">Attack magic</option>
+              <option value="defense_magic">Defense magic</option>
+              <option value="entertainment">Entertainment</option>
+              <option value="construction">Construction</option>
+              <option value="war_machines">War machines</option>
+              <option value="spellbook">Spellbook</option>
+            </select>
+          </div>
+          <button class="btn btn-green" style="width:100%" onclick="saveResearchFocus()">Save focus</button>
+        </div>
+      </div>
+
+      <!-- SHRINE TAB -->
+      <div id="stab-shrine" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div class="card" style="margin:0">
+            <div class="card-title" style="margin-bottom:10px">Shrine overview</div>
+            <div class="trow"><span class="name">Shrines</span><span class="count" id="st-shrines">0</span></div>
+            <div class="trow"><span class="name">Clerics in shrine</span><span class="count" id="st-clerics-shrine">0</span></div>
+            <div class="trow"><span class="name">Morale gain/turn</span><span class="count" id="st-morale-gain" style="color:var(--green)">0</span></div>
+            <div class="trow"><span class="name">Divine Sanctuary</span><span class="count" id="st-sanctuary">—</span></div>
+          </div>
+          <div class="card" style="margin:0">
+            <div class="card-title" style="margin-bottom:10px">Shrine upgrades</div>
+            <div id="shrine-upgrade-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LIBRARY TAB -->
+      <div id="stab-slibrary" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div class="card" style="margin:0">
+            <div class="card-title" style="margin-bottom:10px">Library overview</div>
+            <div class="trow"><span class="name">Libraries</span><span class="count" id="st-libraries">0</span></div>
+            <div class="trow"><span class="name">Capacity</span><span class="count" id="st-lib-cap">0</span></div>
+            <div class="trow"><span class="name">Scribes in library</span><span class="count" id="st-scribes-lib">0</span></div>
+            <div class="trow"><span class="name">Mages in library</span><span class="count" id="st-mages-lib">0</span></div>
+          </div>
+          <div class="card" style="margin:0">
+            <div class="card-title" style="margin-bottom:10px">Library upgrades</div>
+            <div id="library-upgrade-list"></div>
+          </div>
+        </div>
+      </div>
+    </div><!-- end studies panel -->
+
     <div id="mage_tower" class="panel">
 
       <!-- No mage tower warning -->
@@ -3125,6 +3240,9 @@ function switchTab(id, btn) {
   if (id === 'alliances') {
     loadAlliancePanel();
   }
+  if (id === 'studies') {
+    loadStudies();
+  }
   if (id === 'economy') {
     loadEconomy();
   }
@@ -3344,7 +3462,14 @@ function syncUI() {
   var smUEl= document.getElementById('hire-smithy-used'); if (smUEl) smUEl.textContent = fmt(state.engineers || 0);
   if (smUEl) smUEl.style.color = (state.engineers||0) > smithyCap ? 'var(--red)' : 'var(--text2)';
   var lbEl = document.getElementById('hire-library-cap');  if (lbEl) lbEl.textContent = fmt(libCap);
-  var lbUEl= document.getElementById('hire-library-used'); if (lbUEl) lbUEl.textContent = fmt(state.scribes || 0);
+  // Support unit hire counts (researchers, engineers, scribes)
+  var hRes = document.getElementById('h-researchers'); if (hRes) hRes.textContent = fmt(state.researchers || 0);
+  var hEng = document.getElementById('h-engineers');   if (hEng) hEng.textContent = fmt(state.engineers   || 0);
+  var hScr = document.getElementById('h-scribes');     if (hScr) hScr.textContent = fmt(state.scribes     || 0);
+  // Library capacity for scribes
+  var libCap  = (state.bld_libraries || 0) * 20;
+  var lbCEl   = document.getElementById('hire-library-cap');  if (lbCEl) lbCEl.textContent  = fmt(libCap);
+  var lbUEl   = document.getElementById('hire-library-used'); if (lbUEl) { lbUEl.textContent = fmt(state.scribes || 0); lbUEl.style.color = (state.scribes||0) > libCap ? 'var(--red)' : 'var(--text2)'; }
   if (lbUEl) lbUEl.style.color = (state.scribes||0) > libCap ? 'var(--red)' : 'var(--text2)';
   // Update covert panel unit counts
   var spyAvail = document.getElementById('spy-thieves-avail');
@@ -3519,14 +3644,12 @@ function updateTurnsDisplay() {
 <nav class="bottom-nav" id="bottom-nav">
   <button class="bnav-item active" onclick="switchTabMobile('status',this)"><span class="bicon">🏰</span>Status</button>
   <button class="bnav-item" onclick="switchTabMobile('hire',this)"><span class="bicon">⚔️</span>Hire</button>
-  <button class="bnav-item" onclick="switchTabMobile('mage_tower',this)"><span class="bicon">🗼</span>Tower</button>
-  <button class="bnav-item" onclick="switchTabMobile('school',this)"><span class="bicon">📚</span>School</button>
-  <button class="bnav-item" onclick="switchTabMobile('shrine',this)"><span class="bicon">⛩️</span>Shrine</button>
+  <button class="bnav-item" onclick="switchTabMobile('studies',this)"><span class="bicon">🏛️</span>Studies</button>
   <button class="bnav-item" onclick="switchTabMobile('build',this)"><span class="bicon">🔨</span>Build</button>
   <button class="bnav-item" onclick="switchTabMobile('economy',this)"><span class="bicon">💰</span>Economy</button>
   <button class="bnav-item" onclick="switchTabMobile('training',this)"><span class="bicon">🛡️</span>Train</button>
   <button class="bnav-item" onclick="switchTabMobile('exploration',this)"><span class="bicon">🧭</span>Explore</button>
-  <button class="bnav-item" onclick="switchTabMobile('library',this)"><span class="bicon">📖</span>Library</button>
+  <button class="bnav-item" onclick="switchTabMobile('studies',this)"><span class="bicon">🏛️</span>Studies</button>
   <div class="bnav-sep"></div>
   <button class="bnav-item" onclick="switchTabMobile('attack',this)"><span class="bicon">🗡️</span>Attack</button>
   <button class="bnav-item" onclick="switchTabMobile('spells',this)"><span class="bicon">✨</span>Spells</button>
@@ -3719,6 +3842,11 @@ async function loadKingdom() {
     hammer_turns_used:  kingdom.hammer_turns_used  || 0,
     smithy_allocation:  (function(){ try{ return JSON.parse(kingdom.smithy_allocation||'{}'); }catch(e){ return {}; } })(),
     racial_bonuses_unlocked: (function(){ try{ return JSON.parse(kingdom.racial_bonuses_unlocked||'{}'); }catch(e){ return {}; } })(),
+    tower_upgrades:   (function(){ try{ return JSON.parse(kingdom.tower_upgrades  ||'{}'); }catch(e){ return {}; } })(),
+    school_upgrades:  (function(){ try{ return JSON.parse(kingdom.school_upgrades ||'{}'); }catch(e){ return {}; } })(),
+    shrine_upgrades:  (function(){ try{ return JSON.parse(kingdom.shrine_upgrades ||'{}'); }catch(e){ return {}; } })(),
+    library_upgrades: (function(){ try{ return JSON.parse(kingdom.library_upgrades||'{}'); }catch(e){ return {}; } })(),
+    research_focus:   (function(){ try{ return JSON.parse(kingdom.research_focus  ||'[]'); }catch(e){ return []; } })(),
     active_effects:     kingdom.active_effects     || {},
     kingdomId: kingdom.id, kingdomName: kingdom.name, chatUsername: kingdom.username || '',
     turns_stored: kingdom.turns_stored !== undefined ? kingdom.turns_stored : 200,
@@ -4291,6 +4419,11 @@ function applyServerUpdates(u) {
   if (u.hammer_turns_used !== undefined) state.hammer_turns_used = u.hammer_turns_used;
   if (u.tools_hammers     !== undefined) state.tools_hammers     = u.tools_hammers;
   if (u.tools_scaffolding !== undefined) state.tools_scaffolding = u.tools_scaffolding;
+  if (u.tower_upgrades   !== undefined) state.tower_upgrades   = u.tower_upgrades;
+  if (u.school_upgrades  !== undefined) state.school_upgrades  = u.school_upgrades;
+  if (u.shrine_upgrades  !== undefined) state.shrine_upgrades  = u.shrine_upgrades;
+  if (u.library_upgrades !== undefined) state.library_upgrades = u.library_upgrades;
+  if (u.research_focus   !== undefined) state.research_focus   = u.research_focus;
   if (u.mercenaries          !== undefined) state.mercenaries          = u.mercenaries;
   if (u.farm_upgrades        !== undefined) state.farm_upgrades        = u.farm_upgrades;
   if (u.market_upgrades      !== undefined) state.market_upgrades      = u.market_upgrades;
@@ -4678,7 +4811,116 @@ async function forgeScaffolding() {
   toast('🏗️ 1 scaffolding built', 'success');
 }
 
-// ── Economy Panel ─────────────────────────────────────────────────────────────
+// ── Studies Panel ─────────────────────────────────────────────────────────────
+
+var studiesData = {};
+
+var TOWER_UPGRADES_JS = {
+  arcane_focus:     { name:'Arcane Focus',      cost:5000,  desc:'+25% mana production',          requires:null             },
+  ley_line_tap:     { name:'Ley Line Tap',       cost:20000, desc:'Passive scroll energy from towers', requires:'arcane_focus' },
+  sanctum_of_power: { name:'Sanctum of Power',   cost:75000, desc:'All spells twice as effective', requires:'ley_line_tap'   },
+};
+var SCHOOL_UPGRADES_JS = {
+  advanced_curriculum: { name:'Advanced Curriculum', cost:3000,  desc:'+20% research output',        requires:null                   },
+  repository:          { name:'Repository',           cost:12000, desc:'Unlocks 2nd research slot',   requires:'advanced_curriculum'  },
+  grand_academy:       { name:'Grand Academy',        cost:40000, desc:'Researchers gain XP 50% faster', requires:'repository'        },
+};
+var SHRINE_UPGRADES_JS = {
+  sacred_grove:     { name:'Sacred Grove',      cost:4000,  desc:'+15% morale gain from shrines', requires:null            },
+  war_blessing:     { name:'War Blessing',       cost:15000, desc:'Clerics heal +10% more in combat', requires:'sacred_grove' },
+  divine_sanctuary: { name:'Divine Sanctuary',   cost:50000, desc:'Auto-stabilise morale at 50% once per 20 turns (posted to news)', requires:'war_blessing' },
+};
+var LIBRARY_UPGRADES_JS = {
+  illuminated_manuscripts: { name:'Illuminated Manuscripts', cost:5000,  desc:'+25% scribe craft speed',   requires:null                      },
+  arcane_cataloguing:      { name:'Arcane Cataloguing',       cost:15000, desc:'+25% scroll craft speed',   requires:'illuminated_manuscripts'  },
+  grand_library:           { name:'Grand Library',            cost:50000, desc:'Library capacity ×2',       requires:'arcane_cataloguing'       },
+};
+
+function showStudiesTab(id, btn) {
+  ['tower','school','shrine','slibrary'].forEach(function(t){ document.getElementById('stab-'+t).style.display='none'; });
+  document.querySelectorAll('#studies .admin-tab').forEach(function(b){ b.classList.remove('active'); });
+  document.getElementById('stab-'+id).style.display='block';
+  if (btn) btn.classList.add('active');
+}
+
+async function loadStudies() {
+  var data = await apiCall('GET', '/api/kingdom/studies/overview');
+  if (data.error) return toast(data.error, 'error');
+  studiesData = data;
+
+  var el = function(id){ return document.getElementById(id); };
+
+  // Tower
+  if (el('st-towers'))     el('st-towers').textContent     = fmt(state.bld_cathedrals||0);
+  if (el('st-mana-turn'))  el('st-mana-turn').textContent  = '+' + fmt(data.mana_per_turn||0);
+  var towerAlloc = {};
+  try { towerAlloc = JSON.parse(state.mage_tower_allocation||'{}'); } catch {}
+  if (el('st-mages-tower')) el('st-mages-tower').textContent = fmt(Math.min(state.mages||0, Number(towerAlloc.mages)||0));
+
+  // School
+  if (el('st-schools'))    el('st-schools').textContent    = fmt(state.bld_schools||0);
+  if (el('st-researchers'))el('st-researchers').textContent= fmt(state.researchers||0);
+  if (el('st-school-cap')) el('st-school-cap').textContent = fmt((state.bld_schools||0)*100);
+
+  // Research focus selectors
+  var focus = data.research_focus || [];
+  var hasRepo = !!(data.school_upgrades||{}).repository;
+  var slot2 = el('research-focus-slot-2');
+  if (slot2) slot2.style.display = hasRepo ? 'block' : 'none';
+  var sel1 = el('focus-select-1'); if (sel1 && focus[0]) sel1.value = focus[0];
+  var sel2 = el('focus-select-2'); if (sel2 && focus[1]) sel2.value = focus[1];
+  updateFocusPreview();
+
+  // Shrine
+  if (el('st-shrines'))    el('st-shrines').textContent    = fmt(state.bld_shrines||0);
+  var shrineAlloc = {};
+  try { shrineAlloc = JSON.parse(state.shrine_allocation||'{}'); } catch {}
+  var clericsShrine = Math.min(state.clerics||0, Number(shrineAlloc.clerics)||0);
+  if (el('st-clerics-shrine')) el('st-clerics-shrine').textContent = fmt(clericsShrine);
+  var sacredMult = (data.shrine_upgrades||{}).sacred_grove ? 1.15 : 1.0;
+  var moraleGain = Math.max(1, Math.floor((clericsShrine/10)*sacredMult));
+  if (el('st-morale-gain')) el('st-morale-gain').textContent = clericsShrine > 0 ? '+' + moraleGain : '0';
+  var sanct = (data.shrine_upgrades||{}).divine_sanctuary;
+  if (el('st-sanctuary')) {
+    var lastUsed = data.divine_sanctuary_used || 0;
+    var turnsAgo = (state.turn||0) - lastUsed;
+    el('st-sanctuary').textContent = sanct ? (turnsAgo >= 20 ? 'Ready' : 'Recharges in ' + (20-turnsAgo) + ' turns') : 'Not purchased';
+    el('st-sanctuary').style.color = sanct && turnsAgo >= 20 ? 'var(--green)' : 'var(--text3)';
+  }
+
+  // Library
+  var libCap = (state.bld_libraries||0) * ((data.library_upgrades||{}).grand_library ? 40 : 20);
+  if (el('st-libraries'))  el('st-libraries').textContent  = fmt(state.bld_libraries||0);
+  if (el('st-lib-cap'))    el('st-lib-cap').textContent    = fmt(libCap);
+  var libAlloc = {};
+  try { libAlloc = JSON.parse(state.library_allocation||'{}'); } catch {}
+  if (el('st-scribes-lib')) el('st-scribes-lib').textContent = fmt(Math.min(state.scribes||0, Number(libAlloc.scribes)||0));
+  if (el('st-mages-lib'))   el('st-mages-lib').textContent   = fmt(Math.min(state.mages||0,   Number(libAlloc.mages)||0));
+
+  // Upgrade lists
+  renderUpgrades('tower',   TOWER_UPGRADES_JS,   data.tower_upgrades||{},   'tower-upgrade-list');
+  renderUpgrades('school',  SCHOOL_UPGRADES_JS,  data.school_upgrades||{},  'school-upgrade-list');
+  renderUpgrades('shrine',  SHRINE_UPGRADES_JS,  data.shrine_upgrades||{},  'shrine-upgrade-list');
+  renderUpgrades('library', LIBRARY_UPGRADES_JS, data.library_upgrades||{}, 'library-upgrade-list');
+}
+
+function updateFocusPreview() {
+  var DISC_COLS = { economy:'res_economy', weapons:'res_weapons', armor:'res_armor', military:'res_military', attack_magic:'res_attack_magic', defense_magic:'res_defense_magic', entertainment:'res_entertainment', construction:'res_construction', war_machines:'res_war_machines', spellbook:'res_spellbook' };
+  var f1 = document.getElementById('focus-select-1')?.value;
+  var el1 = document.getElementById('focus-current-1');
+  if (el1 && f1) el1.textContent = 'Current: ' + (state[DISC_COLS[f1]]||0) + '%';
+}
+
+async function saveResearchFocus() {
+  var f1 = document.getElementById('focus-select-1')?.value;
+  var f2 = document.getElementById('focus-select-2')?.value;
+  var hasRepo = !!(studiesData.school_upgrades||{}).repository;
+  var focus = hasRepo && f2 ? [f1, f2] : [f1];
+  var result = await apiCall('POST', '/api/kingdom/research-focus', { focus });
+  if (result.error) return toast(result.error, 'error');
+  state.research_focus = result.research_focus;
+  toast('Research focus saved — ' + result.research_focus.join(' & '), 'success');
+}
 
 var econData = {};
 
