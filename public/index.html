@@ -62,7 +62,8 @@
   body.panel-training .main,
   body.panel-alliances .main,
   body.panel-hire .main { padding-top: 6px; }
-  .admin-tab { background:none; border:none; border-bottom:3px solid transparent; color:var(--text3); cursor:pointer; font-size:19px; font-weight:600; padding:12px 20px; margin-bottom:-2px; transition:all .2s; white-space:nowrap; border-radius:6px 6px 0 0; }
+  .admin-tab { background:none; border:none; border-bottom:3px solid transparent; color:var(--text3); cursor:pointer; font-size:15px; font-weight:600; padding:10px 14px; margin-bottom:-2px; transition:all .2s; white-space:nowrap; border-radius:6px 6px 0 0; }
+  @media (min-width:500px) { .admin-tab { font-size:19px; padding:12px 20px; } }
   .admin-tab:hover { color:var(--text2); background:var(--bg3); }
   .admin-tab.active { color:var(--purple); border-bottom-color:var(--purple); background:rgba(124,106,245,.08); }
 
@@ -687,7 +688,7 @@
         <div class="card-title">🏛️ Studies</div>
         <button class="btn" onclick="loadStudies()">↻ Refresh</button>
       </div>
-      <div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:2px solid var(--border2);padding-bottom:0">
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:16px;border-bottom:2px solid var(--border2);padding-bottom:0">
         <button class="admin-tab active" onclick="showStudiesTab('tower',this)">🗼 Tower</button>
         <button class="admin-tab" onclick="showStudiesTab('school',this)">📚 School</button>
         <button class="admin-tab" onclick="showStudiesTab('shrine',this)">⛩️ Shrine</button>
@@ -932,7 +933,7 @@
   </div>
 
   <!-- Tab nav -->
-  <div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:2px solid var(--border2);padding-bottom:0">
+  <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:16px;border-bottom:2px solid var(--border2);padding-bottom:0">
     <button class="admin-tab active" id="econ-tab-farms"   onclick="showEconTab('farms',this)">🌾 Farms</button>
     <button class="admin-tab"        id="econ-tab-markets" onclick="showEconTab('markets',this)">🏪 Markets</button>
     <button class="admin-tab"        id="econ-tab-tavern"  onclick="showEconTab('tavern',this)">🍺 Tavern</button>
@@ -1430,7 +1431,7 @@
   </div>
 
   <!-- Tabs -->
-  <div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:2px solid var(--border2);padding-bottom:0">
+  <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:16px;border-bottom:2px solid var(--border2);padding-bottom:0">
     <button class="admin-tab active" onclick="showDefTab('walls',this)">🧱 Walls</button>
     <button class="admin-tab" onclick="showDefTab('towers',this)">🗼 Guard Towers</button>
     <button class="admin-tab" onclick="showDefTab('outposts',this)">⛺ Outposts</button>
@@ -4616,8 +4617,13 @@ async function loadRankings(forceRefresh) {
   var el = document.getElementById('rankings-list');
   if (el) el.innerHTML = '<tr><td colspan="8" style="color:var(--text3);text-align:center;padding:24px 0">Loading rankings...</td></tr>';
   var rankings = await apiCall('GET', '/api/kingdom/rankings');
+  // If auth failed, retry once after 500ms (token may not be flushed yet)
+  if (!Array.isArray(rankings) && rankings && rankings.error && rankings.error.includes('auth')) {
+    await new Promise(function(r){ setTimeout(r, 500); });
+    rankings = await apiCall('GET', '/api/kingdom/rankings');
+  }
   if (!Array.isArray(rankings)) {
-    if (el) el.innerHTML = '<tr><td colspan="8" style="color:var(--red);text-align:center;padding:24px 0">Failed to load rankings — tap Refresh to retry.</td></tr>';
+    if (el) el.innerHTML = '<tr><td colspan="8" style="color:var(--red);text-align:center;padding:24px 0">Failed to load — tap Refresh to retry.</td></tr>';
     return;
   }
   rankingsCache = rankings;
