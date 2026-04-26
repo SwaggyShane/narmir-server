@@ -333,6 +333,7 @@
     <button class="nav-item" onclick="switchTab('mage_tower',this)"><span class="icon">🗼</span>Mage Tower</button>
     <button class="nav-item" onclick="switchTab('school',this)"><span class="icon">📚</span>School</button>
     <button class="nav-item" onclick="switchTab('shrine',this)"><span class="icon">⛩️</span>Shrine</button>
+    <button class="nav-item" onclick="switchTab('economy',this)"><span class="icon">💰</span>Economy</button>
     <button class="nav-item" onclick="switchTab('build',this)"><span class="icon">&#9650;</span>Build</button>
     <button class="nav-item" onclick="switchTab('training',this)"><span class="icon">&#9876;</span>Training</button>
     <button class="nav-item" onclick="switchTab('exploration',this)"><span class="icon">&#9685;</span>Exploration</button>
@@ -747,6 +748,132 @@
     </div>
 
     <!-- BUILD -->
+<!-- ECONOMY PANEL -->
+<div id="economy" class="panel" style="display:none">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+    <div class="card-title">💰 Economy</div>
+    <button class="btn" onclick="loadEconomy()">↻ Refresh</button>
+  </div>
+
+  <!-- Tab nav -->
+  <div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:2px solid var(--border2);padding-bottom:0">
+    <button class="admin-tab active" id="econ-tab-farms"   onclick="showEconTab('farms',this)">🌾 Farms</button>
+    <button class="admin-tab"        id="econ-tab-markets" onclick="showEconTab('markets',this)">🏪 Markets</button>
+    <button class="admin-tab"        id="econ-tab-tavern"  onclick="showEconTab('tavern',this)">🍺 Tavern</button>
+  </div>
+
+  <!-- FARMS TAB -->
+  <div id="etab-farms">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div class="card" style="margin:0">
+        <div class="card-title" style="margin-bottom:10px">Farm overview</div>
+        <div class="trow"><span class="name">Farms</span><span class="count" id="econ-farms">0</span></div>
+        <div class="trow"><span class="name">Worked farms</span><span class="count" id="econ-worked-farms" style="color:var(--green)">0</span></div>
+        <div class="trow"><span class="name">Production</span><span class="count" id="econ-production" style="color:var(--green)">0</span></div>
+        <div class="trow"><span class="name">Consumption</span><span class="count" id="econ-consumption" style="color:var(--red)">0</span></div>
+        <div class="trow" style="border-top:1px solid var(--border2)"><span class="name">Balance</span><span class="count" id="econ-balance" style="font-weight:700">0</span></div>
+        <div class="trow"><span class="name">Shortage turns</span><span class="count" id="econ-shortage">0</span></div>
+      </div>
+      <div class="card" style="margin:0">
+        <div class="card-title" style="margin-bottom:10px">Farm upgrades</div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:12px">Instant gold purchase — applies to all farms.</div>
+        <div id="farm-upgrade-list"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="margin-bottom:8px">Food rules</div>
+      <div style="font-size:12px;color:var(--text3);line-height:1.9">
+        Each farm needs <strong id="econ-workers-per-farm" style="color:var(--text)">10</strong> free population to work it. Unworked farms produce nothing.<br>
+        Shortage grace: <strong style="color:var(--amber)">2 turns</strong> → morale penalty → population flight → desertion.
+      </div>
+    </div>
+  </div>
+
+  <!-- MARKETS TAB -->
+  <div id="etab-markets" style="display:none">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div class="card" style="margin:0">
+        <div class="card-title" style="margin-bottom:10px">Market overview</div>
+        <div class="trow"><span class="name">Markets</span><span class="count" id="econ-markets">0</span></div>
+        <div class="trow"><span class="name">Market income/turn</span><span class="count" id="econ-market-income" style="color:var(--gold)">0 GC</span></div>
+        <div class="trow"><span class="name">Trade routes</span><span class="count" id="econ-trade-routes">0</span></div>
+        <div class="trow"><span class="name">Trading unlocked</span><span class="count" id="econ-trade-unlocked">No</span></div>
+      </div>
+      <div class="card" style="margin:0">
+        <div class="card-title" style="margin-bottom:10px">Market upgrades</div>
+        <div id="market-upgrade-list"></div>
+      </div>
+    </div>
+
+    <!-- Commodity market -->
+    <div class="card" id="commodity-market-card">
+      <div class="card-title" style="margin-bottom:8px">📦 Commodity market</div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:12px">Base prices · your race modifiers applied · prices fluctuate by supply</div>
+      <div id="commodity-list"></div>
+    </div>
+
+    <!-- Trade offers -->
+    <div class="card" id="trade-offers-card">
+      <div class="card-title" style="margin-bottom:8px">🤝 Trade offers</div>
+      <div id="trade-locked-msg" style="font-size:13px;color:var(--text3)">Build a <strong>Trading Post</strong> to send and receive trade offers.</div>
+      <div id="trade-panel" style="display:none">
+        <div style="margin-bottom:14px">
+          <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px">Send a trade offer</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px">
+            <div>
+              <div style="font-size:11px;color:var(--text3);margin-bottom:4px">I offer</div>
+              <select id="trade-offer-item" style="width:100%;margin-bottom:6px"><option value="food">Food</option><option value="gold">Gold</option><option value="mana">Mana</option><option value="weapons">Weapons</option><option value="armor">Armor</option><option value="maps">Maps</option></select>
+              <input type="number" id="trade-offer-qty" min="1" value="100" style="width:100%" placeholder="Quantity">
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text3);margin-bottom:4px">I want</div>
+              <select id="trade-request-item" style="width:100%;margin-bottom:6px"><option value="gold">Gold</option><option value="food">Food</option><option value="mana">Mana</option><option value="weapons">Weapons</option><option value="armor">Armor</option><option value="maps">Maps</option></select>
+              <input type="number" id="trade-request-qty" min="1" value="200" style="width:100%" placeholder="Quantity">
+            </div>
+          </div>
+          <div style="font-size:12px;color:var(--text3);margin-bottom:8px" id="trade-value-hint"></div>
+          <select id="trade-target-select" style="width:100%;margin-bottom:8px"><option value="">— select kingdom —</option></select>
+          <button class="btn btn-green" style="width:100%" onclick="sendTradeOffer()">📦 Send trade offer</button>
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:6px">Incoming offers</div>
+          <div id="trade-received-list"><div style="color:var(--text3);font-size:13px">No pending offers.</div></div>
+          <div style="font-size:12px;font-weight:700;color:var(--text2);margin:12px 0 6px">Sent offers</div>
+          <div id="trade-sent-list"><div style="color:var(--text3);font-size:13px">No sent offers.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAVERN TAB -->
+  <div id="etab-tavern" style="display:none">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div class="card" style="margin:0">
+        <div class="card-title" style="margin-bottom:10px">Tavern overview</div>
+        <div class="trow"><span class="name">Taverns</span><span class="count" id="econ-taverns">0</span></div>
+        <div class="trow"><span class="name">Entertainment bonus</span><span class="count" id="econ-entertainment" style="color:var(--purple)">+0/turn</span></div>
+      </div>
+      <div class="card" style="margin:0">
+        <div class="card-title" style="margin-bottom:10px">Tavern upgrades</div>
+        <div id="tavern-upgrade-list"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="margin-bottom:8px">⚔️ Mercenary board</div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:14px">Mercenaries fight at a fixed level. They do not advance, do not use your weapon/armor stockpile, and leave when their contract expires. They count toward anti-bully ratios.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:8px;margin-bottom:12px;align-items:center">
+        <select id="merc-unit"  style="font-size:12px"><option value="fighters">Fighters</option><option value="rangers">Rangers</option><option value="mages">Mages</option><option value="clerics">Clerics</option><option value="thieves">Thieves</option><option value="ninjas">Ninjas</option></select>
+        <select id="merc-tier"  style="font-size:12px" onchange="updateMercPreview()"><option value="rabble">Rabble (Lv 5–10)</option><option value="sellsword">Sellsword (Lv 15–25)</option><option value="veteran">Veteran (Lv 30–45)</option><option value="elite">Elite (Lv 50–65)</option></select>
+        <input type="number" id="merc-count" min="1" value="10" style="width:100%" onchange="updateMercPreview()">
+        <div style="font-size:11px;color:var(--text3)" id="merc-preview">50 GC · 10 turns</div>
+        <button class="btn btn-amber" onclick="hireMercs()">Hire</button>
+      </div>
+      <div id="active-mercs-list"><div style="color:var(--text3);font-size:13px;text-align:center;padding:12px">No mercenaries under contract.</div></div>
+    </div>
+  </div>
+</div>
+
     <div id="build" class="panel">
       <div class="card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
@@ -2998,6 +3125,9 @@ function switchTab(id, btn) {
   if (id === 'alliances') {
     loadAlliancePanel();
   }
+  if (id === 'economy') {
+    loadEconomy();
+  }
   if (id === 'worldmap') {
     loadWorldMap();
   }
@@ -4113,6 +4243,12 @@ function applyServerUpdates(u) {
   if (u.hammer_turns_used !== undefined) state.hammer_turns_used = u.hammer_turns_used;
   if (u.tools_hammers     !== undefined) state.tools_hammers     = u.tools_hammers;
   if (u.tools_scaffolding !== undefined) state.tools_scaffolding = u.tools_scaffolding;
+  if (u.mercenaries          !== undefined) state.mercenaries          = u.mercenaries;
+  if (u.farm_upgrades        !== undefined) state.farm_upgrades        = u.farm_upgrades;
+  if (u.market_upgrades      !== undefined) state.market_upgrades      = u.market_upgrades;
+  if (u.tavern_upgrades      !== undefined) state.tavern_upgrades      = u.tavern_upgrades;
+  if (u.food_shortage_turns  !== undefined) state.food_shortage_turns  = u.food_shortage_turns;
+  if (u.food_surplus_turns   !== undefined) state.food_surplus_turns   = u.food_surplus_turns;
   if (u.racial_bonuses_unlocked !== undefined) {
     try { state.racial_bonuses_unlocked = typeof u.racial_bonuses_unlocked === 'string' ? JSON.parse(u.racial_bonuses_unlocked) : u.racial_bonuses_unlocked; } catch {}
   }
@@ -4494,7 +4630,268 @@ async function forgeScaffolding() {
   toast('🏗️ 1 scaffolding built', 'success');
 }
 
-// ── World Map ─────────────────────────────────────────────────────────────────
+// ── Economy Panel ─────────────────────────────────────────────────────────────
+
+var econData = {};
+
+var COMMODITY_VALUES = { food:2, gold:1, mana:4, weapons:6, armor:8, maps:50, scrolls:200, blueprints:150 };
+var COMMODITY_RACE_DISCOUNT = {
+  dwarf:    { weapons:0.85, armor:0.85 },
+  high_elf: { scrolls:0.80, mana:0.85 },
+  dark_elf: { _all:0.90 },
+  orc:      { food:1.20 },
+  dire_wolf:{ maps:0.80 },
+  human:    {},
+};
+var FARM_WORKERS_PER = { human:10, dwarf:8, high_elf:12, orc:15, dark_elf:10, dire_wolf:12 };
+
+var FARM_UPGRADES = {
+  irrigated:  { name:'Irrigated Farm', cost:500,   desc:'+30% yield', requires:null          },
+  granary:    { name:'Granary',        cost:2000,  desc:'Buffer up to 15 turns of food',  requires:null          },
+  plantation: { name:'Plantation',     cost:10000, desc:'+60% yield', requires:'irrigated'   },
+};
+var MARKET_UPGRADES = {
+  trading_post: { name:'Trading Post', cost:5000,  desc:'Unlocks player trading',       requires:null           },
+  bazaar:       { name:'Bazaar',       cost:50000, desc:'+50% market income',            requires:'trading_post' },
+  black_market: { name:'Black Market', cost:15000, desc:'-10% all prices (Dark Elf only)',requires:'trading_post'},
+};
+var TAVERN_UPGRADES = {
+  inn:        { name:'Inn',        cost:8000,  desc:'Unlocks Sellsword mercenaries', requires:null  },
+  guild_hall: { name:'Guild Hall', cost:30000, desc:'Unlocks Veteran & Elite mercs', requires:'inn' },
+};
+var MERC_TIERS = {
+  rabble:    { levelRange:'Lv 5–10',  costPer:50,   duration:10 },
+  sellsword: { levelRange:'Lv 15–25', costPer:150,  duration:20 },
+  veteran:   { levelRange:'Lv 30–45', costPer:400,  duration:30 },
+  elite:     { levelRange:'Lv 50–65', costPer:1000, duration:40 },
+};
+
+function showEconTab(id, btn) {
+  ['farms','markets','tavern'].forEach(function(t){ document.getElementById('etab-'+t).style.display='none'; });
+  document.querySelectorAll('#economy .admin-tab').forEach(function(b){ b.classList.remove('active'); });
+  document.getElementById('etab-'+id).style.display='block';
+  if (btn) btn.classList.add('active');
+  if (id === 'markets') loadTradeOffers();
+}
+
+async function loadEconomy() {
+  var data = await apiCall('GET', '/api/kingdom/economy/overview');
+  if (data.error) return toast(data.error, 'error');
+  econData = data;
+
+  // Farms
+  var el = function(id){ return document.getElementById(id); };
+  if (el('econ-farms'))        el('econ-farms').textContent        = fmt(state.bld_farms||0);
+  if (el('econ-worked-farms')) el('econ-worked-farms').textContent = fmt(data.workedFarms||0);
+  if (el('econ-production'))   el('econ-production').textContent   = '+' + fmt(data.farmProduction||0);
+  if (el('econ-consumption'))  el('econ-consumption').textContent  = '-' + fmt(data.foodConsumption||0);
+  var bal = (data.farmProduction||0) - (data.foodConsumption||0);
+  if (el('econ-balance')) {
+    el('econ-balance').textContent = (bal >= 0 ? '+' : '') + fmt(bal);
+    el('econ-balance').style.color = bal >= 0 ? 'var(--green)' : 'var(--red)';
+  }
+  if (el('econ-shortage')) el('econ-shortage').textContent = data.food_shortage_turns || 0;
+  var wpf = FARM_WORKERS_PER[state.race] || 10;
+  if (el('econ-workers-per-farm')) el('econ-workers-per-farm').textContent = wpf;
+
+  // Markets
+  if (el('econ-markets'))        el('econ-markets').textContent       = fmt(state.bld_markets||0);
+  if (el('econ-market-income'))  el('econ-market-income').textContent = fmt(data.marketIncome||0) + ' GC';
+  if (el('econ-trade-routes'))   el('econ-trade-routes').textContent  = fmt(Math.min(state.maps||0, state.bld_markets||0));
+  var tradeLocked = !(data.market_upgrades||{}).trading_post;
+  if (el('econ-trade-unlocked')) { el('econ-trade-unlocked').textContent = tradeLocked ? 'No' : 'Yes'; el('econ-trade-unlocked').style.color = tradeLocked ? 'var(--red)' : 'var(--green)'; }
+  if (el('trade-locked-msg')) el('trade-locked-msg').style.display = tradeLocked ? 'block' : 'none';
+  if (el('trade-panel'))       el('trade-panel').style.display      = tradeLocked ? 'none'  : 'block';
+
+  // Taverns
+  if (el('econ-taverns'))       el('econ-taverns').textContent       = fmt(state.bld_taverns||0);
+  if (el('econ-entertainment')) el('econ-entertainment').textContent = '+' + fmt(data.tavernBonus||0) + '/turn';
+
+  renderUpgrades('farm',   FARM_UPGRADES,   data.farm_upgrades||{},   'farm-upgrade-list');
+  renderUpgrades('market', MARKET_UPGRADES, data.market_upgrades||{}, 'market-upgrade-list');
+  renderUpgrades('tavern', TAVERN_UPGRADES, data.tavern_upgrades||{}, 'tavern-upgrade-list');
+  renderCommodityMarket(data.market_upgrades||{});
+  renderActiveMercs(data.mercenaries||[]);
+  populateTradeTargets();
+}
+
+function renderUpgrades(category, defs, owned, containerId) {
+  var el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerHTML = Object.entries(defs).map(function(e) {
+    var key = e[0]; var def = e[1];
+    var have      = !!owned[key];
+    var hasReq    = !def.requires || !!owned[def.requires];
+    var raceOk    = !def.raceOnly || state.race === def.raceOnly;
+    var canBuy    = !have && hasReq && raceOk && (state.gold||0) >= def.cost;
+    var statusBadge = have
+      ? '<span style="color:var(--green);font-size:11px">✅ Owned</span>'
+      : (!hasReq ? '<span style="color:var(--text3);font-size:11px">🔒 Need ' + (def.requires||'').replace(/_/g,' ') + '</span>'
+      : (!raceOk ? '<span style="color:var(--text3);font-size:11px">🔒 Race locked</span>' : ''));
+    return '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">'
+      + '<div style="flex:1"><div style="font-size:13px;color:var(--text);font-weight:600">' + def.name + '</div>'
+      + '<div style="font-size:11px;color:var(--text3)">' + def.desc + ' · ' + fmt(def.cost) + ' GC</div></div>'
+      + statusBadge
+      + (!have && hasReq && raceOk ? '<button class="btn btn-gold" style="font-size:11px;padding:3px 10px;' + (!canBuy?'opacity:.5':'') + '" onclick="buyUpgrade(\'' + category + '\',\'' + key + '\')" ' + (!canBuy?'disabled':'') + '>Buy</button>' : '')
+      + '</div>';
+  }).join('');
+}
+
+async function buyUpgrade(category, key) {
+  var result = await apiCall('POST', '/api/kingdom/economy/upgrade', { category, upgradeKey: key });
+  if (result.error) return toast(result.error, 'error');
+  state.gold = (state.gold||0) - (result.updates?.gold !== undefined ? (state.gold - result.updates.gold) : 0);
+  if (result.updates) applyServerUpdates(result.updates);
+  syncUI();
+  toast('Upgrade purchased!', 'success');
+  loadEconomy();
+}
+
+function renderCommodityMarket(mktUpgrades) {
+  var el = document.getElementById('commodity-list');
+  if (!el) return;
+  var race    = state.race || 'human';
+  var racDisc = COMMODITY_RACE_DISCOUNT[race] || {};
+  var items   = ['food','weapons','armor','mana','maps','blueprints'];
+  el.innerHTML = '<div style="display:grid;grid-template-columns:1fr 60px 60px;gap:4px;padding:4px 0;border-bottom:1px solid var(--border2)">'
+    + '<span style="font-size:10px;color:var(--text3);text-transform:uppercase">Item</span>'
+    + '<span style="font-size:10px;color:var(--text3);text-transform:uppercase;text-align:right">Base</span>'
+    + '<span style="font-size:10px;color:var(--text3);text-transform:uppercase;text-align:right">Your price</span>'
+    + '</div>'
+    + items.map(function(item) {
+      var base = COMMODITY_VALUES[item] || 1;
+      var disc = racDisc[item] || racDisc._all || 1.0;
+      var yours = Math.max(1, Math.round(base * disc));
+      var diff  = yours < base ? '<span style="color:var(--green)">↓</span>' : yours > base ? '<span style="color:var(--red)">↑</span>' : '';
+      return '<div style="display:grid;grid-template-columns:1fr 60px 60px;gap:4px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">'
+        + '<span style="font-size:13px;color:var(--text)">' + item.charAt(0).toUpperCase()+item.slice(1) + '</span>'
+        + '<span style="font-size:13px;text-align:right;color:var(--text3)">' + base + ' GC</span>'
+        + '<span style="font-size:13px;text-align:right;color:var(--gold);font-weight:600">' + yours + ' GC ' + diff + '</span>'
+        + '</div>';
+    }).join('');
+}
+
+function renderActiveMercs(mercs) {
+  var el = document.getElementById('active-mercs-list');
+  if (!el) return;
+  if (!mercs || !mercs.length) {
+    el.innerHTML = '<div style="color:var(--text3);font-size:13px;text-align:center;padding:12px">No mercenaries under contract.</div>';
+    return;
+  }
+  el.innerHTML = mercs.map(function(m, i) {
+    var served   = (state.turn||0) - (m.hired_at_turn||0);
+    var remaining = Math.max(0, m.duration_turns - served);
+    return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">'
+      + '<div style="flex:1"><div style="font-size:13px;color:var(--text);font-weight:600">'
+      + m.count + ' ' + m.tier + ' ' + m.unit_type + ' (Lv ' + m.level + ')</div>'
+      + '<div style="font-size:11px;color:var(--text3)">' + remaining + ' turns remaining · ' + fmt(m.upkeep_per_turn) + ' GC/turn upkeep</div></div>'
+      + '<button class="btn btn-red" style="font-size:11px;padding:3px 8px" onclick="dismissMerc(' + i + ')">Dismiss</button>'
+      + '</div>';
+  }).join('');
+}
+
+function updateMercPreview() {
+  var tier  = document.getElementById('merc-tier')?.value || 'rabble';
+  var count = parseInt(document.getElementById('merc-count')?.value) || 1;
+  var def   = MERC_TIERS[tier] || MERC_TIERS.rabble;
+  var cost  = def.costPer * count;
+  var el    = document.getElementById('merc-preview');
+  if (el) el.textContent = fmt(cost) + ' GC · ' + def.duration + ' turns';
+}
+
+async function hireMercs() {
+  var unit  = document.getElementById('merc-unit')?.value;
+  var tier  = document.getElementById('merc-tier')?.value;
+  var count = parseInt(document.getElementById('merc-count')?.value) || 1;
+  var result = await apiCall('POST', '/api/kingdom/economy/hire-mercs', { unitType:unit, tier, count });
+  if (result.error) return toast(result.error, 'error');
+  applyServerUpdates(result.updates);
+  syncUI();
+  toast('Hired ' + count + ' ' + tier + ' ' + unit + ' (Lv ' + result.hired.level + ')', 'success');
+  loadEconomy();
+}
+
+async function dismissMerc(index) {
+  var result = await apiCall('POST', '/api/kingdom/economy/dismiss-mercs', { mercIndex: index });
+  if (result.error) return toast(result.error, 'error');
+  toast('Mercenaries dismissed', 'success');
+  loadEconomy();
+}
+
+function populateTradeTargets() {
+  var sel = document.getElementById('trade-target-select');
+  if (!sel || !targets || !targets.length) return;
+  sel.innerHTML = '<option value="">— select kingdom —</option>'
+    + targets.map(function(t) { return '<option value="' + t.id + '">' + escHtml(t.name) + ' · ' + fmt(t.land) + ' acres</option>'; }).join('');
+}
+
+async function sendTradeOffer() {
+  var targetId = document.getElementById('trade-target-select')?.value;
+  if (!targetId) return toast('Select a target kingdom', 'error');
+  var offerItem   = document.getElementById('trade-offer-item')?.value;
+  var offerQty    = parseInt(document.getElementById('trade-offer-qty')?.value) || 0;
+  var requestItem = document.getElementById('trade-request-item')?.value;
+  var requestQty  = parseInt(document.getElementById('trade-request-qty')?.value) || 0;
+  if (offerQty <= 0 || requestQty <= 0) return toast('Enter quantities', 'error');
+  var result = await apiCall('POST', '/api/kingdom/economy/trade/send', {
+    targetId, offer:{ [offerItem]:offerQty }, request:{ [requestItem]:requestQty }
+  });
+  if (result.error) return toast(result.error, 'error');
+  toast('Trade offer sent!', 'success');
+  loadTradeOffers();
+}
+
+async function loadTradeOffers() {
+  var result = await apiCall('GET', '/api/kingdom/economy/trade/list');
+  if (result.error) return;
+  renderTradeOffers(result.received || [], result.sent || []);
+}
+
+function renderTradeOffers(received, sent) {
+  var recEl = document.getElementById('trade-received-list');
+  var sntEl = document.getElementById('trade-sent-list');
+  if (recEl) {
+    recEl.innerHTML = received.length ? received.map(function(o) {
+      var offer   = JSON.parse(o.offer||'{}');
+      var request = JSON.parse(o.request||'{}');
+      var offerStr   = Object.entries(offer).map(function(e){ return e[1]+' '+e[0]; }).join(', ');
+      var requestStr = Object.entries(request).map(function(e){ return e[1]+' '+e[0]; }).join(', ');
+      return '<div style="background:var(--bg3);border-radius:var(--radius);padding:10px;margin-bottom:8px">'
+        + '<div style="font-size:13px;color:var(--text);margin-bottom:4px"><strong>' + escHtml(o.sender_name) + '</strong> offers <span style="color:var(--green)">' + offerStr + '</span> for <span style="color:var(--amber)">' + requestStr + '</span></div>'
+        + '<div style="display:flex;gap:6px;margin-top:6px">'
+        + '<button class="btn btn-green" style="font-size:11px;padding:3px 10px" onclick="acceptTrade(' + o.id + ')">✅ Accept</button>'
+        + '<button class="btn btn-red"   style="font-size:11px;padding:3px 10px" onclick="declineTrade(' + o.id + ')">❌ Decline</button>'
+        + '</div></div>';
+    }).join('') : '<div style="color:var(--text3);font-size:13px">No pending offers.</div>';
+  }
+  if (sntEl) {
+    sntEl.innerHTML = sent.length ? sent.map(function(o) {
+      var offer   = JSON.parse(o.offer||'{}');
+      var request = JSON.parse(o.request||'{}');
+      var offerStr   = Object.entries(offer).map(function(e){ return e[1]+' '+e[0]; }).join(', ');
+      var requestStr = Object.entries(request).map(function(e){ return e[1]+' '+e[0]; }).join(', ');
+      return '<div style="font-size:12px;color:var(--text3);padding:4px 0;border-bottom:1px solid var(--border)">'
+        + 'To <strong style="color:var(--text)">' + escHtml(o.receiver_name) + '</strong>: ' + offerStr + ' for ' + requestStr
+        + ' <span style="color:' + (o.status==='accepted'?'var(--green)':o.status==='declined'?'var(--red)':'var(--amber)') + '">[' + o.status + ']</span></div>';
+    }).join('') : '<div style="color:var(--text3);font-size:13px">No sent offers.</div>';
+  }
+}
+
+async function acceptTrade(offerId) {
+  var result = await apiCall('POST', '/api/kingdom/economy/trade/accept', { offerId });
+  if (result.error) return toast(result.error, 'error');
+  applyServerUpdates(result.kUpdates);
+  syncUI();
+  toast('Trade accepted!', 'success');
+  loadTradeOffers();
+}
+
+async function declineTrade(offerId) {
+  var result = await apiCall('POST', '/api/kingdom/economy/trade/decline', { offerId });
+  if (result.error) return toast(result.error, 'error');
+  toast('Trade declined', 'success');
+  loadTradeOffers();
+}
 
 var REGION_META = {
   dwarf:     { name:'The Iron Holds',    color:'#8B6914', stroke:'#c8962a', icon:'⛏️',  x:150, y:200, w:200, h:180 },

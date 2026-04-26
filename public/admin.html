@@ -328,6 +328,28 @@ textarea{width:100%;resize:vertical;min-height:60px}
       <div class="cl-item">✅ Rankings panel with win probability, direct action buttons, 👤 profile button, 🛡️ protection badges</div>
       <div class="cl-item">✅ News panel with type filters (All / Combat / Spells / Covert / System) and icons</div>
 
+      <div class="cl-section">Economy System</div>
+      <div class="cl-item">✅ New 💰 Economy panel — three tabs: 🌾 Farms · 🏪 Markets · 🍺 Tavern</div>
+      <div class="cl-item">✅ Farms — population automatically works farms (race-specific workers per farm: Human 10, Dwarf 8, High Elf 12, Orc 15, Dark Elf 10, Dire Wolf 12). Unworked farms produce nothing.</div>
+      <div class="cl-item">✅ Farm yield race modifiers — High Elf ×1.15, Human ×1.00, Dark Elf ×0.95, Dwarf ×0.90, Orc ×0.85, Dire Wolf ×0.80</div>
+      <div class="cl-item">✅ Food consumption race modifiers — High Elf ×0.80 (lightest), Dwarf ×0.85, Dark Elf ×0.95, Human ×1.00, Orc ×1.35, Dire Wolf ×1.40 (heaviest)</div>
+      <div class="cl-item">✅ Farm upgrades (instant gold) — Irrigated Farm +30% yield (500 GC), Granary buffers up to 15 turns surplus (2,000 GC), Plantation +60% yield requires Irrigated (10,000 GC)</div>
+      <div class="cl-item">✅ Food shortage consequences — 2 turns grace → morale −5/turn → population −500/turn → fighter desertion −2%/turn</div>
+      <div class="cl-item">✅ Food surplus streak — 5+ turns surplus gives +2 morale/turn bonus</div>
+      <div class="cl-item">✅ Markets — 5 free population per market to operate. Trade routes: 1 per map held (up to market count), each adds passive gold income</div>
+      <div class="cl-item">✅ Market income race modifiers — Dwarf ×1.25, High Elf ×1.10, Dark Elf ×1.05, Human ×1.00, Orc ×0.85, Dire Wolf ×0.75</div>
+      <div class="cl-item">✅ Market upgrades — Trading Post unlocks player trading (5,000 GC), Bazaar +50% income (50,000 GC), Black Market −10% all prices Dark Elf only (15,000 GC)</div>
+      <div class="cl-item">✅ goldPerTurn now includes market income from new system (trade routes + worked markets × race modifier)</div>
+      <div class="cl-item">✅ Commodity market — base prices with race discount display (Dwarf −15% weapons/armor, High Elf −20% scrolls, Dark Elf −10% all, Orc +20% food, Dire Wolf −20% maps)</div>
+      <div class="cl-item">✅ Player-to-player trading — send offers specifying item+qty, receiver accepts/declines from economy panel. Both sides validated before exchange. Requires Trading Post.</div>
+      <div class="cl-item">✅ Trade offers table — persists in DB, expires after 1 hour, sent/received lists in panel</div>
+      <div class="cl-item">✅ Taverns — passive entertainment research bonus each turn. Inn and Guild Hall upgrades.</div>
+      <div class="cl-item">✅ Mercenary board — four tiers: Rabble Lv 5–10 (50 GC/10 turns), Sellsword Lv 15–25 (150 GC/20 turns), Veteran Lv 30–45 (400 GC/30 turns), Elite Lv 50–65 (1,000 GC/40 turns)</div>
+      <div class="cl-item">✅ Mercenaries — fixed level, never advance, don't use weapon/armor stockpile, count toward anti-bully ratios, leave on contract expiry or non-payment</div>
+      <div class="cl-item">✅ Mercenary upkeep collected automatically each turn — non-payment causes immediate departure</div>
+      <div class="cl-item">✅ New DB tables: trade_offers, mercenaries</div>
+      <div class="cl-item">✅ New DB columns: farm_upgrades, market_upgrades, tavern_upgrades, food_shortage_turns, food_surplus_turns, mercenaries</div>
+
       <div class="cl-section">Admin</div>
       <div class="cl-item">✅ Three-tab layout — ⚙️ Manage · 🏰 Kingdoms · 📋 Changelog</div>
       <div class="cl-item">✅ Full kingdom edit modal — live data from server</div>
@@ -359,12 +381,18 @@ textarea{width:100%;resize:vertical;min-height:60px}
         <div class="cl-item wish">⬜ Alliance war — alliances can declare war on each other</div>
         <div class="cl-item wish">⬜ Siege mechanics — castle walls reduce land capture percentage</div>
         <div class="cl-item wish">⬜ Battle replay — animated step-by-step battle report</div>
-        <div class="cl-item wish">⬜ Mercenary hiring — temporary troops available for gold at market</div>
+
+        <div class="cl-section">Economy</div>
+        <div class="cl-item wish">⬜ Variable commodity prices — server-wide supply and demand shifts prices ±30% hourly</div>
+        <div class="cl-item wish">⬜ Trade route raiding — Orc kingdoms can raid other kingdoms' trade routes for gold</div>
+        <div class="cl-item wish">⬜ Diplomacy — non-aggression pacts, formal trade agreements, tribute</div>
+        <div class="cl-item wish">⬜ Prestige economy — prestige kingdoms get permanent market bonuses</div>
 
         <div class="cl-section">Social</div>
         <div class="cl-item wish">⬜ Alliance rankings — leaderboard for combined alliance land</div>
-        <div class="cl-item wish">⬜ Trade system — send gold or resources between kingdoms</div>
-        <div class="cl-item wish">⬜ Messaging — direct kingdom-to-kingdom messages</div>
+        <div class="cl-item wish">⬜ Kingdom descriptions — players can write a lore bio shown on profile</div>
+        <div class="cl-item wish">⬜ Bounty board — players place gold bounties on other kingdoms</div>
+        <div class="cl-item wish">⬜ Direct messaging — kingdom-to-kingdom private messages</div>
 
         <div class="cl-section">World</div>
         <div class="cl-item wish">⬜ Named regions — map territories that kingdoms can contest and capture</div>
