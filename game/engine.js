@@ -1263,7 +1263,7 @@ const BUILDING_COST = {
   farms: 2500, barracks: 5000, outposts: 7500, guard_towers: 2500,
   schools: 7500, armories: 2500, vaults: 10000, smithies: 10000,
   markets: 10000, cathedrals: 15000, shrines: 5000, training: 20000, colosseums: 5000,
-  castles: 100000, libraries: 10000, housing: 5000, walls: 500,
+  castles: 100000, libraries: 10000, housing: 5000, walls: 500, taverns: 3000,
   war_machine: 200, weapons: 10, armor: 10,
 };
 
@@ -1273,7 +1273,7 @@ const BUILDING_COL = {
   vaults: 'bld_vaults', smithies: 'bld_smithies', markets: 'bld_markets',
   cathedrals: 'bld_cathedrals', shrines: 'bld_shrines', training: 'bld_training',
   colosseums: 'bld_colosseums', castles: 'bld_castles', libraries: 'bld_libraries',
-  housing: 'bld_housing', walls: 'bld_walls',
+  housing: 'bld_housing', walls: 'bld_walls', taverns: 'bld_taverns',
   war_machine: 'war_machines', weapons: 'weapons_stockpile', armor: 'armor_stockpile',
 };
 
@@ -1281,7 +1281,7 @@ const BUILDING_GOLD_COST = {
   farms: 50, barracks: 200, outposts: 150, guard_towers: 150,
   schools: 500, armories: 400, vaults: 400, smithies: 800,
   markets: 2000, cathedrals: 3000, shrines: 1000, training: 10000, colosseums: 1500,
-  castles: 25000, libraries: 2000, housing: 500, walls: 300,
+  castles: 25000, libraries: 2000, housing: 500, walls: 300, taverns: 1000,
   war_machine: 5000, weapons: 100, armor: 150,
 };
 
