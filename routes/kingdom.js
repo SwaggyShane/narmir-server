@@ -76,12 +76,27 @@ module.exports = function(db) {
     updates.turns_stored = (k.turns_stored || 0) - 1;
 
     // Apply kingdom updates in a transaction
+    // Dedup racial bonus news — only insert if we haven't already sent this message
+    const racialMsgSnippets = ['reached mastery','Dwarven war machines','High Elf scrolls','Orcish war culture','Dark Elf assassinations','Dire Wolf expeditions','Human healing aura'];
+    const filteredEvents = [];
+    for (const ev of events) {
+      const isRacialMsg = racialMsgSnippets.some(s => ev.message && ev.message.includes(s));
+      if (isRacialMsg) {
+        const existing = await db.get(
+          'SELECT id FROM news WHERE kingdom_id = ? AND message = ? LIMIT 1',
+          [k.id, ev.message]
+        );
+        if (existing) continue; // already sent — skip
+      }
+      filteredEvents.push(ev);
+    }
+
     await db.run('BEGIN');
     try {
       await applyUpdates(db, k.id, updates);
       const turnNum = updates.turn || k.turn || 0;
-      if (events.length > 0) {
-        await bulkInsertNews(db, events.map(ev => ({
+      if (filteredEvents.length > 0) {
+        await bulkInsertNews(db, filteredEvents.map(ev => ({
           kingdom_id: k.id, type: ev.type || 'system',
           message: ev.message, turn_num: turnNum,
         })));
@@ -799,7 +814,159 @@ module.exports = function(db) {
     res.json({ ok: true, updates });
   });
 
-  // ── Public kingdom profile — no auth required ─────────────────────────────────
+  // ── Economy — purchase upgrade ────────────────────────────────────────────────
+  router.post('/economy/upgrade', requireAuth, async (req, res) => {
+    const { category, upgradeKey } = req.body;
+    const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
+    if (!k) return res.status(404).json({ error: 'Kingdom not found' });
+    const result = engine.purchaseUpgrade(k, category, upgradeKey);
+    if (result.error) return res.status(400).json({ error: result.error });
+    await applyUpdates(db, k.id, result.updates);
+    const def = (engine.FARM_UPGRADES[upgradeKey] || engine.MARKET_UPGRADES[upgradeKey] || engine.TAVERN_UPGRADES[upgradeKey]);
+    await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)',
+      [k.id, 'system', `✅ ${def?.name || upgradeKey} purchased.`, k.turn]);
+    res.json({ ok: true, updates: result.updates });
+  });
+
+  // ── Hire mercenaries ──────────────────────────────────────────────────────────
+  router.post('/economy/hire-mercs', requireAuth, async (req, res) => {
+    const { unitType, tier, count } = req.body;
+    const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
+    if (!k) return res.status(404).json({ error: 'Kingdom not found' });
+    const result = engine.hireMercenaries(k, unitType, tier, parseInt(count)||1);
+    if (result.error) return res.status(400).json({ error: result.error });
+    await applyUpdates(db, k.id, result.updates);
+    await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)',
+      [k.id, 'system', `⚔️ Hired ${result.hired.count} ${result.hired.tier} ${result.hired.unitType} (Lv ${result.hired.level}) for ${result.hired.cost.toLocaleString()} gold. Contract: ${result.hired.duration} turns.`, k.turn]);
+    res.json({ ok: true, hired: result.hired, updates: result.updates });
+  });
+
+  // ── Dismiss mercenaries ───────────────────────────────────────────────────────
+  router.post('/economy/dismiss-mercs', requireAuth, async (req, res) => {
+    const { mercIndex } = req.body;
+    const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
+    if (!k) return res.status(404).json({ error: 'Kingdom not found' });
+    let mercs = [];
+    try { mercs = JSON.parse(k.mercenaries || '[]'); } catch {}
+    const idx = parseInt(mercIndex);
+    if (idx < 0 || idx >= mercs.length) return res.status(400).json({ error: 'Invalid mercenary index' });
+    const m = mercs[idx];
+    mercs.splice(idx, 1);
+    const newCount = Math.max(0, (k[m.unit_type]||0) - m.count);
+    await db.run(`UPDATE kingdoms SET mercenaries = ?, ${m.unit_type} = ? WHERE id = ?`,
+      [JSON.stringify(mercs), newCount, k.id]);
+    res.json({ ok: true, dismissed: m });
+  });
+
+  // ── Send trade offer ──────────────────────────────────────────────────────────
+  router.post('/economy/trade/send', requireAuth, async (req, res) => {
+    const { targetId, offer, request } = req.body;
+    const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
+    if (!k) return res.status(404).json({ error: 'Kingdom not found' });
+    // Check trading post
+    let mktUpgrades = {};
+    try { mktUpgrades = JSON.parse(k.market_upgrades||'{}'); } catch {}
+    if (!mktUpgrades.trading_post) return res.status(400).json({ error: 'Build a Trading Post to trade with other kingdoms' });
+    if (!targetId || !offer || !request) return res.status(400).json({ error: 'Missing trade parameters' });
+    const target = await db.get('SELECT id, name FROM kingdoms WHERE id = ?', [targetId]);
+    if (!target) return res.status(404).json({ error: 'Target kingdom not found' });
+    // Validate sender has the offered goods
+    const offerObj  = typeof offer   === 'string' ? JSON.parse(offer)   : offer;
+    const requestObj = typeof request === 'string' ? JSON.parse(request) : request;
+    for (const [item, qty] of Object.entries(offerObj)) {
+      const col = item === 'food' ? 'food' : item === 'gold' ? 'gold' : item === 'mana' ? 'mana' : item === 'maps' ? 'maps' : item === 'blueprints' ? 'blueprints_stored' : null;
+      if (col && (k[col]||0) < qty) return res.status(400).json({ error: `Not enough ${item}` });
+    }
+    await db.run(
+      `INSERT INTO trade_offers (sender_id, sender_name, receiver_id, receiver_name, offer, request, expires_at) VALUES (?,?,?,?,?,?,?)`,
+      [k.id, k.name, target.id, target.name, JSON.stringify(offerObj), JSON.stringify(requestObj), Math.floor(Date.now()/1000)+3600]
+    );
+    await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)',
+      [target.id, 'system', `📦 Trade offer from ${k.name} — check your Economy panel to accept or decline.`, k.turn]);
+    res.json({ ok: true });
+  });
+
+  // ── Get trade offers ──────────────────────────────────────────────────────────
+  router.get('/economy/trade/list', requireAuth, async (req, res) => {
+    const k = await db.get('SELECT id FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
+    if (!k) return res.status(404).json({ error: 'Kingdom not found' });
+    const now = Math.floor(Date.now()/1000);
+    await db.run('UPDATE trade_offers SET status = ? WHERE expires_at < ? AND status = ?', ['expired', now, 'pending']);
+    const sent     = await db.all('SELECT * FROM trade_offers WHERE sender_id   = ? ORDER BY created_at DESC LIMIT 20', [k.id]);
+    const received = await db.all('SELECT * FROM trade_offers WHERE receiver_id = ? AND status = ? ORDER BY created_at DESC LIMIT 20', [k.id, 'pending']);
+    res.json({ sent, received });
+  });
+
+  // ── Accept trade offer ────────────────────────────────────────────────────────
+  router.post('/economy/trade/accept', requireAuth, async (req, res) => {
+    const { offerId } = req.body;
+    const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
+    if (!k) return res.status(404).json({ error: 'Kingdom not found' });
+    const offer = await db.get('SELECT * FROM trade_offers WHERE id = ? AND receiver_id = ? AND status = ?', [offerId, k.id, 'pending']);
+    if (!offer) return res.status(404).json({ error: 'Offer not found or already resolved' });
+    const sender  = await db.get('SELECT * FROM kingdoms WHERE id = ?', [offer.sender_id]);
+    if (!sender) return res.status(404).json({ error: 'Sender not found' });
+
+    const offerItems   = JSON.parse(offer.offer);    // what sender gives
+    const requestItems = JSON.parse(offer.request);  // what receiver gives
+
+    const ITEM_COL = { gold:'gold', food:'food', mana:'mana', maps:'maps', blueprints:'blueprints_stored', weapons:'weapons_stockpile', armor:'armor_stockpile' };
+
+    // Validate both sides still have the goods
+    for (const [item, qty] of Object.entries(requestItems)) {
+      const col = ITEM_COL[item];
+      if (col && (k[col]||0) < qty) return res.status(400).json({ error: `You don't have enough ${item}` });
+    }
+    for (const [item, qty] of Object.entries(offerItems)) {
+      const col = ITEM_COL[item];
+      if (col && (sender[col]||0) < qty) return res.status(400).json({ error: `Sender no longer has enough ${item}` });
+    }
+
+    // Apply exchange
+    const kUpdates = {}, sUpdates = {};
+    for (const [item, qty] of Object.entries(offerItems))   { const c=ITEM_COL[item]; if(c){ kUpdates[c]=(kUpdates[c]!==undefined?kUpdates[c]:(k[c]||0))+qty;      sUpdates[c]=(sUpdates[c]!==undefined?sUpdates[c]:(sender[c]||0))-qty; } }
+    for (const [item, qty] of Object.entries(requestItems)) { const c=ITEM_COL[item]; if(c){ kUpdates[c]=(kUpdates[c]!==undefined?kUpdates[c]:(k[c]||0))-qty; sUpdates[c]=(sUpdates[c]!==undefined?sUpdates[c]:(sender[c]||0))+qty; } }
+
+    await applyUpdates(db, k.id,      kUpdates);
+    await applyUpdates(db, sender.id, sUpdates);
+    await db.run('UPDATE trade_offers SET status = ? WHERE id = ?', ['accepted', offer.id]);
+    await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)',
+      [sender.id, 'system', `✅ ${k.name} accepted your trade offer.`, sender.turn]);
+    res.json({ ok: true, kUpdates, sUpdates });
+  });
+
+  // ── Decline trade offer ───────────────────────────────────────────────────────
+  router.post('/economy/trade/decline', requireAuth, async (req, res) => {
+    const { offerId } = req.body;
+    const k = await db.get('SELECT id FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
+    if (!k) return res.status(404).json({ error: 'Kingdom not found' });
+    const offer = await db.get('SELECT * FROM trade_offers WHERE id = ? AND receiver_id = ?', [offerId, k.id]);
+    if (!offer) return res.status(404).json({ error: 'Offer not found' });
+    await db.run('UPDATE trade_offers SET status = ? WHERE id = ?', ['declined', offer.id]);
+    await db.run('INSERT INTO news (kingdom_id, type, message, turn_num) VALUES (?,?,?,?)',
+      [offer.sender_id, 'system', `❌ ${k.name} declined your trade offer.`, 0]);
+    res.json({ ok: true });
+  });
+
+  // ── Economy overview ──────────────────────────────────────────────────────────
+  router.get('/economy/overview', requireAuth, async (req, res) => {
+    const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
+    if (!k) return res.status(404).json({ error: 'Kingdom not found' });
+    res.json({
+      farmProduction:  engine.farmProduction(k),
+      foodConsumption: engine.foodConsumption(k),
+      foodBalance:     engine.farmProduction(k) - engine.foodConsumption(k),
+      marketIncome:    engine.marketIncomeFull(k),
+      tavernBonus:     engine.tavernEntertainmentBonus(k),
+      workedFarms:     Math.min(k.bld_farms||0, Math.floor(Math.max(0,(k.population||0)-((k.fighters||0)+(k.rangers||0)+(k.clerics||0)+(k.mages||0)+(k.thieves||0)+(k.ninjas||0)+(k.researchers||0)+(k.engineers||0)+(k.scribes||0))) / (engine.FARM_WORKERS_PER?.[k.race]||10))),
+      farm_upgrades:   JSON.parse(k.farm_upgrades||'{}'),
+      market_upgrades: JSON.parse(k.market_upgrades||'{}'),
+      tavern_upgrades: JSON.parse(k.tavern_upgrades||'{}'),
+      mercenaries:     JSON.parse(k.mercenaries||'[]'),
+      food_shortage_turns: k.food_shortage_turns || 0,
+      food_surplus_turns:  k.food_surplus_turns  || 0,
+    });
+  });
   router.get('/profile/:name', async (req, res) => {
     try {
       const k = await db.get(`
@@ -870,6 +1037,8 @@ async function applyUpdates(db, kingdomId, updates) {
     'bld_mage_towers','bld_shrines','bld_housing','bld_taverns',
     'tools_hammers','tools_scaffolding','tools_blueprints','blueprints_stored',
     'hammer_turns_used','smithy_allocation','racial_bonuses_unlocked',
+    'farm_upgrades','market_upgrades','tavern_upgrades',
+    'food_shortage_turns','food_surplus_turns','mercenaries',
     'maps','scrolls','active_effects',
     'xp','level','troop_levels',
     'tax','tax_rate',
