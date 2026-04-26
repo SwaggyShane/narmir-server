@@ -408,7 +408,7 @@
       <div class="metric">
         <div class="lbl">Food</div>
         <div class="val" id="m-food">0</div>
-        <div class="sub">200 farms</div>
+        <div class="sub"><span id="m-farms">0</span> farms · <span id="m-food-balance" style="font-weight:600">+0</span>/turn</div>
       </div>
     </div>
     </div><!-- end kd-top -->
@@ -3302,6 +3302,22 @@ function syncUI() {
   }
   var foodEl = document.getElementById('m-food');
   if (foodEl) foodEl.textContent = trunc(state.food || 0);
+  var farmsEl = document.getElementById('m-farms');
+  if (farmsEl) farmsEl.textContent = fmt(state.bld_farms || 0);
+  var fbEl = document.getElementById('m-food-balance');
+  if (fbEl) {
+    var FARM_WORKERS_PER = { human:10, dwarf:8, high_elf:12, orc:15, dark_elf:10, dire_wolf:12 };
+    var FARM_YIELD_MULT  = { human:1.00, dwarf:0.90, high_elf:1.15, orc:0.85, dark_elf:0.95, dire_wolf:0.80 };
+    var FOOD_CONS_MULT   = { human:1.00, dwarf:0.85, high_elf:0.80, orc:1.35, dark_elf:0.95, dire_wolf:1.40 };
+    var race     = state.race || 'human';
+    var freePop  = Math.max(0, (state.population||0) - ((state.fighters||0)+(state.rangers||0)+(state.clerics||0)+(state.mages||0)+(state.thieves||0)+(state.ninjas||0)+(state.researchers||0)+(state.engineers||0)+(state.scribes||0)));
+    var worked   = Math.min(state.bld_farms||0, Math.floor(freePop/(FARM_WORKERS_PER[race]||10)));
+    var prod     = Math.floor(worked * 10 * (FARM_YIELD_MULT[race]||1.0));
+    var cons     = Math.floor(((state.fighters||0)+(state.rangers||0)+(state.clerics||0)+(state.mages||0)+(state.thieves||0)+(state.ninjas||0)+(state.researchers||0)+(state.engineers||0)+(state.scribes||0) + Math.floor((state.population||0)/100)) * (FOOD_CONS_MULT[race]||1.0));
+    var bal      = prod - cons;
+    fbEl.textContent = (bal >= 0 ? '+' : '') + trunc(bal);
+    fbEl.style.color = bal >= 0 ? 'var(--green)' : 'var(--red)';
+  }
   document.getElementById('hire-pop').textContent = fmt(state.pop || 0);
   // Barracks and school capacity
   var barracksCap = (state.bld_barracks || 0) * 500;
@@ -3507,6 +3523,7 @@ function updateTurnsDisplay() {
   <button class="bnav-item" onclick="switchTabMobile('school',this)"><span class="bicon">📚</span>School</button>
   <button class="bnav-item" onclick="switchTabMobile('shrine',this)"><span class="bicon">⛩️</span>Shrine</button>
   <button class="bnav-item" onclick="switchTabMobile('build',this)"><span class="bicon">🔨</span>Build</button>
+  <button class="bnav-item" onclick="switchTabMobile('economy',this)"><span class="bicon">💰</span>Economy</button>
   <button class="bnav-item" onclick="switchTabMobile('training',this)"><span class="bicon">🛡️</span>Train</button>
   <button class="bnav-item" onclick="switchTabMobile('exploration',this)"><span class="bicon">🧭</span>Explore</button>
   <button class="bnav-item" onclick="switchTabMobile('library',this)"><span class="bicon">📖</span>Library</button>
@@ -3995,18 +4012,49 @@ function renderWarLog(rows) {
     var win     = r.outcome === 'victory' || r.outcome === 'success';
     var caught  = r.outcome === 'caught';
 
-    // Covert: hide attacker name if successful, show if caught
-    var atkDisplay = (isCovert && win) ? '<span style="color:var(--text3)">Unknown</span>' : '<span style="color:var(--red)">' + (r.attacker_name || '?') + '</span>';
-    var defDisplay = '<span style="color:var(--text2)">' + (r.defender_name || '?') + '</span>';
+    // Covert: hide attacker if successful (obscured), show if caught or is attack
+    var atkDisplay = (isCovert && win && r.obscured !== 0)
+      ? '<span style="color:var(--text3)">Unknown</span>'
+      : '<span style="color:var(--red)">' + escHtml(r.attacker_name || '?') + '</span>';
+    var defDisplay = '<span style="color:var(--text2)">' + escHtml(r.defender_name || '?') + '</span>';
 
     var outcomeColor = win ? 'var(--green)' : caught ? 'var(--amber)' : 'var(--text3)';
     var outcomeLabel = win ? (r.action_type === 'attack' ? 'Victory' : 'Success') : caught ? 'Caught' : 'Repelled';
 
-    // Highlight row if we're involved
+    // Parse detail JSON into readable sentence
+    var detailHtml = '';
+    if (r.detail) {
+      try {
+        var d = typeof r.detail === 'string' ? JSON.parse(r.detail) : r.detail;
+        var parts = [];
+        if (r.action_type === 'attack') {
+          if (d.landTaken > 0)   parts.push('+' + fmt(d.landTaken) + ' land captured');
+          if (d.atkLost  > 0)    parts.push(fmt(d.atkLost)  + ' attackers lost');
+          if (d.defLost  > 0)    parts.push(fmt(d.defLost)  + ' defenders lost');
+          if (d.ninjaKills  > 0) parts.push(fmt(d.ninjaKills) + ' killed by ninjas');
+          if (d.rangerKills > 0) parts.push(fmt(d.rangerKills) + ' killed by volley');
+        } else if (r.action_type === 'assassinate') {
+          if (d.killed && d.unit) parts.push(fmt(d.killed) + ' ' + d.unit + ' assassinated');
+        } else if (r.action_type === 'loot') {
+          if (d.stolen && d.type) parts.push(fmt(d.stolen) + ' ' + d.type + ' stolen');
+        } else {
+          // Fallback: any numeric fields
+          Object.entries(d).forEach(function(e) {
+            if (typeof e[1] === 'number') parts.push(e[0].replace(/_/g,' ') + ': ' + fmt(e[1]));
+          });
+        }
+        if (parts.length) detailHtml = '<div style="font-size:12px;color:var(--text3);margin-top:2px">' + parts.join(' · ') + '</div>';
+      } catch(e) {
+        // If it's already a plain string just show it
+        if (typeof r.detail === 'string' && !r.detail.startsWith('{')) {
+          detailHtml = '<div style="font-size:12px;color:var(--text3);margin-top:2px">' + escHtml(r.detail) + '</div>';
+        }
+      }
+    }
+
     var myId = state.kingdomId;
     var isMe = r.attacker_id === myId || r.defender_id === myId;
     var rowBg = isMe ? 'background:rgba(124,106,245,.06);' : '';
-
     var ago = timeAgo(r.created_at);
 
     html += '<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);' + rowBg + '">'
@@ -4016,7 +4064,7 @@ function renderWarLog(rows) {
       + atkDisplay + ' <span style="color:var(--text3)">→</span> ' + defDisplay
       + ' <span style="color:var(--text3);font-size:12px">· ' + label + '</span>'
       + '</div>'
-      + (r.detail ? '<div style="font-size:12px;color:var(--text3);margin-top:2px">' + r.detail + '</div>' : '')
+      + detailHtml
       + '</div>'
       + '<div style="text-align:right;flex-shrink:0">'
       + '<div style="font-size:12px;font-weight:600;color:' + outcomeColor + '">' + outcomeLabel + '</div>'
