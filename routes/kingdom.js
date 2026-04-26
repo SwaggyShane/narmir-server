@@ -814,7 +814,53 @@ module.exports = function(db) {
     res.json({ ok: true, updates });
   });
 
-  // ── Economy — purchase upgrade ────────────────────────────────────────────────
+  // ── Set research focus ────────────────────────────────────────────────────────
+  router.post('/research-focus', requireAuth, async (req, res) => {
+    const { focus } = req.body; // array of 1-2 discipline keys
+    const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
+    if (!k) return res.status(404).json({ error: 'Kingdom not found' });
+    let schoolUpgrades = {};
+    try { schoolUpgrades = JSON.parse(k.school_upgrades||'{}'); } catch {}
+    const maxSlots = schoolUpgrades.repository ? 2 : 1;
+    const validKeys = ['economy','weapons','armor','military','attack_magic','defense_magic','entertainment','construction','war_machines','spellbook'];
+    const cleaned = (Array.isArray(focus) ? focus : [focus]).filter(f => validKeys.includes(f)).slice(0, maxSlots);
+    if (!cleaned.length) return res.status(400).json({ error: 'Invalid discipline' });
+    await db.run('UPDATE kingdoms SET research_focus = ? WHERE id = ?', [JSON.stringify(cleaned), k.id]);
+    res.json({ ok: true, research_focus: cleaned });
+  });
+
+  // ── Studies overview ──────────────────────────────────────────────────────────
+  router.get('/studies/overview', requireAuth, async (req, res) => {
+    const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
+    if (!k) return res.status(404).json({ error: 'Kingdom not found' });
+    let focus = [];
+    try { focus = JSON.parse(k.research_focus||'[]'); } catch {}
+    if (!focus.length) {
+      const disciplines = [
+        { key:'economy', col:'res_economy' },{ key:'weapons', col:'res_weapons' },{ key:'armor', col:'res_armor' },
+        { key:'military', col:'res_military' },{ key:'attack_magic', col:'res_attack_magic' },
+        { key:'defense_magic', col:'res_defense_magic' },{ key:'entertainment', col:'res_entertainment' },
+        { key:'construction', col:'res_construction' },{ key:'war_machines', col:'res_war_machines' },
+        { key:'spellbook', col:'res_spellbook' },
+      ];
+      focus = [disciplines.reduce((b,d)=>(k[d.col]||0)>=(k[b.col]||0)?d:b, disciplines[0]).key];
+    }
+    res.json({
+      tower_upgrades:   JSON.parse(k.tower_upgrades||'{}'),
+      school_upgrades:  JSON.parse(k.school_upgrades||'{}'),
+      shrine_upgrades:  JSON.parse(k.shrine_upgrades||'{}'),
+      library_upgrades: JSON.parse(k.library_upgrades||'{}'),
+      research_focus:   focus,
+      divine_sanctuary_used: k.divine_sanctuary_used || 0,
+      mana_per_turn:    engine.manaPerTurn(k),
+      scribes:          k.scribes || 0,
+      researchers:      k.researchers || 0,
+      bld_libraries:    k.bld_libraries || 0,
+      bld_shrines:      k.bld_shrines || 0,
+      bld_cathedrals:   k.bld_cathedrals || 0,
+      bld_schools:      k.bld_schools || 0,
+    });
+  });
   router.post('/economy/upgrade', requireAuth, async (req, res) => {
     const { category, upgradeKey } = req.body;
     const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
@@ -1037,6 +1083,8 @@ async function applyUpdates(db, kingdomId, updates) {
     'bld_mage_towers','bld_shrines','bld_housing','bld_taverns',
     'tools_hammers','tools_scaffolding','tools_blueprints','blueprints_stored',
     'hammer_turns_used','smithy_allocation','racial_bonuses_unlocked',
+    'tower_upgrades','school_upgrades','shrine_upgrades','library_upgrades',
+    'research_focus','divine_sanctuary_used',
     'farm_upgrades','market_upgrades','tavern_upgrades',
     'food_shortage_turns','food_surplus_turns','mercenaries',
     'maps','scrolls','active_effects',
