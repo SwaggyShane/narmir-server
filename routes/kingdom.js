@@ -138,7 +138,7 @@ module.exports = function(db) {
   router.post('/turn', requireAuth, async (req, res) => {
     const k = await db.get('SELECT * FROM kingdoms WHERE player_id = ?', [req.player.playerId]);
     if (!k) return res.status(404).json({ error: 'Kingdom not found' });
-    if (k.turns_stored < 1) return res.status(429).json({ error: 'No turns available — next 5 turns in 15 minutes' });
+    if (k.turns_stored < 1) return res.status(429).json({ error: 'No turns available — next +7 turns in 25 minutes' });
     try {
       const { updates, events } = await runTurn(db, k);
       res.json({ ok: true, updates, events, turns_stored: updates.turns_stored });
@@ -417,13 +417,9 @@ module.exports = function(db) {
     if (target.id === k.id) return res.status(400).json({ error: 'Cannot attack yourself' });
     if ((target.turn || 0) < 200) return res.status(400).json({ error: `${target.name} is under newbie protection until Turn 200` });
 
-    // Location system — must have mapped this kingdom
+    // Location system — must have mapped this kingdom (warn but don't block during transition)
     let attackerDisc = {};
     try { attackerDisc = JSON.parse(k.discovered_kingdoms||'{}'); } catch {}
-    if (!attackerDisc[targetId]?.mapped) {
-      return res.status(400).json({ error: `You don't have a location map for ${target.name}. Discover their location and commission scribes to map it.` });
-    }
-
     // Defender auto-stores attacker's location on being attacked
     let defDisc = {};
     try { defDisc = JSON.parse(target.discovered_kingdoms||'{}'); } catch {}
