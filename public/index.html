@@ -2397,12 +2397,14 @@
 <script>
 /* ── Core state (defined first so all functions below can access it) ── */
 var state = {
+  loaded: false,
   gold: 10000, pop: 50000, land: 500, morale: 100, tax: 42, turn: 0, mana: 5000, food: 0,
   fighters:0, rangers:0, clerics:0, mages:0,
   thieves:0, ninjas:0, researchers:500, engineers:0, scribes:0,
   bld_libraries:0, library_allocation:{}, library_progress:{}, scrolls:{},
   maps:0, blueprints_stored:0, hammer_turns_used:0, smithy_allocation:{}, active_effects:{},
-  bld_shrines:0, mage_tower_allocation:{}, shrine_allocation:{}, bld_housing:100
+  bld_shrines:0, mage_tower_allocation:{}, shrine_allocation:{}, bld_housing:100,
+  level:1, xp:0, race:'human', kingdomId:null, kingdomName:'', turns_stored:0
 };
 
 function fmt(n) { return Math.round(n).toLocaleString(); }
